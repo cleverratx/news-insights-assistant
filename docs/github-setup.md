@@ -4,7 +4,7 @@
 
 ## 1. Репозиторий
 
-- Имя: `alfa-news-insights`, видимость приватная до сдачи.
+- Имя: `news-insights-assistant`, видимость приватная до сдачи.
 - Ветка по умолчанию: `main`.
 - Settings → General → Pull Requests: оставить только **Allow squash merging**, снять **Allow merge commits** и **Allow rebase merging**. Включить **Automatically delete head branches**.
 - Settings → General → Features: включить Issues, выключить Wiki и Projects, если не используем.
