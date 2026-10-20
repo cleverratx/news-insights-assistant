@@ -138,10 +138,26 @@ class ForeignTrade(Contract):
     countries: list[Text] = Field(default_factory=list)
 
 
+class RelatedCompany(Contract):
+    """Компания, связанная с клиентом через группу или общее физлицо."""
+
+    company_id: Id
+    relation: Literal["group", "shared_person"]
+    okved_name: Text | None = None
+    segment: Id | None = Field(default=None, description="Сегмент рынка из справочника ОКВЭД")
+    region: Text | None = None
+    revenue_rub: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+
+
 class CompanyGroup(Contract):
     group_id: Id
     companies_count: int = Field(ge=1)
-    industries: list[Text] = Field(default_factory=list)
+    industries: list[Text] = Field(
+        default_factory=list, description="Сегменты рынка компаний группы, от частых к редким"
+    )
+    members: list[RelatedCompany] = Field(
+        default_factory=list, description="Крупнейшие по выручке компании группы, кроме клиента"
+    )
 
 
 class Counterparty(Contract):
@@ -150,9 +166,10 @@ class Counterparty(Contract):
         description="incoming — компания получает деньги от контрагента, outgoing — платит ему"
     )
     amount_rub: float = Field(ge=0, allow_inf_nan=False)
-    payments_count: int = Field(ge=0)
+    payments_count: int | None = Field(default=None, ge=0)
     share: Score | None = Field(default=None, description="Доля в платежах этого направления")
     okved_name: Text | None = None
+    segment: Id | None = Field(default=None, description="Сегмент рынка из справочника ОКВЭД")
     region: Text | None = None
 
 
@@ -194,6 +211,12 @@ class CompanyProfile(Contract):
     group: CompanyGroup | None = None
     counterparties: list[Counterparty] = Field(default_factory=list)
     linked_persons_count: int = Field(default=0, ge=0)
+    person_regions: list[Text] = Field(
+        default_factory=list, description="Регионы связанных физлиц (RC_NAME), без повторов"
+    )
+    related_companies: list[RelatedCompany] = Field(
+        default_factory=list, description="Компании, связанные через общих физлиц"
+    )
     has_key_owner_mark: bool | None = Field(default=None, description="NEGATIVEMARK")
     market_position: MarketPosition | None = None
     features: list[ProfileFeature] = Field(min_length=1)

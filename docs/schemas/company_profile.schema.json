@@ -39,11 +39,20 @@
           "type": "integer"
         },
         "industries": {
+          "description": "Сегменты рынка компаний группы, от частых к редким",
           "items": {
             "minLength": 1,
             "type": "string"
           },
           "title": "Industries",
+          "type": "array"
+        },
+        "members": {
+          "description": "Крупнейшие по выручке компании группы, кроме клиента",
+          "items": {
+            "$ref": "#/$defs/RelatedCompany"
+          },
+          "title": "Members",
           "type": "array"
         }
       },
@@ -78,9 +87,17 @@
           "type": "number"
         },
         "payments_count": {
-          "minimum": 0,
-          "title": "Payments Count",
-          "type": "integer"
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Payments Count"
         },
         "share": {
           "anyOf": [
@@ -110,6 +127,21 @@
           "default": null,
           "title": "Okved Name"
         },
+        "segment": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сегмент рынка из справочника ОКВЭД",
+          "title": "Segment"
+        },
         "region": {
           "anyOf": [
             {
@@ -127,8 +159,7 @@
       "required": [
         "company_id",
         "direction",
-        "amount_rub",
-        "payments_count"
+        "amount_rub"
       ],
       "title": "Counterparty",
       "type": "object"
@@ -501,6 +532,86 @@
       "title": "ProfileFeature",
       "type": "object"
     },
+    "RelatedCompany": {
+      "additionalProperties": false,
+      "description": "Компания, связанная с клиентом через группу или общее физлицо.",
+      "properties": {
+        "company_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Company Id",
+          "type": "string"
+        },
+        "relation": {
+          "enum": [
+            "group",
+            "shared_person"
+          ],
+          "title": "Relation",
+          "type": "string"
+        },
+        "okved_name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Okved Name"
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сегмент рынка из справочника ОКВЭД",
+          "title": "Segment"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "revenue_rub": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revenue Rub"
+        }
+      },
+      "required": [
+        "company_id",
+        "relation"
+      ],
+      "title": "RelatedCompany",
+      "type": "object"
+    },
     "Scale": {
       "additionalProperties": false,
       "properties": {
@@ -715,6 +826,23 @@
       "minimum": 0,
       "title": "Linked Persons Count",
       "type": "integer"
+    },
+    "person_regions": {
+      "description": "Регионы связанных физлиц (RC_NAME), без повторов",
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Person Regions",
+      "type": "array"
+    },
+    "related_companies": {
+      "description": "Компании, связанные через общих физлиц",
+      "items": {
+        "$ref": "#/$defs/RelatedCompany"
+      },
+      "title": "Related Companies",
+      "type": "array"
     },
     "has_key_owner_mark": {
       "anyOf": [
