@@ -1,12 +1,39 @@
-from fastapi.testclient import TestClient
+import pytest
+from httpx import ASGITransport, AsyncClient
 
-from app.main import app
+from app.core.config import Settings, get_settings
+from app.main import create_app
 
-client = TestClient(app)
 
+@pytest.mark.parametrize("path", ["/health", "/api/health"])
+async def test_health_returns_configured_environment(path: str) -> None:
+    app = create_app()
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, app_env="ci")
 
-def test_health_returns_ok() -> None:
-    response = client.get("/api/health")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(path)
 
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    assert response.json() == {"status": "ok", "env": "ci"}
+
+
+async def test_openapi_exposes_typed_health_response() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=create_app()), base_url="http://test"
+    ) as client:
+        response = await client.get("/api/openapi.json")
+
+    assert response.status_code == 200
+    schema = response.json()
+    assert "/health" not in schema["paths"]
+    health = schema["paths"]["/api/health"]["get"]
+    assert health["responses"]["200"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/HealthResponse"
+    }
+
+
+async def test_docs_available() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=create_app()), base_url="http://test"
+    ) as client:
+        assert (await client.get("/api/docs")).status_code == 200

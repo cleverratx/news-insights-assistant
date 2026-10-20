@@ -32,6 +32,18 @@ uv sync --frozen --group dev
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
+Конфигурация читается из `.env` в корне репозитория независимо от рабочей директории.
+Переменные окружения имеют приоритет над `.env`; некорректные значения `APP_ENV`,
+`APP_PORT` и `LOG_LEVEL` останавливают запуск с ошибкой валидации.
+`APP_PORT` и `LOG_LEVEL` доступны в настройках приложения; для запуска Uvicorn через CLI
+порт и уровень логирования задаются его флагами `--port` и `--log-level`.
+
+Проверка API: `curl http://localhost:8000/health` или `curl http://localhost:8000/api/health`.
+Ответ: `{"status":"ok","env":"local"}`. Это проверка живости API без подключения
+к PostgreSQL, Redis и LLM. Swagger UI — `/api/docs`, OpenAPI — `/api/openapi.json`.
+HTTP-маршруты подключаются в `app/api/router.py`, приложение создаётся в
+`app/main.py` через `create_app()`.
+
 Фронтенд:
 
 ```
