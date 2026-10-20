@@ -32,6 +32,7 @@
   },
   "scale": {
     "revenue_rub": 18200000000,
+    "size_category": "largest",
     "employees_band": "16-100",
     "age_band": "8-15",
     "lifecycle_stage": "Оптимизация",
