@@ -1,0 +1,67 @@
+{
+  "as_of_date": "2026-10-20",
+  "source": "https://openrouter.ai/api/v1/models",
+  "currency": "USD",
+  "applies_to": "OpenRouter public catalogue; organizer gateway tariffs unconfirmed",
+  "models": [
+    {
+      "provider_id": "deepseek/deepseek-v4.1-flash",
+      "input_usd_per_million": "0.02832",
+      "output_usd_per_million": "0.12",
+      "pricing_per_token": {
+        "prompt": "0.00000002832",
+        "completion": "0.00000012",
+        "input_cache_read": "0.000000000566"
+      }
+    },
+    {
+      "provider_id": "z-ai/glm-5.3-flash",
+      "input_usd_per_million": "0.048",
+      "output_usd_per_million": "0.12",
+      "pricing_per_token": {
+        "prompt": "0.000000048",
+        "completion": "0.00000012",
+        "input_cache_read": "0.000000006"
+      }
+    },
+    {
+      "provider_id": "qwen/qwen3.6-35b-a3b",
+      "input_usd_per_million": "0.1",
+      "output_usd_per_million": "0.95",
+      "pricing_per_token": {
+        "prompt": "0.0000001",
+        "completion": "0.00000095",
+        "input_cache_read": "0.00000005"
+      }
+    },
+    {
+      "provider_id": "moonshotai/kimi-k2.6",
+      "input_usd_per_million": "0.65",
+      "output_usd_per_million": "3.41",
+      "pricing_per_token": {
+        "prompt": "0.00000065",
+        "completion": "0.00000341",
+        "input_cache_read": "0.00000015"
+      }
+    },
+    {
+      "provider_id": "google/gemma-4-26b-a4b-it",
+      "input_usd_per_million": "0.0765",
+      "output_usd_per_million": "0.255",
+      "pricing_per_token": {
+        "prompt": "0.0000000765",
+        "completion": "0.000000255",
+        "input_cache_read": "0.0000000425"
+      }
+    },
+    {
+      "provider_id": "qwen/qwen3-vl-30b-a3b-instruct",
+      "input_usd_per_million": "0.15",
+      "output_usd_per_million": "0.6",
+      "pricing_per_token": {
+        "prompt": "0.00000015",
+        "completion": "0.0000006"
+      }
+    }
+  ]
+}

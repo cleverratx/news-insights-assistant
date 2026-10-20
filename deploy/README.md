@@ -59,10 +59,17 @@ nginx получает только адрес API; браузер исполь�
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | инициализация PostgreSQL, только для Compose |
 | `DATABASE_URL` | SQLAlchemy DSN; в Compose хост `postgres` |
 | `REDIS_URL` | DSN Redis; в Compose хост `redis` |
-| `LLM_BASE_URL`, `LLM_API_KEY` | адрес провайдера и ключ; до A1-07 могут быть пустыми |
-| `LLM_MODEL_FAST`, `LLM_MODEL_SMART` | идентификаторы разрешённых моделей у провайдера |
-| `LLM_DAILY_BUDGET_RUB` | положительный дневной бюджет; учёт расхода реализуется в A1-07 |
+| `LLM_BASE_URL`, `LLM_API_KEY` | адрес провайдера и ключ; могут быть пустыми для запуска каркаса без LLM |
+| `LLM_MODEL_FAST`, `LLM_MODEL_SMART` | внутренние имена разрешённых моделей из `AllowedModel` |
+| `LLM_MODELS` | JSON: соответствие внутренних имён ID провайдера, лимитам входных токенов и тарифам в рублях |
+| `LLM_PRICING_MODE` | `public_estimate` использует снимок публичных USD-тарифов; `explicit` требует записей в `LLM_MODELS` |
+| `LLM_ESTIMATE_USD_RUB` | расчётный курс оценки, по умолчанию 100 ₽/$; не рыночная котировка |
+| `LLM_ESTIMATE_SAFETY_MULTIPLIER` | коэффициент запаса для оценки и резервирования, по умолчанию 2 |
+| `LLM_DAILY_BUDGET_RUB` | дневной бюджет от 0 до 500 ₽, исключая 0; общий для API и worker через Redis |
 | `LLM_REQUEST_TIMEOUT_SECONDS` | положительный таймаут вызова LLM |
+| `LLM_MAX_RETRIES`, `LLM_RETRY_BASE_SECONDS` | число повторов и начальная задержка backoff |
+| `LLM_MAX_OUTPUT_TOKENS`, `LLM_MAX_INPUT_BYTES` | лимит генерации и размера сообщений |
+| `LLM_BUDGET_TIMEZONE` | по умолчанию `UTC`: сброс суток в 03:00 МСК согласно инструкции организаторов |
 | `NEWS_SOURCES_FILE` | путь к будущей конфигурации источников |
 | `NEWS_FETCH_INTERVAL_MINUTES`, `NEWS_USER_AGENT` | период сбора и User-Agent будущего парсера |
 | `DATA_DIR` | каталог данных; `/app/data` в Compose |
