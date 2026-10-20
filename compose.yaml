@@ -1,0 +1,116 @@
+name: alfa-news-insights
+
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: deploy/backend.Dockerfile
+  environment:
+    APP_ENV: ${APP_ENV:-local}
+    APP_PORT: ${APP_PORT:-8000}
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://alfa:change-me@postgres:5432/alfa}
+    REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    LLM_BASE_URL: ${LLM_BASE_URL:-}
+    LLM_API_KEY: ${LLM_API_KEY:-}
+    LLM_MODEL_FAST: ${LLM_MODEL_FAST:-}
+    LLM_MODEL_SMART: ${LLM_MODEL_SMART:-}
+    LLM_DAILY_BUDGET_RUB: ${LLM_DAILY_BUDGET_RUB:-500}
+    LLM_REQUEST_TIMEOUT_SECONDS: ${LLM_REQUEST_TIMEOUT_SECONDS:-60}
+    NEWS_SOURCES_FILE: ${NEWS_SOURCES_FILE:-config/sources.yaml}
+    NEWS_FETCH_INTERVAL_MINUTES: ${NEWS_FETCH_INTERVAL_MINUTES:-30}
+    NEWS_USER_AGENT: ${NEWS_USER_AGENT:-alfa-news-insights/0.1}
+    DATA_DIR: ${DATA_DIR:-/app/data}
+  restart: unless-stopped
+  init: true
+  volumes:
+    - ./data:/app/data:ro
+
+services:
+  api:
+    <<: *backend
+    command: ["python", "-m", "app"]
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:${APP_PORT:-8000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "from urllib.request import urlopen; from app.core.config import get_settings; urlopen(f'http://127.0.0.1:{get_settings().app_port}/health', timeout=3).close()"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  worker:
+    <<: *backend
+    command: ["arq", "app.worker.settings.WorkerSettings"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "arq", "app.worker.settings.WorkerSettings", "--check"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-alfa}
+      POSTGRES_USER: ${POSTGRES_USER:-alfa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Укажите POSTGRES_PASSWORD в .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
+    environment:
+      API_UPSTREAM: api:${APP_PORT:-8000}
+      NGINX_ENVSUBST_FILTER: API_UPSTREAM
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q -O /dev/null http://127.0.0.1/health && wget -q -O /dev/null http://127.0.0.1/api/health
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:

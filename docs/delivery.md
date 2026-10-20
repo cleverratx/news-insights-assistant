@@ -8,7 +8,7 @@
 | Доступ аккаунту `alfa-hack-2026` | сделано в Д1 | [github-setup.md](github-setup.md) |
 | Тег или commit hash финальной версии в заявке | Д7 | — |
 | README: что за решение, как запустить, что нужно для запуска | сделано в Д1, обновляется | [../README.md](../README.md) |
-| Единый воспроизводимый запуск (Docker) | Д1–Д2 | `deploy/`, `compose.yaml` |
+| Единый воспроизводимый запуск (Docker) | реализовано A1-05 | `deploy/`, `compose.yaml` |
 | Зафиксированные версии языка и зависимостей | сделано в Д1 | `backend/uv.lock`, `backend/.python-version`, `frontend/package-lock.json`, `frontend/.nvmrc` |
 | Перечень сторонних компонентов и лицензий | ведётся с Д1 | [../THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) |
 | Данные в репозитории только синтетические | правило с Д1 | [data.md](data.md), `.gitignore` |

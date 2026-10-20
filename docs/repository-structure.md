@@ -31,7 +31,9 @@
 ├── data/
 │   ├── samples/                синтетические строки для тестов и демо
 │   └── README.md
-├── deploy/                     Dockerfile, compose, конфиги стенда
+├── deploy/                     Dockerfile бэкенда и фронтенда, конфигурация nginx
+├── compose.yaml                единый запуск api, worker, postgres, redis, web
+├── .dockerignore               разрешённый контекст сборки без секретов и данных
 ├── docs/                       документация проекта
 │   └── decisions/              ADR
 ├── scripts/                    вспомогательные скрипты

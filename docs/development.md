@@ -13,14 +13,15 @@
 
 ## Запуск целиком
 
-Появится с задачей A1-05: `deploy/` с Dockerfile и `compose.yaml` на api, worker, postgres, redis и web. После неё запуск сведётся к двум командам:
+Из корня репозитория:
 
 ```
 cp .env.example .env
-docker compose up -d --build
+docker compose up -d --build --wait
 ```
 
-Пока запускаем по частям.
+Интерфейс — `http://localhost:8080`, Swagger — `http://localhost:8080/api/docs`.
+Сервисы, конфигурация и остановка описаны в [../deploy/README.md](../deploy/README.md).
 
 ## Запуск по частям
 
@@ -37,6 +38,9 @@ uv run uvicorn app.main:app --reload --port 8000
 `APP_PORT` и `LOG_LEVEL` останавливают запуск с ошибкой валидации.
 `APP_PORT` и `LOG_LEVEL` доступны в настройках приложения; для запуска Uvicorn через CLI
 порт и уровень логирования задаются его флагами `--port` и `--log-level`.
+Команда `uv run python -m app` применяет `APP_PORT` и `LOG_LEVEL` автоматически.
+При локальном запуске без Docker задайте `DATABASE_URL` и `REDIS_URL` с доступными
+с хоста адресами и `DATA_DIR=../data`: шаблон `.env.example` настроен для сети Compose.
 
 Проверка API: `curl http://localhost:8000/health` или `curl http://localhost:8000/api/health`.
 Ответ: `{"status":"ok","env":"local"}`. Это проверка живости API без подключения
@@ -80,4 +84,7 @@ npm run build
 
 ## Переменные окружения
 
-Любая новая переменная сразу появляется в `.env.example` с пустым или безопасным значением и в `app/core/config.py`. Реальные значения живут только в локальном `.env` и в секретах стенда — в репозиторий они не попадают никогда.
+Любая новая переменная приложения сразу появляется в `.env.example` с пустым или безопасным значением и в `app/core/config.py`. Реальные значения живут только в локальном `.env` и в секретах стенда — в репозиторий они не попадают никогда.
+Переменные `WEB_PORT` и `POSTGRES_*` управляют только контейнерами и описаны в
+[../deploy/README.md](../deploy/README.md). Ключ LLM и DSN хранятся в `Settings` как
+`SecretStr`; для передачи клиенту используйте `.get_secret_value()`, не выводя результат в логи.

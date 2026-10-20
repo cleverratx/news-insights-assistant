@@ -23,13 +23,14 @@ LLM — только из списка, разрешённого организ�
 ```
 cp .env.example .env
 
-cd backend && uv sync --frozen --group dev && uv run uvicorn app.main:app --reload --port 8000
-cd frontend && npm ci && npm run dev
+docker compose up -d --build --wait
 ```
 
-Интерфейс — на `localhost:5173`, API — на `localhost:8000/api`, схема — на `localhost:8000/api/docs`.
+Интерфейс — на `localhost:8080`, API — на `localhost:8080/api`, схема — на `localhost:8080/api/docs`.
+Без ключа LLM доступны каркас интерфейса и проверка живости API.
 
-Единый запуск одной командой (`docker compose up -d --build`) появится вместе с задачей A1-05 роадмапа — это требование кейса к формату сдачи. Команды линтеров и тестов — в [docs/development.md](docs/development.md).
+Состав сервисов, переменные окружения и команды управления — в [deploy/README.md](deploy/README.md).
+Локальный запуск без Docker и команды проверок — в [docs/development.md](docs/development.md).
 
 ## Документация
 
