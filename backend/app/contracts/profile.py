@@ -161,6 +161,24 @@ class DataQuality(Contract):
     warnings: list[Text] = Field(default_factory=list)
 
 
+class ExposureDirection(StrEnum):
+    RISK = "risk"
+    OPPORTUNITY = "opportunity"
+    MIXED = "mixed"
+
+
+class Exposure(Contract):
+    """Чем компании грозит или полезна тема новостей и из-за каких её признаков."""
+
+    topic: Topic
+    direction: ExposureDirection
+    reason: Text
+    feature_ids: list[Id] = Field(min_length=1, description="Ссылки на ProfileFeature.id")
+    keywords: list[Text] = Field(
+        default_factory=list, description="Термины для поиска новостей по этой теме у компании"
+    )
+
+
 class CompanyProfile(Contract):
     """Бизнес-контекст компании, собранный по выгрузкам кейса."""
 
@@ -179,9 +197,18 @@ class CompanyProfile(Contract):
     has_key_owner_mark: bool | None = Field(default=None, description="NEGATIVEMARK")
     market_position: MarketPosition | None = None
     features: list[ProfileFeature] = Field(min_length=1)
+    exposures: list[Exposure] = Field(default_factory=list)
     data_quality: DataQuality = Field(default_factory=DataQuality)
 
     @model_validator(mode="after")
     def unique_features(self) -> Self:
         require_unique((feature.id for feature in self.features), "признаков")
+        known = {feature.id for feature in self.features}
+        for exposure in self.exposures:
+            missing = [ref for ref in exposure.feature_ids if ref not in known]
+            if missing:
+                raise ValueError(
+                    f"Чувствительность к теме {exposure.topic} ссылается на неизвестные признаки: "
+                    + ", ".join(missing)
+                )
         return self
