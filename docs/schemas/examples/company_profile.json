@@ -92,7 +92,7 @@
       ]
     },
     {
-      "id": "feature:import",
+      "id": "feature:customs",
       "kind": "foreign_trade",
       "label": "Ведёт внешнеэкономическую деятельность: Китай, Турция",
       "value": "КИТАЙ, ТУРЦИЯ",
@@ -120,6 +120,32 @@
         "MAINOKVED_CODE"
       ],
       "derived": true
+    }
+  ],
+  "exposures": [
+    {
+      "topic": "key_rate",
+      "direction": "risk",
+      "reason": "Кредиты в банке: ставка определяет стоимость долга",
+      "feature_ids": [
+        "feature:loan"
+      ],
+      "keywords": [
+        "ключевая ставка",
+        "стоимость кредитов"
+      ]
+    },
+    {
+      "topic": "sanctions",
+      "direction": "risk",
+      "reason": "Вторичные санкции тормозят платежи партнёрам: Китай, Турция",
+      "feature_ids": [
+        "feature:customs"
+      ],
+      "keywords": [
+        "санкции",
+        "вторичные санкции"
+      ]
     }
   ],
   "data_quality": {

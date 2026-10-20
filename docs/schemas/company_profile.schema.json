@@ -156,6 +156,60 @@
       "title": "DataQuality",
       "type": "object"
     },
+    "Exposure": {
+      "additionalProperties": false,
+      "description": "Чем компании грозит или полезна тема новостей и из-за каких её признаков.",
+      "properties": {
+        "topic": {
+          "$ref": "#/$defs/Topic"
+        },
+        "direction": {
+          "$ref": "#/$defs/ExposureDirection"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "feature_ids": {
+          "description": "Ссылки на ProfileFeature.id",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Feature Ids",
+          "type": "array"
+        },
+        "keywords": {
+          "description": "Термины для поиска новостей по этой теме у компании",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Keywords",
+          "type": "array"
+        }
+      },
+      "required": [
+        "topic",
+        "direction",
+        "reason",
+        "feature_ids"
+      ],
+      "title": "Exposure",
+      "type": "object"
+    },
+    "ExposureDirection": {
+      "enum": [
+        "risk",
+        "opportunity",
+        "mixed"
+      ],
+      "title": "ExposureDirection",
+      "type": "string"
+    },
     "FeatureKind": {
       "enum": [
         "industry",
@@ -692,6 +746,13 @@
       },
       "minItems": 1,
       "title": "Features",
+      "type": "array"
+    },
+    "exposures": {
+      "items": {
+        "$ref": "#/$defs/Exposure"
+      },
+      "title": "Exposures",
       "type": "array"
     },
     "data_quality": {
