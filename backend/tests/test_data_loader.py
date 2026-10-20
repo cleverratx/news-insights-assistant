@@ -8,9 +8,10 @@ from uuid import uuid4
 import asyncpg
 import pytest
 
+from app.core.db import postgres_dsn
 from app.data import clean
 from app.data.clean import Cell, Issues
-from app.data.loader import COMPANY_FIELDS, postgres_dsn, read_case, store
+from app.data.loader import COMPANY_FIELDS, read_case, store
 from app.data.reader import CaseFileError, open_csv
 
 HEADER = ";".join(COMPANY_FIELDS.values())

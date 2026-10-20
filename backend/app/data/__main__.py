@@ -7,7 +7,8 @@ from pathlib import Path
 import asyncpg
 
 from app.core.config import get_settings
-from app.data.loader import CaseData, postgres_dsn, read_case, store
+from app.core.db import postgres_dsn
+from app.data.loader import CaseData, read_case, store
 from app.data.reader import CaseFileError
 
 COMPANIES_FILE = "df_Uid_data_hack.csv"

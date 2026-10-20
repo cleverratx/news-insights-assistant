@@ -333,7 +333,3 @@ async def store(connection: Any, data: CaseData) -> dict[str, object]:
             json.dumps(report, ensure_ascii=False, default=str),
         )
     return report
-
-
-def postgres_dsn(database_url: str) -> str:
-    return database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
