@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class AllowedModel(StrEnum):
@@ -64,6 +64,13 @@ class LLMResult(BaseModel):
 
 class CompletionMessage(BaseModel):
     content: str = Field(min_length=1, repr=False)
+
+    @field_validator("content")
+    @classmethod
+    def nonblank_content(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Пустой ответ LLM")
+        return value
 
 
 class Choice(BaseModel):

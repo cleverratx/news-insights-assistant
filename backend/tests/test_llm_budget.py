@@ -1,13 +1,14 @@
 import asyncio
 import os
 from collections.abc import AsyncIterator
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from app.llm.budget import RedisBudget, Reservation
+from app.llm.budget import MAX_ACCOUNTING_UNITS, RedisBudget, Reservation
 from app.llm.errors import BudgetExceededError, BudgetUnavailableError
 
 
@@ -66,8 +67,9 @@ async def test_repeated_settlement_does_not_double_charge(
     budget, redis = ledger
     reservation = await budget.reserve("2026-10-20", 100, 500)
     await budget.settle(reservation, 40)
+    await budget.settle(reservation, 40)
     with pytest.raises(BudgetUnavailableError):
-        await budget.settle(reservation, 40)
+        await budget.settle(reservation, 41)
     assert await redis.hget(f"{budget.namespace}:2026-10-20", "spent") == b"40"
     assert await redis.hget(f"{budget.namespace}:2026-10-20", "reserved") == b"0"
 
@@ -90,3 +92,78 @@ async def test_redis_errors_are_sanitized() -> None:
         await budget.reserve("2026-10-20", 1, 500)
     assert "test-only-redis-password" not in str(error.value)
     assert error.value.__suppress_context__
+
+
+async def test_replayed_reserve_does_not_leak_budget(ledger: tuple[RedisBudget, Redis]) -> None:
+    budget, redis = ledger
+    with patch("app.llm.budget.uuid4", return_value=uuid4()):
+        first = await budget.reserve("2026-10-20", 100, 500)
+        second = await budget.reserve("2026-10-20", 100, 500)
+    assert first == second
+    assert await redis.hget(f"{budget.namespace}:2026-10-20", "reserved") == b"100"
+    await budget.settle(first, 40)
+    assert await redis.hget(f"{budget.namespace}:2026-10-20", "reserved") == b"0"
+
+
+async def test_redis_command_replay_after_lost_reply(ledger: tuple[RedisBudget, Redis]) -> None:
+    budget, redis = ledger
+
+    class ReplayRedis:
+        async def execute_command(self, *args: str | int) -> object:
+            await redis.execute_command(*args)
+            return await redis.execute_command(*args)
+
+    replayed = RedisBudget(ReplayRedis(), budget.namespace)
+    reservation = await replayed.reserve("2026-10-20", 100, 500)
+    await replayed.settle(reservation, 40)
+    key = f"{budget.namespace}:2026-10-20"
+    assert await redis.hget(key, "reserved") == b"0"
+    assert await redis.hget(key, "spent") == b"40"
+
+
+async def test_conflicting_reserve_cannot_change_held_amount(
+    ledger: tuple[RedisBudget, Redis],
+) -> None:
+    budget, redis = ledger
+    with patch("app.llm.budget.uuid4", return_value=uuid4()):
+        reservation = await budget.reserve("2026-10-20", 100, 500)
+        with pytest.raises(BudgetUnavailableError):
+            await budget.reserve("2026-10-20", 200, 500)
+        await budget.settle(reservation, 40)
+        with pytest.raises(BudgetUnavailableError):
+            await budget.reserve("2026-10-20", 100, 500)
+    assert await redis.hget(f"{budget.namespace}:2026-10-20", "reserved") == b"0"
+
+
+@pytest.mark.parametrize("field,value", [("spent", "invalid"), ("reserved", "0")])
+async def test_corrupt_state_preserves_reservation(
+    ledger: tuple[RedisBudget, Redis], field: str, value: str
+) -> None:
+    budget, redis = ledger
+    reservation = await budget.reserve("2026-10-20", 100, 500)
+    key = f"{budget.namespace}:2026-10-20"
+    await redis.hset(key, field, value)
+    before = await redis.hgetall(key)
+    with pytest.raises(BudgetUnavailableError):
+        await budget.settle(reservation, 40)
+    assert await redis.hgetall(key) == before
+
+
+@pytest.mark.parametrize("amount,limit", [(-1, 500), (100, 0), (MAX_ACCOUNTING_UNITS + 1, 500)])
+async def test_invalid_amount_never_reaches_redis(amount: int, limit: int) -> None:
+    class NeverCalledRedis:
+        async def execute_command(self, *args: str | int) -> object:
+            pytest.fail("Некорректная сумма должна проверяться до Redis")
+
+    budget = RedisBudget(NeverCalledRedis())
+    with pytest.raises(ValueError):
+        await budget.reserve("2026-10-20", amount, limit)
+
+
+async def test_missing_reservation_does_not_create_ledger(
+    ledger: tuple[RedisBudget, Redis],
+) -> None:
+    budget, redis = ledger
+    with pytest.raises(BudgetUnavailableError):
+        await budget.settle(Reservation("2026-10-20", "missing", 100), 40)
+    assert not await redis.exists(f"{budget.namespace}:2026-10-20")

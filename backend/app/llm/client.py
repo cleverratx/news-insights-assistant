@@ -51,6 +51,7 @@ class LLMClient:
             raise LLMConfigurationError("Некорректный адрес API LLM") from None
         if (
             url.scheme not in {"http", "https"}
+            or (url.scheme == "http" and url.host not in {"localhost", "127.0.0.1", "::1"})
             or not url.host
             or url.userinfo
             or url.query

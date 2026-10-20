@@ -208,6 +208,31 @@ async def test_incomplete_response_is_charged_but_not_returned(settings: Setting
     assert budget.charges == [1400]
 
 
+@pytest.mark.parametrize("content", ["", " ", "\n\t "])
+async def test_blank_response_is_charged_but_not_returned(settings: Settings, content: str) -> None:
+    budget = RecordingBudget()
+    body = completion(choices=[{"message": {"content": content}, "finish_reason": "stop"}])
+    with pytest.raises(LLMProtocolError):
+        await run(settings, lambda _: httpx.Response(200, json=body), budget)
+    assert budget.charges == [1400]
+
+
+async def test_settlement_failure_does_not_retry_generation(settings: Settings) -> None:
+    class FailingSettlement(RecordingBudget):
+        async def settle(self, reservation: Reservation, actual: int) -> None:
+            raise BudgetUnavailableError("Ошибка учёта бюджета")
+
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json=completion())
+
+    with pytest.raises(BudgetUnavailableError):
+        await run(settings, handler, FailingSettlement())
+    assert len(requests) == 1
+
+
 async def test_unconfigured_model_prevents_request(settings: Settings) -> None:
     settings.llm_models = {}
     with pytest.raises(LLMConfigurationError):
@@ -312,7 +337,14 @@ async def test_invalid_json_keeps_reservation(settings: Settings) -> None:
 
 
 @pytest.mark.parametrize(
-    "url", ["", "ftp://llm.test", "https://user:secret@llm.test", "https://llm.test?key=secret"]
+    "url",
+    [
+        "",
+        "ftp://llm.test",
+        "http://remote.test/v1",
+        "https://user:secret@llm.test",
+        "https://llm.test?key=secret",
+    ],
 )
 async def test_unsafe_endpoint_is_rejected(settings: Settings, url: str) -> None:
     settings.llm_base_url = url
