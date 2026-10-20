@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "knowledge_base.schema.json",
+  "$defs": {
+    "FactCategory": {
+      "enum": [
+        "markets",
+        "products",
+        "seasonality",
+        "constraints",
+        "suppliers",
+        "customers",
+        "plans",
+        "other"
+      ],
+      "title": "FactCategory",
+      "type": "string"
+    },
+    "FactSource": {
+      "description": "Откуда факт. Клиент главнее данных банка, данные банка главнее вывода системы.",
+      "enum": [
+        "client",
+        "bank_data",
+        "system"
+      ],
+      "title": "FactSource",
+      "type": "string"
+    },
+    "FactStatus": {
+      "enum": [
+        "assumption",
+        "confirmed"
+      ],
+      "title": "FactStatus",
+      "type": "string"
+    },
+    "KnowledgeFact": {
+      "additionalProperties": false,
+      "description": "Одна версия факта о компании. Правка факта — новая версия с тем же id, а не перезапись.",
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "id": {
+          "description": "Идентификатор факта, общий для всех его версий",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "company_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Company Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "О чём факт, например markets.export_share. Факты с одним ключом конкурируют: в базе знаний остаётся один, по приоритету источника",
+          "title": "Key"
+        },
+        "category": {
+          "$ref": "#/$defs/FactCategory"
+        },
+        "text": {
+          "description": "Формулировка для человека",
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "source": {
+          "$ref": "#/$defs/FactSource"
+        },
+        "status": {
+          "$ref": "#/$defs/FactStatus",
+          "description": "assumption — выведено из данных и ждёт подтверждения, confirmed — подтверждено"
+        },
+        "evidence": {
+          "description": "На чём основан автоматический факт: ProfileFeature.id или поля выгрузки",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "deleted": {
+          "default": false,
+          "description": "Версия, которой факт удалён",
+          "title": "Deleted",
+          "type": "boolean"
+        },
+        "created_at": {
+          "description": "Когда создана эта версия",
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "company_id",
+        "version",
+        "category",
+        "text",
+        "source",
+        "status",
+        "created_at"
+      ],
+      "title": "KnowledgeFact",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Действующие факты о компании и те, что ими вытеснены.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "company_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Company Id",
+      "type": "string"
+    },
+    "facts": {
+      "items": {
+        "$ref": "#/$defs/KnowledgeFact"
+      },
+      "title": "Facts",
+      "type": "array"
+    },
+    "superseded": {
+      "description": "Факты с тем же ключом, уступившие по приоритету: видно, что исправил клиент",
+      "items": {
+        "$ref": "#/$defs/KnowledgeFact"
+      },
+      "title": "Superseded",
+      "type": "array"
+    }
+  },
+  "required": [
+    "company_id"
+  ],
+  "title": "KnowledgeBase",
+  "type": "object"
+}

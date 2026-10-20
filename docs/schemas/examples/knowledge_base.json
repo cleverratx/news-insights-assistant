@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "company_id": "U_DEMO_01",
+  "facts": [
+    {
+      "schema_version": "1.0",
+      "id": "fact:import",
+      "company_id": "U_DEMO_01",
+      "version": 2,
+      "key": "markets.import_share",
+      "category": "markets",
+      "text": "Около 70% закупок — импорт из Китая, оплата в юанях",
+      "value": 0.7,
+      "source": "client",
+      "status": "confirmed",
+      "evidence": [],
+      "deleted": false,
+      "created_at": "2026-10-21T12:00:00+03:00"
+    },
+    {
+      "schema_version": "1.0",
+      "id": "fact:season",
+      "company_id": "U_DEMO_01",
+      "version": 1,
+      "key": "seasonality.peak",
+      "category": "seasonality",
+      "text": "Пик продаж — декабрь: новогодний спрос на рыбу и морепродукты",
+      "source": "system",
+      "status": "assumption",
+      "evidence": ["feature:industry"],
+      "deleted": false,
+      "created_at": "2026-10-20T09:00:00+03:00"
+    }
+  ],
+  "superseded": [
+    {
+      "schema_version": "1.0",
+      "id": "fact:import-auto",
+      "company_id": "U_DEMO_01",
+      "version": 1,
+      "key": "markets.import_share",
+      "category": "markets",
+      "text": "Вероятно импортёр: торговая компания с ВЭД",
+      "value": "import",
+      "source": "bank_data",
+      "status": "assumption",
+      "evidence": ["feature:trade_direction"],
+      "deleted": false,
+      "created_at": "2026-10-20T09:00:00+03:00"
+    }
+  ]
+}
