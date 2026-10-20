@@ -71,7 +71,7 @@ def market_position(row: CompanyRow, peers: Peers) -> tuple[MarketPosition, Prof
         peer_count=peers.count,
         revenue_rank=peers.rank,
         revenue_percentile=round(percentile, 4),
-        peer_revenue_share=float(revenue / peers.total) if peers.total else 0.0,
+        peer_revenue_share=min(1.0, float(revenue / peers.total)) if peers.total else 0.0,
     )
     scope = (
         f"с ОКВЭД {row.okved_code}"
@@ -93,14 +93,18 @@ def industry_feature(row: CompanyRow) -> ProfileFeature | None:
     result = industry(row.okved_code, row.okved_name)
     if result.resolved_by is IndustryResolution.UNKNOWN:
         return None
-    code = f"ОКВЭД {result.okved_code}" if result.okved_code else "по названию вида деятельности"
+    by_code = result.resolved_by is IndustryResolution.CODE
+    basis = f"ОКВЭД {result.okved_code}" if by_code else "по названию вида деятельности"
+    used = (
+        ["okved_code", *(["okved_name"] if row.okved_name else [])] if by_code else ["okved_name"]
+    )
     return ProfileFeature(
         id="feature:industry",
         kind=FeatureKind.INDUSTRY,
-        label=f"Отрасль: {result.segment_name} ({code})",
+        label=f"Отрасль: {result.segment_name} ({basis})",
         value=result.segment,
-        source_fields=[source_field("okved_code"), source_field("okved_name")],
-        derived=result.resolved_by is IndustryResolution.NAME,
+        source_fields=[source_field(column) for column in used],
+        derived=not by_code,
     )
 
 
