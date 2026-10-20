@@ -463,6 +463,18 @@
           "default": null,
           "title": "Revenue Rub"
         },
+        "size_category": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SizeCategory"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "По выручке: до 120 млн — micro, до 800 млн — small, до 2 млрд — medium (пороги МСП), от 15 млрд — largest (порог кейса), между ними — large"
+        },
         "employees_band": {
           "anyOf": [
             {
@@ -504,16 +516,32 @@
           "title": "Lifecycle Stage"
         },
         "is_large_business": {
-          "description": "Выручка от 15 млрд рублей — порог из кейса",
-          "title": "Is Large Business",
-          "type": "boolean"
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Выручка от 15 млрд рублей — порог из кейса; пусто, если выручки нет",
+          "title": "Is Large Business"
         }
       },
-      "required": [
-        "is_large_business"
-      ],
       "title": "Scale",
       "type": "object"
+    },
+    "SizeCategory": {
+      "enum": [
+        "micro",
+        "small",
+        "medium",
+        "large",
+        "largest"
+      ],
+      "title": "SizeCategory",
+      "type": "string"
     },
     "Topic": {
       "enum": [
@@ -568,7 +596,15 @@
       "type": "string"
     },
     "client_type": {
-      "$ref": "#/$defs/ClientType"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ClientType"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "ownership": {
       "anyOf": [
@@ -664,7 +700,6 @@
   },
   "required": [
     "company_id",
-    "client_type",
     "industry",
     "scale",
     "location",

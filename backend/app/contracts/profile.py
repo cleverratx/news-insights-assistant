@@ -86,12 +86,30 @@ class Industry(Contract):
     )
 
 
+class SizeCategory(StrEnum):
+    MICRO = "micro"
+    SMALL = "small"
+    MEDIUM = "medium"
+    LARGE = "large"
+    LARGEST = "largest"
+
+
 class Scale(Contract):
     revenue_rub: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    size_category: SizeCategory | None = Field(
+        default=None,
+        description=(
+            "По выручке: до 120 млн — micro, до 800 млн — small, до 2 млрд — medium "
+            "(пороги МСП), от 15 млрд — largest (порог кейса), между ними — large"
+        ),
+    )
     employees_band: Text | None = None
     age_band: Text | None = None
     lifecycle_stage: Text | None = Field(default=None, description="ECO_MARK_LABEL")
-    is_large_business: bool = Field(description="Выручка от 15 млрд рублей — порог из кейса")
+    is_large_business: bool | None = Field(
+        default=None,
+        description="Выручка от 15 млрд рублей — порог из кейса; пусто, если выручки нет",
+    )
 
 
 class Location(Contract):
@@ -148,7 +166,7 @@ class CompanyProfile(Contract):
 
     schema_version: Literal["1.0"] = SCHEMA_VERSION
     company_id: Id = Field(description="SYNTHETIC_U")
-    client_type: ClientType
+    client_type: ClientType | None = None
     ownership: Text | None = None
     industry: Industry
     scale: Scale
