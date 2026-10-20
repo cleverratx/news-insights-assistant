@@ -64,8 +64,8 @@ Dev-сервер фронтенда проксирует `/api` на `localhost:
 
 ```
 cd backend
-uv run ruff format .
-uv run ruff check .
+uv run ruff format . ../scripts
+uv run ruff check . ../scripts
 uv run mypy app
 uv run pytest
 
@@ -74,6 +74,21 @@ npm run lint
 npm run typecheck
 npm run build
 ```
+
+## Дополнительные проверки
+
+Интеграционные тесты бюджета требуют `TEST_REDIS_URL` отдельного тестового Redis;
+без него они пропускаются. В CI Redis запускается автоматически, поэтому эти тесты
+выполняются в каждом PR. Проверка готового Docker-стека без платных запросов LLM:
+
+```bash
+python3 scripts/check_stack.py
+```
+
+Скрипт проверяет API, nginx, OpenAPI, Swagger, JS-файл фронтенда, маршрутизацию SPA,
+подключение к PostgreSQL и прохождение задачи через worker. Для нестандартных портов
+доступны `--api-url` и `--web-url`. Отдельная CI-проверка `deployment` собирает
+и запускает пять сервисов с `.env.example`, затем выполняет этот сценарий.
 
 ## Стиль кода
 

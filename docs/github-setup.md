@@ -31,6 +31,10 @@ scripts/apply-rulesets.sh <owner>/alfa-news-insights
 
 `bypass_actors` в обоих файлах пустой: правила действуют и на владельца репозитория. Если на сдаче понадобится срочный хотфикс, правило отключается на время руками, а не обходится.
 
+После первого запуска новой проверки `deployment` добавьте её в required status
+checks защиты `main` вместе с `backend` и `frontend`. Изменение workflow само по себе
+не меняет настройки защиты ветки на GitHub.
+
 ## 3. Доступ жюри
 
 Settings → Collaborators and teams → Add people → `alfa-hack-2026`, роль **Read**.
@@ -43,4 +47,4 @@ Settings → Collaborators and teams → Add people → `alfa-hack-2026`, рол
 - Ветка с именем `test-branch` не создаётся, а `feat/ci-rulesets-check` создаётся.
 - Коммит с сообщением `fix` отклоняется, `fix(ci): поправил кэш зависимостей` проходит.
 - В открытом PR доступна только кнопка Squash and merge.
-- В списке проверок PR видны `backend` и `frontend`.
+- В списке проверок PR видны `backend`, `frontend` и `deployment`.

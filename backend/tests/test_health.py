@@ -37,3 +37,17 @@ async def test_docs_available() -> None:
         transport=ASGITransport(app=create_app()), base_url="http://test"
     ) as client:
         assert (await client.get("/api/docs")).status_code == 200
+
+
+async def test_health_without_llm_or_infrastructure(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_API_KEY", "")
+    monkeypatch.setenv("REDIS_URL", "redis://unavailable.test:1/0")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://unavailable.test:1/test")
+    get_settings.cache_clear()
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=create_app()), base_url="http://test"
+        ) as client:
+            assert (await client.get("/health")).status_code == 200
+    finally:
+        get_settings.cache_clear()
