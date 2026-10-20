@@ -13,14 +13,15 @@
 
 ## Запуск целиком
 
-Появится с задачей A1-05: `deploy/` с Dockerfile и `compose.yaml` на api, worker, postgres, redis и web. После неё запуск сведётся к двум командам:
+Из корня репозитория:
 
 ```
 cp .env.example .env
-docker compose up -d --build
+docker compose up -d --build --wait
 ```
 
-Пока запускаем по частям.
+Интерфейс — `http://localhost:8080`, Swagger — `http://localhost:8080/api/docs`.
+Сервисы, конфигурация и остановка описаны в [../deploy/README.md](../deploy/README.md).
 
 ## Запуск по частям
 
@@ -31,6 +32,21 @@ cd backend
 uv sync --frozen --group dev
 uv run uvicorn app.main:app --reload --port 8000
 ```
+
+Конфигурация читается из `.env` в корне репозитория независимо от рабочей директории.
+Переменные окружения имеют приоритет над `.env`; некорректные значения `APP_ENV`,
+`APP_PORT` и `LOG_LEVEL` останавливают запуск с ошибкой валидации.
+`APP_PORT` и `LOG_LEVEL` доступны в настройках приложения; для запуска Uvicorn через CLI
+порт и уровень логирования задаются его флагами `--port` и `--log-level`.
+Команда `uv run python -m app` применяет `APP_PORT` и `LOG_LEVEL` автоматически.
+При локальном запуске без Docker задайте `DATABASE_URL` и `REDIS_URL` с доступными
+с хоста адресами и `DATA_DIR=../data`: шаблон `.env.example` настроен для сети Compose.
+
+Проверка API: `curl http://localhost:8000/health` или `curl http://localhost:8000/api/health`.
+Ответ: `{"status":"ok","env":"local"}`. Это проверка живости API без подключения
+к PostgreSQL, Redis и LLM. Swagger UI — `/api/docs`, OpenAPI — `/api/openapi.json`.
+HTTP-маршруты подключаются в `app/api/router.py`, приложение создаётся в
+`app/main.py` через `create_app()`.
 
 Фронтенд:
 
@@ -48,8 +64,8 @@ Dev-сервер фронтенда проксирует `/api` на `localhost:
 
 ```
 cd backend
-uv run ruff format .
-uv run ruff check .
+uv run ruff format . ../scripts
+uv run ruff check . ../scripts
 uv run mypy app
 uv run pytest
 
@@ -58,6 +74,21 @@ npm run lint
 npm run typecheck
 npm run build
 ```
+
+## Дополнительные проверки
+
+Интеграционные тесты бюджета требуют `TEST_REDIS_URL` отдельного тестового Redis;
+без него они пропускаются. В CI Redis запускается автоматически, поэтому эти тесты
+выполняются в каждом PR. Проверка готового Docker-стека без платных запросов LLM:
+
+```bash
+python3 scripts/check_stack.py
+```
+
+Скрипт проверяет API, nginx, OpenAPI, Swagger, JS-файл фронтенда, маршрутизацию SPA,
+подключение к PostgreSQL и прохождение задачи через worker. Для нестандартных портов
+доступны `--api-url` и `--web-url`. Отдельная CI-проверка `deployment` собирает
+и запускает пять сервисов с `.env.example`, затем выполняет этот сценарий.
 
 ## Стиль кода
 
@@ -68,4 +99,7 @@ npm run build
 
 ## Переменные окружения
 
-Любая новая переменная сразу появляется в `.env.example` с пустым или безопасным значением и в `app/core/config.py`. Реальные значения живут только в локальном `.env` и в секретах стенда — в репозиторий они не попадают никогда.
+Любая новая переменная приложения сразу появляется в `.env.example` с пустым или безопасным значением и в `app/core/config.py`. Реальные значения живут только в локальном `.env` и в секретах стенда — в репозиторий они не попадают никогда.
+Переменные `WEB_PORT` и `POSTGRES_*` управляют только контейнерами и описаны в
+[../deploy/README.md](../deploy/README.md). Ключ LLM и DSN хранятся в `Settings` как
+`SecretStr`; для передачи клиенту используйте `.get_secret_value()`, не выводя результат в логи.

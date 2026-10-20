@@ -15,6 +15,18 @@ concurrency:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_REDIS_URL: redis://127.0.0.1:6379/0
     defaults:
       run:
         working-directory: backend
@@ -29,16 +41,39 @@ jobs:
         run: uv sync --frozen --group dev
 
       - name: Формат
-        run: uv run ruff format --check .
+        run: uv run ruff format --check . ../scripts
 
       - name: Линтер
-        run: uv run ruff check .
+        run: uv run ruff check . ../scripts
 
       - name: Типы
         run: uv run mypy app
 
       - name: Тесты
-        run: uv run pytest
+        run: uv run pytest -W error
+
+  deployment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Сборка и запуск пяти сервисов без ключа LLM
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          docker compose up -d --build --wait --wait-timeout 120
+
+      - name: Проверка HTTP, PostgreSQL и очереди worker
+        run: python3 scripts/check_stack.py
+
+      - name: Диагностика при ошибке
+        if: failure()
+        run: docker compose logs --tail=100
+
+      - name: Остановка тестового стека
+        if: always()
+        run: docker compose down --volumes
 
   frontend:
     runs-on: ubuntu-latest
