@@ -7,6 +7,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.contracts import CompanyProfile, Insight, NewsItem, RankedItem
 from app.contracts.__main__ import rendered
+from app.contracts.knowledge import KnowledgeBase
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "docs/schemas/examples"
 
@@ -24,6 +25,7 @@ def example(name: str) -> dict[str, Any]:
         ("bank_analytics_item", NewsItem),
         ("ranked_item", RankedItem),
         ("insight", Insight),
+        ("knowledge_base", KnowledgeBase),
     ],
 )
 def test_examples_are_valid(name: str, model: type[BaseModel]) -> None:

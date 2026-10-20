@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.contracts import CompanyProfile, Insight, NewsItem, RankedItem
+from app.contracts.knowledge import KnowledgeBase
 
 SCHEMA_DIR = Path(__file__).resolve().parents[3] / "docs" / "schemas"
 
@@ -15,6 +16,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "news_item": NewsItem,
     "ranked_item": RankedItem,
     "insight": Insight,
+    "knowledge_base": KnowledgeBase,
 }
 
 
