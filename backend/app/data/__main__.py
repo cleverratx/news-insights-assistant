@@ -25,13 +25,20 @@ async def load(data: CaseData) -> dict[str, object]:
 
 
 def main() -> None:
-    raw = Path(get_settings().data_dir) / "raw"
+    data_dir = Path(get_settings().data_dir)
+    raw = data_dir / "raw"
     parser = argparse.ArgumentParser(description="Загрузка выгрузок кейса в PostgreSQL (A2-01)")
     parser.add_argument("--companies", type=Path, default=raw / COMPANIES_FILE)
     parser.add_argument("--links", type=Path, default=raw / LINKS_FILE)
     parser.add_argument("--payments", type=Path, help="отдельный файл платежей, если он появится")
     parser.add_argument("--dry-run", action="store_true", help="только разобрать и показать отчёт")
+    parser.add_argument(
+        "--samples", action="store_true", help="взять синтетические выгрузки из data/samples"
+    )
     args = parser.parse_args()
+    if args.samples:
+        args.companies = data_dir / "samples" / COMPANIES_FILE
+        args.links = data_dir / "samples" / LINKS_FILE
     try:
         data = read_case(args.companies, args.links if args.links.exists() else None, args.payments)
     except CaseFileError as error:
