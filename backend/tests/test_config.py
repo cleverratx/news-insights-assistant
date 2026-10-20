@@ -22,6 +22,35 @@ def test_default_dotenv_path_is_independent_of_working_directory() -> None:
     assert Settings.model_config["env_file"] == Path(__file__).resolve().parents[2] / ".env"
 
 
+def test_secrets_are_masked_in_settings_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    secrets = {
+        "LLM_API_KEY": "test-only-llm-key",
+        "DATABASE_URL": "postgresql+asyncpg://alfa:test-only-db-password@postgres/alfa",
+        "REDIS_URL": "redis://:test-only-redis-password@redis:6379/0",
+    }
+    for name, value in secrets.items():
+        monkeypatch.setenv(name, value)
+
+    settings = Settings(_env_file=None)
+    output = repr(settings) + str(settings.model_dump()) + settings.model_dump_json()
+
+    for value in secrets.values():
+        assert value not in output
+    assert "test-only-db-password" not in output
+    assert "test-only-redis-password" not in output
+    assert settings.llm_api_key.get_secret_value() == secrets["LLM_API_KEY"]
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["LLM_DAILY_BUDGET_RUB", "LLM_REQUEST_TIMEOUT_SECONDS", "NEWS_FETCH_INTERVAL_MINUTES"],
+)
+def test_nonpositive_limits_are_rejected(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(name, "0")
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
 @pytest.mark.parametrize(
     ("name", "value"),
     [("APP_ENV", "invalid"), ("APP_PORT", "0"), ("APP_PORT", "65536"), ("LOG_LEVEL", "invalid")],
