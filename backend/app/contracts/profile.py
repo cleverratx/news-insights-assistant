@@ -219,7 +219,9 @@ class CompanyProfile(Contract):
     )
     has_key_owner_mark: bool | None = Field(default=None, description="NEGATIVEMARK")
     market_position: MarketPosition | None = None
-    features: list[ProfileFeature] = Field(min_length=1)
+    features: list[ProfileFeature] = Field(
+        default_factory=list, description="Пусто, если в строке выгрузки нечего взять"
+    )
     exposures: list[Exposure] = Field(default_factory=list)
     data_quality: DataQuality = Field(default_factory=DataQuality)
 

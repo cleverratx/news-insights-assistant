@@ -869,10 +869,10 @@
       "default": null
     },
     "features": {
+      "description": "Пусто, если в строке выгрузки нечего взять",
       "items": {
         "$ref": "#/$defs/ProfileFeature"
       },
-      "minItems": 1,
       "title": "Features",
       "type": "array"
     },
@@ -892,8 +892,7 @@
     "industry",
     "scale",
     "location",
-    "foreign_trade",
-    "features"
+    "foreign_trade"
   ],
   "title": "CompanyProfile",
   "type": "object"
