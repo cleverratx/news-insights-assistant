@@ -15,25 +15,25 @@ Settings → Rules → Rulesets → New ruleset → **Import a ruleset**, по �
 
 | Файл | Что делает |
 | --- | --- |
-| `.github/rulesets/01-main-protection.json` | защищает `main`: только PR, один апрув, обязательные проверки `backend` и `frontend`, линейная история, слияние только squash, запрет force-push и удаления ветки |
+| `.github/rulesets/01-main-protection.json` | защищает `main`: только PR, обязательные проверки `backend`, `frontend` и `deployment`, линейная история, слияние только squash, запрет force-push и удаления ветки. Апрув не требуется — ревью мы не делаем |
 | `.github/rulesets/02-naming.json` | проверяет имена веток `тип/область-суть` и заголовки коммитов `тип(область): что сделано` на всех ветках, кроме `main` |
 
 То же самое одной командой, если установлен `gh` и есть `jq`:
 
 ```
 gh auth login
-scripts/apply-rulesets.sh <owner>/alfa-news-insights
+scripts/apply-rulesets.sh <owner>/news-insights-assistant
 ```
 
 Скрипт создаёт рулсет, а если он уже есть — обновляет его по имени.
 
-Проверки `backend` и `frontend` станут доступны для выбора после первого запуска workflow `.github/workflows/ci.yaml`. Если первый PR создаётся раньше, чем workflow хоть раз отработал, временно переведите `01-main-protection` в Disabled или уберите из него блок `required_status_checks`, а после первой сборки верните.
+Проверки `backend`, `frontend` и `deployment` станут доступны для выбора после первого запуска workflow `.github/workflows/ci.yaml`. Если первый PR создаётся раньше, чем workflow хоть раз отработал, временно переведите `01-main-protection` в Disabled или уберите из него блок `required_status_checks`, а после первой сборки верните.
 
 `bypass_actors` в обоих файлах пустой: правила действуют и на владельца репозитория. Если на сдаче понадобится срочный хотфикс, правило отключается на время руками, а не обходится.
 
-После первого запуска новой проверки `deployment` добавьте её в required status
-checks защиты `main` вместе с `backend` и `frontend`. Изменение workflow само по себе
-не меняет настройки защиты ветки на GitHub.
+Все три проверки уже перечислены в `01-main-protection.json`. Если в workflow появится
+новая работа, её нужно добавить и в этот файл, и в рулсет на GitHub: изменение workflow
+само по себе не меняет настройки защиты ветки.
 
 ## 3. Доступ жюри
 
