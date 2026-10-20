@@ -1,0 +1,560 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "company_profile.schema.json",
+  "$defs": {
+    "BankProduct": {
+      "enum": [
+        "settlement",
+        "guarantee",
+        "loan",
+        "leasing",
+        "deposit",
+        "payroll",
+        "factoring"
+      ],
+      "title": "BankProduct",
+      "type": "string"
+    },
+    "ClientType": {
+      "enum": [
+        "client",
+        "close_client",
+        "prospect"
+      ],
+      "title": "ClientType",
+      "type": "string"
+    },
+    "CompanyGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "group_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Group Id",
+          "type": "string"
+        },
+        "companies_count": {
+          "minimum": 1,
+          "title": "Companies Count",
+          "type": "integer"
+        },
+        "industries": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Industries",
+          "type": "array"
+        }
+      },
+      "required": [
+        "group_id",
+        "companies_count"
+      ],
+      "title": "CompanyGroup",
+      "type": "object"
+    },
+    "Counterparty": {
+      "additionalProperties": false,
+      "properties": {
+        "company_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Company Id",
+          "type": "string"
+        },
+        "direction": {
+          "description": "incoming — компания получает деньги от контрагента, outgoing — платит ему",
+          "enum": [
+            "incoming",
+            "outgoing"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "amount_rub": {
+          "minimum": 0,
+          "title": "Amount Rub",
+          "type": "number"
+        },
+        "payments_count": {
+          "minimum": 0,
+          "title": "Payments Count",
+          "type": "integer"
+        },
+        "share": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Доля в платежах этого направления",
+          "title": "Share"
+        },
+        "okved_name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Okved Name"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        }
+      },
+      "required": [
+        "company_id",
+        "direction",
+        "amount_rub",
+        "payments_count"
+      ],
+      "title": "Counterparty",
+      "type": "object"
+    },
+    "DataQuality": {
+      "additionalProperties": false,
+      "properties": {
+        "missing_fields": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Missing Fields",
+          "type": "array"
+        },
+        "warnings": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        }
+      },
+      "title": "DataQuality",
+      "type": "object"
+    },
+    "FeatureKind": {
+      "enum": [
+        "industry",
+        "scale",
+        "finance",
+        "product",
+        "region",
+        "foreign_trade",
+        "group",
+        "counterparty",
+        "ownership",
+        "lifecycle"
+      ],
+      "title": "FeatureKind",
+      "type": "string"
+    },
+    "ForeignTrade": {
+      "additionalProperties": false,
+      "properties": {
+        "has_customs_records": {
+          "title": "Has Customs Records",
+          "type": "boolean"
+        },
+        "countries": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Countries",
+          "type": "array"
+        }
+      },
+      "required": [
+        "has_customs_records"
+      ],
+      "title": "ForeignTrade",
+      "type": "object"
+    },
+    "Industry": {
+      "additionalProperties": false,
+      "properties": {
+        "okved_code": {
+          "minLength": 1,
+          "title": "Okved Code",
+          "type": "string"
+        },
+        "okved_name": {
+          "minLength": 1,
+          "title": "Okved Name",
+          "type": "string"
+        },
+        "keywords": {
+          "description": "Отраслевые термины для расширения поискового запроса",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Keywords",
+          "type": "array"
+        }
+      },
+      "required": [
+        "okved_code",
+        "okved_name"
+      ],
+      "title": "Industry",
+      "type": "object"
+    },
+    "Location": {
+      "additionalProperties": false,
+      "properties": {
+        "city": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "City"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        }
+      },
+      "title": "Location",
+      "type": "object"
+    },
+    "MarketPosition": {
+      "additionalProperties": false,
+      "description": "Оценка положения среди компаний той же отрасли в выгрузке, а не доля рынка страны.",
+      "properties": {
+        "peer_basis": {
+          "enum": [
+            "okved_code",
+            "okved_group"
+          ],
+          "title": "Peer Basis",
+          "type": "string"
+        },
+        "peer_count": {
+          "minimum": 1,
+          "title": "Peer Count",
+          "type": "integer"
+        },
+        "revenue_rank": {
+          "minimum": 1,
+          "title": "Revenue Rank",
+          "type": "integer"
+        },
+        "revenue_percentile": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Revenue Percentile",
+          "type": "number"
+        },
+        "peer_revenue_share": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Peer Revenue Share",
+          "type": "number"
+        }
+      },
+      "required": [
+        "peer_basis",
+        "peer_count",
+        "revenue_rank",
+        "revenue_percentile",
+        "peer_revenue_share"
+      ],
+      "title": "MarketPosition",
+      "type": "object"
+    },
+    "ProfileFeature": {
+      "additionalProperties": false,
+      "description": "Признак компании, на который может сослаться вывод.",
+      "properties": {
+        "id": {
+          "description": "Идентификатор признака внутри профиля, например feature:loan",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/FeatureKind"
+        },
+        "label": {
+          "description": "Формулировка для человека: «есть кредитные продукты»",
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "source_fields": {
+          "description": "Поля выгрузки, из которых получен признак",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Fields",
+          "type": "array"
+        },
+        "derived": {
+          "default": false,
+          "description": "Признак вычислен (ранг, доля), а не взят из поля как есть",
+          "title": "Derived",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "source_fields"
+      ],
+      "title": "ProfileFeature",
+      "type": "object"
+    },
+    "Scale": {
+      "additionalProperties": false,
+      "properties": {
+        "revenue_rub": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revenue Rub"
+        },
+        "employees_band": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Employees Band"
+        },
+        "age_band": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Age Band"
+        },
+        "lifecycle_stage": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ECO_MARK_LABEL",
+          "title": "Lifecycle Stage"
+        },
+        "is_large_business": {
+          "description": "Выручка от 15 млрд рублей — порог из кейса",
+          "title": "Is Large Business",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "is_large_business"
+      ],
+      "title": "Scale",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Бизнес-контекст компании, собранный по выгрузкам кейса.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "company_id": {
+      "description": "SYNTHETIC_U",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Company Id",
+      "type": "string"
+    },
+    "client_type": {
+      "$ref": "#/$defs/ClientType"
+    },
+    "ownership": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ownership"
+    },
+    "industry": {
+      "$ref": "#/$defs/Industry"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale"
+    },
+    "location": {
+      "$ref": "#/$defs/Location"
+    },
+    "products": {
+      "items": {
+        "$ref": "#/$defs/BankProduct"
+      },
+      "title": "Products",
+      "type": "array"
+    },
+    "foreign_trade": {
+      "$ref": "#/$defs/ForeignTrade"
+    },
+    "group": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CompanyGroup"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "counterparties": {
+      "items": {
+        "$ref": "#/$defs/Counterparty"
+      },
+      "title": "Counterparties",
+      "type": "array"
+    },
+    "linked_persons_count": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Linked Persons Count",
+      "type": "integer"
+    },
+    "has_key_owner_mark": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "NEGATIVEMARK",
+      "title": "Has Key Owner Mark"
+    },
+    "market_position": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MarketPosition"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "features": {
+      "items": {
+        "$ref": "#/$defs/ProfileFeature"
+      },
+      "minItems": 1,
+      "title": "Features",
+      "type": "array"
+    },
+    "data_quality": {
+      "$ref": "#/$defs/DataQuality"
+    }
+  },
+  "required": [
+    "company_id",
+    "client_type",
+    "industry",
+    "scale",
+    "location",
+    "foreign_trade",
+    "features"
+  ],
+  "title": "CompanyProfile",
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "company_id": "U_DEMO_01",
+  "news_id": "news:demo-key-rate",
+  "stage": "reranked",
+  "rank": 1,
+  "score": {"lexical": 7.4, "lexical_norm": 0.82, "llm": 0.9, "recency": 0.7, "final": 0.86},
+  "significance": "high",
+  "matched_features": [
+    {"feature_id": "feature:loan", "reason": "Ставка напрямую определяет стоимость кредитов компании"}
+  ],
+  "matched_terms": ["ключевая ставка", "кредит"],
+  "reason": "Компания финансируется кредитами, а ставка не снизилась",
+  "run_id": "run:demo-01"
+}

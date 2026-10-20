@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0",
+  "id": "insight:demo-01",
+  "company_id": "U_DEMO_01",
+  "news_ids": ["news:demo-key-rate", "bank:demo-key-rate-review"],
+  "run_id": "run:demo-01",
+  "created_at": "2026-09-11T19:00:00+03:00",
+  "status": "ready",
+  "headline": "Кредиты не подешевеют в ближайшие месяцы: пауза ЦБ сохраняет нагрузку на долг",
+  "significance": "high",
+  "relevance": 0.86,
+  "what_happened": [
+    {
+      "id": "w1",
+      "text": "Банк России сохранил ключевую ставку на уровне 14% — первая пауза после десяти снижений подряд.",
+      "origin": "fact",
+      "source_ids": ["s1"],
+      "confidence": "high"
+    }
+  ],
+  "why_it_matters": [
+    {
+      "id": "m1",
+      "text": "Компания пользуется кредитными продуктами, поэтому стоимость её долга привязана к ставке и не снизится, как ожидалось при продолжении цикла смягчения.",
+      "origin": "model",
+      "source_ids": ["s1", "s3"]
+    },
+    {
+      "id": "m2",
+      "text": "Импорт из Китая и Турции обычно финансируется оборотным кредитом, поэтому дорогие деньги удорожают закупки.",
+      "origin": "model",
+      "source_ids": ["s4", "s3"],
+      "confidence": "medium"
+    }
+  ],
+  "risks": [
+    {
+      "id": "r1",
+      "text": "Плановое рефинансирование по более низкой ставке может не состояться в 4-м квартале.",
+      "origin": "model",
+      "source_ids": ["s2", "s3"],
+      "horizon": "short",
+      "magnitude": "high"
+    }
+  ],
+  "opportunities": [
+    {
+      "id": "o1",
+      "text": "Свободную ликвидность выгодно держать на депозите, пока ставки высокие.",
+      "origin": "model",
+      "source_ids": ["s2"],
+      "horizon": "short",
+      "magnitude": "medium"
+    }
+  ],
+  "actions": [
+    {
+      "id": "a1",
+      "text": "Пересчитать график закупок 4-го квартала с учётом текущей ставки, а не ожидаемого снижения.",
+      "origin": "model",
+      "source_ids": ["s2", "s4"],
+      "kind": "action"
+    },
+    {
+      "id": "a2",
+      "text": "Обсудить с менеджером фиксацию ставки по действующему кредиту.",
+      "origin": "model",
+      "source_ids": ["s3"],
+      "kind": "bank_product",
+      "product": "loan"
+    }
+  ],
+  "bank_view": [
+    {
+      "id": "b1",
+      "text": "Аналитики банка считают, что пространство для снижения ставки в ближайшие месяцы ограничено.",
+      "origin": "bank",
+      "source_ids": ["s2"]
+    }
+  ],
+  "sources": [
+    {
+      "id": "s1",
+      "type": "news",
+      "ref_id": "news:demo-key-rate",
+      "fragment_id": "p1",
+      "title": "Банк России сохранил ключевую ставку на уровне 14%",
+      "url": "https://example.org/news/key-rate-hold",
+      "quote": "совет директоров Банка России принял решение сохранить ключевую ставку на уровне 14% годовых"
+    },
+    {
+      "id": "s2",
+      "type": "bank_analytics",
+      "ref_id": "bank:demo-key-rate-review",
+      "fragment_id": "s2",
+      "title": "Ключевая ставка ЦБ РФ: ставка без изменения на 14,0%, риторика стала жестче"
+    },
+    {
+      "id": "s3",
+      "type": "profile_feature",
+      "ref_id": "feature:loan",
+      "title": "Пользуется кредитными продуктами банка"
+    },
+    {
+      "id": "s4",
+      "type": "profile_feature",
+      "ref_id": "feature:import",
+      "title": "Ведёт внешнеэкономическую деятельность: Китай, Турция"
+    }
+  ],
+  "self_check": {
+    "passed": true,
+    "iterations": 2,
+    "issues": [
+      {
+        "statement_id": "m2",
+        "problem": "unsupported",
+        "detail": "Первая версия ссылалась только на новость; добавлен признак внешнеэкономической деятельности",
+        "resolved": true
+      }
+    ]
+  },
+  "models": ["glm-5.3-flash", "deepseek-v4.1-flash"]
+}

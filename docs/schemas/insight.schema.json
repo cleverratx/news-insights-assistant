@@ -1,0 +1,592 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "insight.schema.json",
+  "$defs": {
+    "Action": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin",
+          "description": "fact — подтверждено источником, bank — позиция Альфа-Банка, client_data — из данных о компании, model — вывод модели"
+        },
+        "source_ids": {
+          "description": "Ссылки на SourceRef.id",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "product": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BankProduct"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "origin",
+        "source_ids",
+        "kind"
+      ],
+      "title": "Action",
+      "type": "object"
+    },
+    "ActionKind": {
+      "enum": [
+        "action",
+        "question",
+        "scenario",
+        "bank_product"
+      ],
+      "title": "ActionKind",
+      "type": "string"
+    },
+    "AllowedModel": {
+      "enum": [
+        "gemma-4-26b-a4b",
+        "glm-5.3-flash",
+        "qwen3.6-35b-a3b",
+        "deepseek-v4.1-flash",
+        "qwen3-vl-30b-a3b-instruct",
+        "kimi-k2.6"
+      ],
+      "title": "AllowedModel",
+      "type": "string"
+    },
+    "BankProduct": {
+      "enum": [
+        "settlement",
+        "guarantee",
+        "loan",
+        "leasing",
+        "deposit",
+        "payroll",
+        "factoring"
+      ],
+      "title": "BankProduct",
+      "type": "string"
+    },
+    "CheckIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "statement_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Statement Id"
+        },
+        "problem": {
+          "$ref": "#/$defs/CheckProblem"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "resolved": {
+          "title": "Resolved",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "problem",
+        "detail",
+        "resolved"
+      ],
+      "title": "CheckIssue",
+      "type": "object"
+    },
+    "CheckProblem": {
+      "enum": [
+        "unsupported",
+        "contradiction",
+        "not_personal",
+        "trivial",
+        "other"
+      ],
+      "title": "CheckProblem",
+      "type": "string"
+    },
+    "Impact": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin",
+          "description": "fact — подтверждено источником, bank — позиция Альфа-Банка, client_data — из данных о компании, model — вывод модели"
+        },
+        "source_ids": {
+          "description": "Ссылки на SourceRef.id",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "horizon": {
+          "anyOf": [
+            {
+              "enum": [
+                "short",
+                "medium",
+                "long"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Horizon"
+        },
+        "magnitude": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Significance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "origin",
+        "source_ids"
+      ],
+      "title": "Impact",
+      "type": "object"
+    },
+    "InsightStatus": {
+      "enum": [
+        "ready",
+        "no_significant_link",
+        "insufficient_data"
+      ],
+      "title": "InsightStatus",
+      "type": "string"
+    },
+    "Origin": {
+      "enum": [
+        "fact",
+        "bank",
+        "client_data",
+        "model"
+      ],
+      "title": "Origin",
+      "type": "string"
+    },
+    "SelfCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "iterations": {
+          "minimum": 1,
+          "title": "Iterations",
+          "type": "integer"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/CheckIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        }
+      },
+      "required": [
+        "passed",
+        "iterations"
+      ],
+      "title": "SelfCheck",
+      "type": "object"
+    },
+    "Significance": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Significance",
+      "type": "string"
+    },
+    "SourceRef": {
+      "additionalProperties": false,
+      "description": "Первоисточник, на который ссылаются утверждения вывода.",
+      "properties": {
+        "id": {
+          "description": "Локальный идентификатор внутри вывода, например s1",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SourceType"
+        },
+        "ref_id": {
+          "description": "NewsItem.id или ProfileFeature.id",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Ref Id",
+          "type": "string"
+        },
+        "fragment_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fragment.id или KeyFact.id",
+          "title": "Fragment Id"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "ref_id",
+        "title"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    },
+    "SourceType": {
+      "enum": [
+        "news",
+        "bank_analytics",
+        "profile_feature"
+      ],
+      "title": "SourceType",
+      "type": "string"
+    },
+    "Statement": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin",
+          "description": "fact — подтверждено источником, bank — позиция Альфа-Банка, client_data — из данных о компании, model — вывод модели"
+        },
+        "source_ids": {
+          "description": "Ссылки на SourceRef.id",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "origin",
+        "source_ids"
+      ],
+      "title": "Statement",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Персональная интерпретация события: ответ на шесть вопросов кейса.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "company_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Company Id",
+      "type": "string"
+    },
+    "news_ids": {
+      "items": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "News Ids",
+      "type": "array"
+    },
+    "run_id": {
+      "description": "Идентификатор разбора для трассировки шагов агента",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/InsightStatus"
+    },
+    "status_reason": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Почему вывод не готов; обязательно, если status не ready",
+      "title": "Status Reason"
+    },
+    "headline": {
+      "minLength": 1,
+      "title": "Headline",
+      "type": "string"
+    },
+    "significance": {
+      "$ref": "#/$defs/Significance"
+    },
+    "relevance": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Relevance",
+      "type": "number"
+    },
+    "what_happened": {
+      "items": {
+        "$ref": "#/$defs/Statement"
+      },
+      "title": "What Happened",
+      "type": "array"
+    },
+    "why_it_matters": {
+      "items": {
+        "$ref": "#/$defs/Statement"
+      },
+      "title": "Why It Matters",
+      "type": "array"
+    },
+    "risks": {
+      "items": {
+        "$ref": "#/$defs/Impact"
+      },
+      "title": "Risks",
+      "type": "array"
+    },
+    "opportunities": {
+      "items": {
+        "$ref": "#/$defs/Impact"
+      },
+      "title": "Opportunities",
+      "type": "array"
+    },
+    "actions": {
+      "items": {
+        "$ref": "#/$defs/Action"
+      },
+      "title": "Actions",
+      "type": "array"
+    },
+    "bank_view": {
+      "items": {
+        "$ref": "#/$defs/Statement"
+      },
+      "title": "Bank View",
+      "type": "array"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/SourceRef"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "self_check": {
+      "$ref": "#/$defs/SelfCheck"
+    },
+    "models": {
+      "items": {
+        "$ref": "#/$defs/AllowedModel"
+      },
+      "title": "Models",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "company_id",
+    "news_ids",
+    "run_id",
+    "created_at",
+    "status",
+    "headline",
+    "significance",
+    "relevance",
+    "self_check"
+  ],
+  "title": "Insight",
+  "type": "object"
+}

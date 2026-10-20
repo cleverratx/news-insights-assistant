@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ranked_item.schema.json",
+  "$defs": {
+    "FeatureMatch": {
+      "additionalProperties": false,
+      "properties": {
+        "feature_id": {
+          "description": "Идентификатор признака из CompanyProfile.features",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "feature_id",
+        "reason"
+      ],
+      "title": "FeatureMatch",
+      "type": "object"
+    },
+    "RankStage": {
+      "enum": [
+        "candidate",
+        "reranked"
+      ],
+      "title": "RankStage",
+      "type": "string"
+    },
+    "ScoreBreakdown": {
+      "additionalProperties": false,
+      "properties": {
+        "lexical": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сырой BM25",
+          "title": "Lexical"
+        },
+        "lexical_norm": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lexical Norm"
+        },
+        "llm": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Оценка переранжирования моделью",
+          "title": "Llm"
+        },
+        "recency": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recency"
+        },
+        "final": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Final",
+          "type": "number"
+        }
+      },
+      "required": [
+        "final"
+      ],
+      "title": "ScoreBreakdown",
+      "type": "object"
+    },
+    "Significance": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Significance",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Материал ленты, отобранный под конкретную компанию, с объяснением, почему он выше других.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "company_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Company Id",
+      "type": "string"
+    },
+    "news_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "News Id",
+      "type": "string"
+    },
+    "stage": {
+      "$ref": "#/$defs/RankStage"
+    },
+    "rank": {
+      "minimum": 1,
+      "title": "Rank",
+      "type": "integer"
+    },
+    "score": {
+      "$ref": "#/$defs/ScoreBreakdown"
+    },
+    "significance": {
+      "$ref": "#/$defs/Significance"
+    },
+    "matched_features": {
+      "items": {
+        "$ref": "#/$defs/FeatureMatch"
+      },
+      "title": "Matched Features",
+      "type": "array"
+    },
+    "matched_terms": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Matched Terms",
+      "type": "array"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Короткое объяснение от модели",
+      "title": "Reason"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Run Id"
+    }
+  },
+  "required": [
+    "company_id",
+    "news_id",
+    "stage",
+    "rank",
+    "score",
+    "significance"
+  ],
+  "title": "RankedItem",
+  "type": "object"
+}
