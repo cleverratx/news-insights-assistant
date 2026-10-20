@@ -1,0 +1,421 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "news_item.schema.json",
+  "$defs": {
+    "Channel": {
+      "enum": [
+        "rss",
+        "html",
+        "pdf",
+        "api",
+        "manual"
+      ],
+      "title": "Channel",
+      "type": "string"
+    },
+    "Classification": {
+      "additionalProperties": false,
+      "properties": {
+        "topics": {
+          "items": {
+            "$ref": "#/$defs/Topic"
+          },
+          "minItems": 1,
+          "title": "Topics",
+          "type": "array"
+        },
+        "okved_codes": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Okved Codes",
+          "type": "array"
+        },
+        "industries": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Industries",
+          "type": "array"
+        },
+        "regions": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Regions",
+          "type": "array"
+        },
+        "countries": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Countries",
+          "type": "array"
+        },
+        "entities": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Entities",
+          "type": "array"
+        },
+        "sentiment": {
+          "anyOf": [
+            {
+              "enum": [
+                "positive",
+                "negative",
+                "neutral",
+                "mixed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sentiment"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        }
+      },
+      "required": [
+        "topics"
+      ],
+      "title": "Classification",
+      "type": "object"
+    },
+    "Dedup": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "minLength": 1,
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "cluster_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сюжет, в который склеены дубликаты",
+          "title": "Cluster Id"
+        },
+        "duplicate_of": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duplicate Of"
+        }
+      },
+      "required": [
+        "content_hash"
+      ],
+      "title": "Dedup",
+      "type": "object"
+    },
+    "FactStatus": {
+      "enum": [
+        "confirmed",
+        "reported",
+        "forecast",
+        "assumption"
+      ],
+      "title": "FactStatus",
+      "type": "string"
+    },
+    "Fragment": {
+      "additionalProperties": false,
+      "description": "Кусок текста, на который можно сослаться точно: абзац новости, раздел обзора.",
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Страница, раздел или номер абзаца",
+          "title": "Locator"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "Fragment",
+      "type": "object"
+    },
+    "KeyFact": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/FactStatus",
+          "description": "confirmed — подтверждено источником, reported — со слов участника, forecast — прогноз, assumption — предположение"
+        },
+        "fragment_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fragment Id"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "status"
+      ],
+      "title": "KeyFact",
+      "type": "object"
+    },
+    "MaterialKind": {
+      "enum": [
+        "news",
+        "bank_analytics"
+      ],
+      "title": "MaterialKind",
+      "type": "string"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Издание или подразделение банка",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "channel": {
+          "$ref": "#/$defs/Channel"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "name",
+        "channel"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "Topic": {
+      "enum": [
+        "key_rate",
+        "inflation",
+        "fx",
+        "commodities",
+        "trade",
+        "sanctions",
+        "regulation",
+        "taxes",
+        "labor",
+        "consumption",
+        "debt_market",
+        "macro",
+        "industry",
+        "regional",
+        "company",
+        "other"
+      ],
+      "title": "Topic",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Единица ленты: внешняя новость или материал аналитики банка.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/MaterialKind"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Url"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "published_at": {
+      "format": "date-time",
+      "title": "Published At",
+      "type": "string"
+    },
+    "collected_at": {
+      "format": "date-time",
+      "title": "Collected At",
+      "type": "string"
+    },
+    "language": {
+      "default": "ru",
+      "minLength": 1,
+      "title": "Language",
+      "type": "string"
+    },
+    "text": {
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "summary": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Summary"
+    },
+    "fragments": {
+      "items": {
+        "$ref": "#/$defs/Fragment"
+      },
+      "title": "Fragments",
+      "type": "array"
+    },
+    "key_facts": {
+      "items": {
+        "$ref": "#/$defs/KeyFact"
+      },
+      "title": "Key Facts",
+      "type": "array"
+    },
+    "classification": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Classification"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Пусто, пока материал не прошёл классификацию"
+    },
+    "dedup": {
+      "$ref": "#/$defs/Dedup"
+    }
+  },
+  "required": [
+    "id",
+    "kind",
+    "source",
+    "title",
+    "published_at",
+    "collected_at",
+    "text",
+    "dedup"
+  ],
+  "title": "NewsItem",
+  "type": "object"
+}
