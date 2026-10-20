@@ -6,7 +6,29 @@
   "industry": {
     "okved_code": "46.38",
     "okved_name": "Торговля оптовая прочими пищевыми продуктами, включая рыбу, ракообразных и моллюсков",
-    "keywords": ["оптовая торговля", "продукты питания", "рыба", "морепродукты", "импорт продовольствия"]
+    "section": "G",
+    "segment": "food",
+    "segment_name": "Продукты питания и напитки",
+    "value_chain": "wholesale",
+    "resolved_by": "code",
+    "topics": [
+      "inflation",
+      "consumption",
+      "trade",
+      "regulation"
+    ],
+    "keywords": [
+      "продукты питания",
+      "продовольствие",
+      "пищевая промышленность",
+      "цены на продукты",
+      "импорт продовольствия",
+      "мясо",
+      "рыба",
+      "морепродукты",
+      "молочная продукция",
+      "напитки"
+    ]
   },
   "scale": {
     "revenue_rub": 18200000000,
@@ -15,10 +37,29 @@
     "lifecycle_stage": "Оптимизация",
     "is_large_business": true
   },
-  "location": {"city": "г. Москва", "region": "Москва"},
-  "products": ["settlement", "loan"],
-  "foreign_trade": {"has_customs_records": true, "countries": ["КИТАЙ", "ТУРЦИЯ"]},
-  "group": {"group_id": "group_demo_01", "companies_count": 12, "industries": ["Оптовая торговля", "Складское хозяйство"]},
+  "location": {
+    "city": "г. Москва",
+    "region": "Москва"
+  },
+  "products": [
+    "settlement",
+    "loan"
+  ],
+  "foreign_trade": {
+    "has_customs_records": true,
+    "countries": [
+      "КИТАЙ",
+      "ТУРЦИЯ"
+    ]
+  },
+  "group": {
+    "group_id": "group_demo_01",
+    "companies_count": 12,
+    "industries": [
+      "Оптовая торговля",
+      "Складское хозяйство"
+    ]
+  },
   "counterparties": [],
   "linked_persons_count": 1,
   "has_key_owner_mark": false,
@@ -35,40 +76,57 @@
       "kind": "industry",
       "label": "Оптовая торговля пищевыми продуктами (ОКВЭД 46.38)",
       "value": "46.38",
-      "source_fields": ["MAINOKVED_CODE", "MAINOKVED_NAME"]
+      "source_fields": [
+        "MAINOKVED_CODE",
+        "MAINOKVED_NAME"
+      ]
     },
     {
       "id": "feature:loan",
       "kind": "product",
       "label": "Пользуется кредитными продуктами банка",
       "value": true,
-      "source_fields": ["CL_PRODUCT_LOA_MARK"]
+      "source_fields": [
+        "CL_PRODUCT_LOA_MARK"
+      ]
     },
     {
       "id": "feature:import",
       "kind": "foreign_trade",
       "label": "Ведёт внешнеэкономическую деятельность: Китай, Турция",
       "value": "КИТАЙ, ТУРЦИЯ",
-      "source_fields": ["FTS_FLAG", "FTS_COUNTRY_NAME"]
+      "source_fields": [
+        "FTS_FLAG",
+        "FTS_COUNTRY_NAME"
+      ]
     },
     {
       "id": "feature:large",
       "kind": "scale",
       "label": "Крупный бизнес: выручка 18,2 млрд ₽",
       "value": 18200000000,
-      "source_fields": ["REVENUE_COMPANY"]
+      "source_fields": [
+        "REVENUE_COMPANY"
+      ]
     },
     {
       "id": "feature:market-rank",
       "kind": "finance",
       "label": "3-е место по выручке среди 340 компаний отрасли в выгрузке",
       "value": 3,
-      "source_fields": ["REVENUE_COMPANY", "MAINOKVED_CODE"],
+      "source_fields": [
+        "REVENUE_COMPANY",
+        "MAINOKVED_CODE"
+      ],
       "derived": true
     }
   ],
   "data_quality": {
-    "missing_fields": ["AMOUNT_WORKERS_SPARK_GRADATION"],
-    "warnings": ["Платежей в выгрузке нет: контрагенты не определены"]
+    "missing_fields": [
+      "AMOUNT_WORKERS_SPARK_GRADATION"
+    ],
+    "warnings": [
+      "Платежей в выгрузке нет: контрагенты не определены"
+    ]
   }
 }
