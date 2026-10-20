@@ -3,12 +3,13 @@ from collections import Counter
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 
+from app.profile.okved import normalize_code
+
 NULL_TOKENS = {"", "nan", "none", "null", "nat", "-", "—", "–", "н/д", "нет данных", "#n/a", "n/a"}
 TRUE_TOKENS = {"1", "1.0", "true", "t", "да", "yes", "y"}
 FALSE_TOKENS = {"0", "0.0", "false", "f", "нет", "no", "n"}
 SPACES = re.compile(r"[\s   ]+")
 CURRENCY = re.compile(r"(руб\.?|₽|rub)$", re.IGNORECASE)
-OKVED = re.compile(r"^\d{2}(\.\d{1,2}){0,2}$")
 COUNTRY_SEPARATORS = re.compile(r"[,;/]")
 MAX_EXAMPLE_LINES = 5
 
@@ -122,13 +123,9 @@ def okved(cell: Cell) -> str | None:
     value = text(cell)
     if value is None:
         return None
-    code = value.replace(",", ".").strip(".")
-    head, _, tail = code.partition(".")
-    if len(head) == 1 and head.isdigit():
-        code = f"0{head}" + (f".{tail}" if tail else "")
-    if not OKVED.match(code):
+    code = normalize_code(value)
+    if code is None:
         cell.problem("код ОКВЭД не распознан")
-        return None
     return code
 
 

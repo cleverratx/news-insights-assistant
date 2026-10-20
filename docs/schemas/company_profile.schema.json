@@ -198,14 +198,90 @@
       "additionalProperties": false,
       "properties": {
         "okved_code": {
-          "minLength": 1,
-          "title": "Okved Code",
-          "type": "string"
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Okved Code"
         },
         "okved_name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Okved Name"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Раздел ОКВЭД, буква от A до U",
+          "title": "Section"
+        },
+        "segment": {
+          "default": "other",
+          "description": "Укрупнённый сегмент рынка из справочника",
+          "maxLength": 200,
           "minLength": 1,
-          "title": "Okved Name",
+          "title": "Segment",
           "type": "string"
+        },
+        "segment_name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Segment Name"
+        },
+        "value_chain": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueChain"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Место в цепочке: добыча, производство, опт, розница, услуги"
+        },
+        "resolved_by": {
+          "$ref": "#/$defs/IndustryResolution",
+          "default": "unknown",
+          "description": "code — по коду ОКВЭД, name — код битый и отрасль угадана по названию"
+        },
+        "topics": {
+          "description": "Темы новостей, к которым чувствителен сегмент",
+          "items": {
+            "$ref": "#/$defs/Topic"
+          },
+          "title": "Topics",
+          "type": "array"
         },
         "keywords": {
           "description": "Отраслевые термины для расширения поискового запроса",
@@ -217,12 +293,17 @@
           "type": "array"
         }
       },
-      "required": [
-        "okved_code",
-        "okved_name"
-      ],
       "title": "Industry",
       "type": "object"
+    },
+    "IndustryResolution": {
+      "enum": [
+        "code",
+        "name",
+        "unknown"
+      ],
+      "title": "IndustryResolution",
+      "type": "string"
     },
     "Location": {
       "additionalProperties": false,
@@ -433,6 +514,41 @@
       ],
       "title": "Scale",
       "type": "object"
+    },
+    "Topic": {
+      "enum": [
+        "key_rate",
+        "inflation",
+        "fx",
+        "commodities",
+        "trade",
+        "sanctions",
+        "regulation",
+        "taxes",
+        "labor",
+        "consumption",
+        "debt_market",
+        "macro",
+        "industry",
+        "regional",
+        "company",
+        "other"
+      ],
+      "title": "Topic",
+      "type": "string"
+    },
+    "ValueChain": {
+      "enum": [
+        "extraction",
+        "manufacturing",
+        "utilities",
+        "construction",
+        "wholesale",
+        "retail",
+        "services"
+      ],
+      "title": "ValueChain",
+      "type": "string"
     }
   },
   "additionalProperties": false,

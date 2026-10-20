@@ -12,6 +12,7 @@ from app.contracts.common import (
     Text,
     require_unique,
 )
+from app.contracts.news import Topic
 
 
 class ClientType(StrEnum):
@@ -48,9 +49,38 @@ class ProfileFeature(Contract):
     )
 
 
+class ValueChain(StrEnum):
+    EXTRACTION = "extraction"
+    MANUFACTURING = "manufacturing"
+    UTILITIES = "utilities"
+    CONSTRUCTION = "construction"
+    WHOLESALE = "wholesale"
+    RETAIL = "retail"
+    SERVICES = "services"
+
+
+class IndustryResolution(StrEnum):
+    CODE = "code"
+    NAME = "name"
+    UNKNOWN = "unknown"
+
+
 class Industry(Contract):
-    okved_code: Text
-    okved_name: Text
+    okved_code: Text | None = None
+    okved_name: Text | None = None
+    section: Text | None = Field(default=None, description="Раздел ОКВЭД, буква от A до U")
+    segment: Id = Field(default="other", description="Укрупнённый сегмент рынка из справочника")
+    segment_name: Text | None = None
+    value_chain: ValueChain | None = Field(
+        default=None, description="Место в цепочке: добыча, производство, опт, розница, услуги"
+    )
+    resolved_by: IndustryResolution = Field(
+        default=IndustryResolution.UNKNOWN,
+        description="code — по коду ОКВЭД, name — код битый и отрасль угадана по названию",
+    )
+    topics: list[Topic] = Field(
+        default_factory=list, description="Темы новостей, к которым чувствителен сегмент"
+    )
     keywords: list[Text] = Field(
         default_factory=list, description="Отраслевые термины для расширения поискового запроса"
     )
