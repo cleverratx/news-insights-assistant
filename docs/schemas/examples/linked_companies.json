@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.0",
+  "company_id": "U_900001",
+  "cards": [
+    {
+      "id": "U_900201",
+      "company_id": "U_900201",
+      "name": null,
+      "name_source": null,
+      "origins": [
+        "payments"
+      ],
+      "role": "buyer",
+      "role_source": "payments",
+      "role_fact_id": null,
+      "incoming": {
+        "amount_rub": 5500000000.0,
+        "payments_count": 421,
+        "amount_share": 0.55,
+        "count_share": 0.5720108695652174
+      },
+      "outgoing": null,
+      "industry": "Деятельность ресторанов и услуги по доставке продуктов питания",
+      "segment": "hospitality",
+      "region": "Москва",
+      "revenue_rub": 4100000000.0,
+      "note": null
+    },
+    {
+      "id": "U_900205",
+      "company_id": "U_900205",
+      "name": null,
+      "name_source": null,
+      "origins": [
+        "payments"
+      ],
+      "role": "supplier",
+      "role_source": "payments",
+      "role_fact_id": null,
+      "incoming": null,
+      "outgoing": {
+        "amount_rub": 4800000000.0,
+        "payments_count": 52,
+        "amount_share": 0.48,
+        "count_share": 0.13903743315508021
+      },
+      "industry": "Переработка и консервирование рыбы, ракообразных и моллюсков",
+      "segment": "food",
+      "region": "Новосибирская область",
+      "revenue_rub": 1500000000.0,
+      "note": null
+    },
+    {
+      "id": "U_900102",
+      "company_id": "U_900102",
+      "name": null,
+      "name_source": null,
+      "origins": [
+        "payments",
+        "group"
+      ],
+      "role": "supplier",
+      "role_source": "payments",
+      "role_fact_id": null,
+      "incoming": null,
+      "outgoing": {
+        "amount_rub": 4000000000.0,
+        "payments_count": 310,
+        "amount_share": 0.4,
+        "count_share": 0.8288770053475936
+      },
+      "industry": "Деятельность автомобильного грузового транспорта",
+      "segment": "logistics",
+      "region": "Москва",
+      "revenue_rub": 640000000.0,
+      "note": null
+    },
+    {
+      "id": "U_900203",
+      "company_id": "U_900203",
+      "name": null,
+      "name_source": null,
+      "origins": [
+        "payments"
+      ],
+      "role": "buyer",
+      "role_source": "payments",
+      "role_fact_id": null,
+      "incoming": {
+        "amount_rub": 2000000000.0,
+        "payments_count": 95,
+        "amount_share": 0.2,
+        "count_share": 0.12907608695652173
+      },
+      "outgoing": null,
+      "industry": "Торговля розничная преимущественно пищевыми продуктами в неспециализированных магазинах",
+      "segment": "food",
+      "region": "Москва",
+      "revenue_rub": 12000000000.0,
+      "note": null
+    },
+    {
+      "id": "U_900101",
+      "company_id": "U_900101",
+      "name": null,
+      "name_source": null,
+      "origins": [
+        "group"
+      ],
+      "role": null,
+      "role_source": null,
+      "role_fact_id": null,
+      "incoming": null,
+      "outgoing": null,
+      "industry": "Деятельность по складированию и хранению",
+      "segment": "logistics",
+      "region": "Москва",
+      "revenue_rub": 850000000.0,
+      "note": null
+    },
+    {
+      "id": "U_900301",
+      "company_id": "U_900301",
+      "name": null,
+      "name_source": null,
+      "origins": [
+        "shared_person"
+      ],
+      "role": null,
+      "role_source": null,
+      "role_fact_id": null,
+      "incoming": null,
+      "outgoing": null,
+      "industry": "Аренда и управление собственным или арендованным недвижимым имуществом",
+      "segment": "real_estate",
+      "region": "Москва",
+      "revenue_rub": 120000000.0,
+      "note": null
+    },
+    {
+      "id": "manual:3f2a9c1d7b40",
+      "company_id": null,
+      "name": "ООО «Северный терминал»",
+      "name_source": "client",
+      "origins": [
+        "client"
+      ],
+      "role": "carrier",
+      "role_source": "client",
+      "role_fact_id": null,
+      "incoming": null,
+      "outgoing": null,
+      "industry": "Складское хозяйство и вспомогательная транспортная деятельность",
+      "segment": "logistics",
+      "region": null,
+      "revenue_rub": null,
+      "note": "Возит рыбу из Мурманска"
+    }
+  ],
+  "incoming": {
+    "amount_rub": 10000000000.0,
+    "payments_count": 736,
+    "counterparties": 4
+  },
+  "outgoing": {
+    "amount_rub": 10000000000.0,
+    "payments_count": 374,
+    "counterparties": 3
+  },
+  "hidden": 3,
+  "warnings": []
+}

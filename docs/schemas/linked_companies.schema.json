@@ -1,0 +1,372 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "linked_companies.schema.json",
+  "$defs": {
+    "CounterpartyRole": {
+      "enum": [
+        "buyer",
+        "supplier",
+        "carrier"
+      ],
+      "title": "CounterpartyRole",
+      "type": "string"
+    },
+    "LinkOrigin": {
+      "enum": [
+        "payments",
+        "group",
+        "shared_person",
+        "client"
+      ],
+      "title": "LinkOrigin",
+      "type": "string"
+    },
+    "LinkedCompanyCard": {
+      "additionalProperties": false,
+      "description": "Карточка связанной компании: откуда связь, кем приходится клиенту и какой оборот даёт.",
+      "properties": {
+        "id": {
+          "description": "SYNTHETIC_U или manual:<id> у компании, добавленной клиентом",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "company_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SYNTHETIC_U; пусто у добавленной",
+          "title": "Company Id"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Название из легенды или от клиента",
+          "title": "Name"
+        },
+        "name_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "legend",
+                "client"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name Source"
+        },
+        "origins": {
+          "description": "Через что компания связана",
+          "items": {
+            "$ref": "#/$defs/LinkOrigin"
+          },
+          "minItems": 1,
+          "title": "Origins",
+          "type": "array"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CounterpartyRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "role_source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RoleSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "role_fact_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Факт базы знаний с типом связи: его история правок",
+          "title": "Role Fact Id"
+        },
+        "incoming": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Turnover"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Компания платит клиенту"
+        },
+        "outgoing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Turnover"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Клиент платит компании"
+        },
+        "industry": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Вид деятельности словами",
+          "title": "Industry"
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сегмент рынка из справочника ОКВЭД",
+          "title": "Segment"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "revenue_rub": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revenue Rub"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Комментарий клиента",
+          "title": "Note"
+        }
+      },
+      "required": [
+        "id",
+        "origins"
+      ],
+      "title": "LinkedCompanyCard",
+      "type": "object"
+    },
+    "PaymentTotals": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_rub": {
+          "minimum": 0,
+          "title": "Amount Rub",
+          "type": "number"
+        },
+        "payments_count": {
+          "minimum": 0,
+          "title": "Payments Count",
+          "type": "integer"
+        },
+        "counterparties": {
+          "minimum": 0,
+          "title": "Counterparties",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "amount_rub",
+        "payments_count",
+        "counterparties"
+      ],
+      "title": "PaymentTotals",
+      "type": "object"
+    },
+    "RoleSource": {
+      "description": "Откуда тип связи: клиент главнее легенды, легенда главнее догадки по платежам.",
+      "enum": [
+        "client",
+        "legend",
+        "payments"
+      ],
+      "title": "RoleSource",
+      "type": "string"
+    },
+    "Turnover": {
+      "additionalProperties": false,
+      "description": "Платежи с компанией в одном направлении и её доля среди всех платежей направления.",
+      "properties": {
+        "amount_rub": {
+          "description": "PAY_AMT",
+          "minimum": 0,
+          "title": "Amount Rub",
+          "type": "number"
+        },
+        "payments_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "PAY_CNT",
+          "title": "Payments Count"
+        },
+        "amount_share": {
+          "description": "Доля в сумме платежей направления",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Amount Share",
+          "type": "number"
+        },
+        "count_share": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Доля в числе платежей направления; пусто, если PAY_CNT нет",
+          "title": "Count Share"
+        }
+      },
+      "required": [
+        "amount_rub",
+        "amount_share"
+      ],
+      "title": "Turnover",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Связанные компании клиента: контрагенты по платежам, группа, общие физлица и добавленные\nклиентом вручную.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "company_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Company Id",
+      "type": "string"
+    },
+    "cards": {
+      "items": {
+        "$ref": "#/$defs/LinkedCompanyCard"
+      },
+      "title": "Cards",
+      "type": "array"
+    },
+    "incoming": {
+      "$ref": "#/$defs/PaymentTotals",
+      "description": "Все входящие платежи: от покупателей"
+    },
+    "outgoing": {
+      "$ref": "#/$defs/PaymentTotals",
+      "description": "Все исходящие платежи: поставщикам"
+    },
+    "hidden": {
+      "default": 0,
+      "description": "Контрагентов по платежам, не попавших в карточки",
+      "minimum": 0,
+      "title": "Hidden",
+      "type": "integer"
+    },
+    "warnings": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "company_id",
+    "incoming",
+    "outgoing"
+  ],
+  "title": "LinkedCompanies",
+  "type": "object"
+}
