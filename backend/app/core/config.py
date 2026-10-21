@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     news_user_agent: str = "alfa-news-insights/0.1"
 
     data_dir: str = "data"
+    legend_file: str = "samples/legends.yaml"
 
     @field_validator("llm_model_fast", "llm_model_smart", mode="before")
     @classmethod

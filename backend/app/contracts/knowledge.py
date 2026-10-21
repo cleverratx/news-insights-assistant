@@ -18,14 +18,21 @@ class FactCategory(StrEnum):
 
 
 class FactSource(StrEnum):
-    """Откуда факт. Клиент главнее данных банка, данные банка главнее вывода системы."""
+    """Откуда факт. Клиент главнее данных банка, данные банка главнее вывода системы,
+    а демо-легенда ниже всех: она не может перебить ни данные, ни выводы."""
 
     CLIENT = "client"
     BANK_DATA = "bank_data"
     SYSTEM = "system"
+    LEGEND = "legend"
 
 
-SOURCE_PRIORITY = {FactSource.CLIENT: 0, FactSource.BANK_DATA: 1, FactSource.SYSTEM: 2}
+SOURCE_PRIORITY = {
+    FactSource.CLIENT: 0,
+    FactSource.BANK_DATA: 1,
+    FactSource.SYSTEM: 2,
+    FactSource.LEGEND: 3,
+}
 
 
 class FactStatus(StrEnum):

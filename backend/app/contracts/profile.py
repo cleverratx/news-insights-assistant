@@ -139,6 +139,27 @@ class ForeignTrade(Contract):
     countries: list[Text] = Field(default_factory=list)
 
 
+class CounterpartyRole(StrEnum):
+    BUYER = "buyer"
+    SUPPLIER = "supplier"
+    CARRIER = "carrier"
+
+
+class PartnerLegend(Contract):
+    """Демо-легенда связанной компании: условное название, роль и отрасль словами.
+    Не данные выгрузки — интерфейс показывает это с пометкой «демо»."""
+
+    name: Text = Field(description="Условное название, реальной компании с таким нет")
+    role: CounterpartyRole | None = Field(default=None, description="Кем приходится клиенту")
+    industry: Text | None = Field(
+        default=None, description="Отрасль словами, если контрагента нет в выгрузке юрлиц"
+    )
+    segment: Id | None = Field(
+        default=None,
+        description="Сегмент рынка по отрасли из легенды: для поиска новостей контрагента",
+    )
+
+
 class RelatedCompany(Contract):
     """Компания, связанная с клиентом через группу или общее физлицо."""
 
@@ -148,6 +169,7 @@ class RelatedCompany(Contract):
     segment: Id | None = Field(default=None, description="Сегмент рынка из справочника ОКВЭД")
     region: Text | None = None
     revenue_rub: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    legend: PartnerLegend | None = None
 
 
 class CompanyGroup(Contract):
@@ -172,11 +194,21 @@ class Counterparty(Contract):
     okved_name: Text | None = None
     segment: Id | None = Field(default=None, description="Сегмент рынка из справочника ОКВЭД")
     region: Text | None = None
+    legend: PartnerLegend | None = None
 
 
 class DataQuality(Contract):
     missing_fields: list[Text] = Field(default_factory=list)
     warnings: list[Text] = Field(default_factory=list)
+
+
+class Legend(Contract):
+    """Демо-легенда компании поверх обезличенных данных (ADR 0003). Только отображение:
+    признаки, отбор и выводы считаются по выгрузке, а условное название в поиск не идёт."""
+
+    name: Text = Field(description="Условное название, реальной компании с таким нет")
+    description: Text | None = Field(default=None, description="Чем занимается, словами")
+    brands: list[Text] = Field(default_factory=list)
 
 
 class ExposureDirection(StrEnum):
@@ -225,6 +257,9 @@ class CompanyProfile(Contract):
     )
     exposures: list[Exposure] = Field(default_factory=list)
     data_quality: DataQuality = Field(default_factory=DataQuality)
+    legend: Legend | None = Field(
+        default=None, description="Пусто, если легенды нет: компания показывается по SYNTHETIC_U"
+    )
 
     @model_validator(mode="after")
     def unique_features(self) -> Self:

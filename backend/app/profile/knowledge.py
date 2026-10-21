@@ -22,7 +22,13 @@ from app.contracts.knowledge import (
     KnowledgeFact,
 )
 from app.contracts.news import Topic
-from app.contracts.profile import CompanyProfile, Exposure, FeatureKind, ProfileFeature
+from app.contracts.profile import (
+    CompanyProfile,
+    CounterpartyRole,
+    Exposure,
+    FeatureKind,
+    ProfileFeature,
+)
 from app.profile.builder import load_profile
 from app.profile.derived import FX_EXPOSURES
 from app.profile.okved import SEGMENTS
@@ -215,6 +221,11 @@ DRAFT_PREFIX = "draft"
 TOP_PARTNER_SEGMENTS = 3
 PARTNER_ROLES = {"incoming": "покупатели", "outgoing": "поставщики"}
 DRAFT_CHANGES = {"category", "text", "value", "source", "evidence"}
+ROLE_FACTS = {
+    CounterpartyRole.BUYER: (FactCategory.CUSTOMERS, "покупатель"),
+    CounterpartyRole.SUPPLIER: (FactCategory.SUPPLIERS, "поставщик"),
+    CounterpartyRole.CARRIER: (FactCategory.SUPPLIERS, "перевозчик"),
+}
 
 
 @dataclass(frozen=True)
@@ -336,7 +347,34 @@ def draft(profile: CompanyProfile, now: datetime | None = None) -> list[Knowledg
         FactSource.BANK_DATA,
         ["feature:group", "feature:group_segments"],
     )
-    return facts
+    return facts + legend_roles(profile, now)
+
+
+def legend_roles(profile: CompanyProfile, now: datetime | None = None) -> list[KnowledgeFact]:
+    """Роли контрагентов из демо-легенды — предположения с источником legend: клиент
+    подтверждает их или исправляет, и его ответ главнее легенды."""
+    facts: dict[str, KnowledgeFact] = {}
+    for item in profile.counterparties:
+        legend = item.legend
+        if legend is None or legend.role is None:
+            continue
+        key = f"counterparty.{item.company_id}.role"
+        category, word = ROLE_FACTS[legend.role]
+        facts.setdefault(
+            key,
+            new_fact(
+                profile.company_id,
+                category,
+                f"{legend.name} ({item.company_id}) — {word}",
+                FactSource.LEGEND,
+                key=key,
+                value=legend.role.value,
+                evidence=[f"feature:counterparties_{item.direction}", f"legend:{item.company_id}"],
+                now=now,
+                fact_id=draft_id(profile.company_id, key),
+            ),
+        )
+    return list(facts.values())
 
 
 def same_content(left: KnowledgeFact, right: KnowledgeFact) -> bool:

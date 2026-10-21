@@ -29,6 +29,7 @@ x-backend: &backend
     NEWS_FETCH_INTERVAL_MINUTES: ${NEWS_FETCH_INTERVAL_MINUTES:-30}
     NEWS_USER_AGENT: ${NEWS_USER_AGENT:-alfa-news-insights/0.1}
     DATA_DIR: ${DATA_DIR:-/app/data}
+    LEGEND_FILE: ${LEGEND_FILE:-samples/legends.yaml}
   restart: unless-stopped
   init: true
   volumes:

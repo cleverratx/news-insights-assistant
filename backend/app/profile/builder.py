@@ -16,6 +16,7 @@ from app.contracts.profile import (
 from app.profile.derived import derive, merge_exposures
 from app.profile.features import base_features
 from app.profile.graph import CompanyLinks, fetch_links, link_profile
+from app.profile.legend import Legends, apply_legend, get_legends
 from app.profile.okved import industry
 from app.profile.products import product_profile
 from app.profile.row import CompanyRow, source_field
@@ -154,11 +155,15 @@ def assemble(row: CompanyRow, links: CompanyLinks, peers: Peers | None = None) -
     )
 
 
-async def load_profile(connection: Any, company_id: str) -> CompanyProfile | None:
+async def load_profile(
+    connection: Any, company_id: str, legends: Legends | None = None
+) -> CompanyProfile | None:
+    """Профиль по выгрузке и поверх него демо-легенда, если она есть (по умолчанию — из
+    настроек). Без легенды профиль тот же, только без названий."""
     record = await connection.fetchrow(COMPANY_SQL, company_id)
     if record is None:
         return None
     row = CompanyRow.from_record(record)
     links = await fetch_links(connection, row)
     peers = await fetch_peers(connection, row)
-    return assemble(row, links, peers)
+    return apply_legend(assemble(row, links, peers), get_legends() if legends is None else legends)

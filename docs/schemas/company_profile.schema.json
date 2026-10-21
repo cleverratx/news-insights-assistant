@@ -154,6 +154,17 @@
           ],
           "default": null,
           "title": "Region"
+        },
+        "legend": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PartnerLegend"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -163,6 +174,15 @@
       ],
       "title": "Counterparty",
       "type": "object"
+    },
+    "CounterpartyRole": {
+      "enum": [
+        "buyer",
+        "supplier",
+        "carrier"
+      ],
+      "title": "CounterpartyRole",
+      "type": "string"
     },
     "DataQuality": {
       "additionalProperties": false,
@@ -391,6 +411,45 @@
       "title": "IndustryResolution",
       "type": "string"
     },
+    "Legend": {
+      "additionalProperties": false,
+      "description": "Демо-легенда компании поверх обезличенных данных (ADR 0003). Только отображение:\nпризнаки, отбор и выводы считаются по выгрузке, а условное название в поиск не идёт.",
+      "properties": {
+        "name": {
+          "description": "Условное название, реальной компании с таким нет",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Чем занимается, словами",
+          "title": "Description"
+        },
+        "brands": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Brands",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Legend",
+      "type": "object"
+    },
     "Location": {
       "additionalProperties": false,
       "properties": {
@@ -467,6 +526,64 @@
         "peer_revenue_share"
       ],
       "title": "MarketPosition",
+      "type": "object"
+    },
+    "PartnerLegend": {
+      "additionalProperties": false,
+      "description": "Демо-легенда связанной компании: условное название, роль и отрасль словами.\nНе данные выгрузки — интерфейс показывает это с пометкой «демо».",
+      "properties": {
+        "name": {
+          "description": "Условное название, реальной компании с таким нет",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CounterpartyRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Кем приходится клиенту"
+        },
+        "industry": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Отрасль словами, если контрагента нет в выгрузке юрлиц",
+          "title": "Industry"
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сегмент рынка по отрасли из легенды: для поиска новостей контрагента",
+          "title": "Segment"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "PartnerLegend",
       "type": "object"
     },
     "ProfileFeature": {
@@ -604,6 +721,17 @@
           ],
           "default": null,
           "title": "Revenue Rub"
+        },
+        "legend": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PartnerLegend"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -886,6 +1014,18 @@
     },
     "data_quality": {
       "$ref": "#/$defs/DataQuality"
+    },
+    "legend": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Legend"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Пусто, если легенды нет: компания показывается по SYNTHETIC_U"
     }
   },
   "required": [
