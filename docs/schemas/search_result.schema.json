@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "search_result.schema.json",
+  "$defs": {
+    "MaterialKind": {
+      "enum": [
+        "news",
+        "bank_analytics"
+      ],
+      "title": "MaterialKind",
+      "type": "string"
+    },
+    "SearchHit": {
+      "additionalProperties": false,
+      "description": "Найденный фрагмент: цитата из него дословно и ссылка на документ и место в нём.",
+      "properties": {
+        "doc_id": {
+          "description": "NewsItem.id: news:… или bank:…",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Doc Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/MaterialKind"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "source": {
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Первоисточник новости",
+          "title": "Url"
+        },
+        "document": {
+          "description": "Как найти место: «документ, стр. N, абзац M»",
+          "minLength": 1,
+          "title": "Document",
+          "type": "string"
+        },
+        "published_at": {
+          "format": "date-time",
+          "title": "Published At",
+          "type": "string"
+        },
+        "fragment_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Fragment Id",
+          "type": "string"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Locator"
+        },
+        "quote": {
+          "description": "Дословная цитата из фрагмента",
+          "minLength": 1,
+          "title": "Quote",
+          "type": "string"
+        },
+        "score": {
+          "description": "Итоговая релевантность",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "bm25": {
+          "minimum": 0,
+          "title": "Bm25",
+          "type": "number"
+        },
+        "rerank": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Оценка модели, если переранжировали",
+          "title": "Rerank"
+        }
+      },
+      "required": [
+        "doc_id",
+        "kind",
+        "title",
+        "source",
+        "document",
+        "published_at",
+        "fragment_id",
+        "quote",
+        "score",
+        "bm25"
+      ],
+      "title": "SearchHit",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "query": {
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+    },
+    "hits": {
+      "items": {
+        "$ref": "#/$defs/SearchHit"
+      },
+      "title": "Hits",
+      "type": "array"
+    },
+    "reranked": {
+      "description": "Порядок уточнила модель; false — только BM25",
+      "title": "Reranked",
+      "type": "boolean"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
+    "searched": {
+      "description": "Сколько фрагментов было в поиске",
+      "minimum": 0,
+      "title": "Searched",
+      "type": "integer"
+    },
+    "warnings": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "query",
+    "reranked",
+    "searched"
+  ],
+  "title": "SearchResult",
+  "type": "object"
+}
