@@ -29,6 +29,7 @@ from app.llm.client import open_llm_client
 from app.llm.errors import LLMConfigurationError
 from app.news.cards import card, shared_images
 from app.news.markers import markers_of, matches, title
+from app.rank.diversity import diversify, entry, polarity
 from app.rank.llm_filter import Completer, verify
 from app.rank.score import Scored, score
 from app.search.service import NEWS_DAYS, load
@@ -108,6 +109,7 @@ def feed_item(
             topics=classification.topics if classification else [],
             sentiment=classification.sentiment if classification else None,
             horizon=classification.horizon if classification else None,
+            polarity=polarity(news),
         ),
         stage=ranked.stage,
         significance=ranked.significance,
@@ -150,11 +152,15 @@ async def build_feed(
     by_id = {story.news.id: story for story in found}
     filtered = await verify(llm, profile, [(story.news, story.scored) for story in found], cache)
     verified = filtered.model is not None
-    shown = [
-        ranked
+    visible = {
+        ranked.news_id: ranked
         for ranked in filtered.items
         if unverified or not verified or ranked.stage is RankStage.RERANKED
-    ][:limit]
+    }
+    diverse = diversify(
+        [entry(by_id[news_id].news, ranked.score.final) for news_id, ranked in visible.items()]
+    )
+    shown = [visible[news_id] for news_id in diverse.order][:limit]
     labels = {feature.id: feature.label for feature in profile.features}
     warnings = list(filtered.warnings)
     if filtered.error:
@@ -186,6 +192,7 @@ async def build_feed(
             for rejection in filtered.rejected
             if rejection.by == "model"
         ],
+        adjustments=diverse.notes,
         warnings=warnings,
     )
 

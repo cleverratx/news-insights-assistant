@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import AwareDatetime, Field
@@ -5,6 +6,12 @@ from pydantic import AwareDatetime, Field
 from app.contracts.common import SCHEMA_VERSION, Contract, Id, Score, Significance, Text
 from app.contracts.news import Horizon, Marker, MaterialKind, NewsCard, Topic
 from app.contracts.rank import RankStage, ScoreBreakdown
+
+
+class Polarity(StrEnum):
+    RISK = "risk"
+    OPPORTUNITY = "opportunity"
+    NEUTRAL = "neutral"
 
 
 class FeedFeature(Contract):
@@ -23,6 +30,9 @@ class FeedEvent(Contract):
     topics: list[Topic] = Field(default_factory=list)
     sentiment: Literal["positive", "negative", "neutral", "mixed"] | None = None
     horizon: Horizon | None = None
+    polarity: Polarity | None = Field(
+        default=None, description="Риск или возможность по тональности события для бизнеса"
+    )
 
 
 class FeedItem(Contract):
@@ -67,5 +77,9 @@ class Feed(Contract):
     dropped_by_rules: int = Field(ge=0, description="Отсеяно правилами: не совпали с компанией")
     rejected: list[FeedRejection] = Field(
         default_factory=list, description="Отклонено моделью, с аргументом"
+    )
+    adjustments: list[Text] = Field(
+        default_factory=list,
+        description="Как изменён порядок ради разнообразия: разведены события, поднят риск",
     )
     warnings: list[Text] = Field(default_factory=list)
