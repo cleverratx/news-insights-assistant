@@ -4,10 +4,32 @@
   "news_id": "news:demo-key-rate",
   "stage": "reranked",
   "rank": 1,
-  "score": {"lexical": 7.4, "lexical_norm": 0.82, "llm": 0.9, "recency": 0.7, "final": 0.86},
+  "score": {
+    "lexical": 7.4,
+    "lexical_norm": 0.82,
+    "llm": 0.9,
+    "relevance": 0.55,
+    "recency": 0.7,
+    "scale": 0.8,
+    "final": 0.86,
+    "factors": ["Опубликовано 37 ч назад, свежесть 70%", "Масштаб события 80%: тема «ключевая ставка»"]
+  },
   "significance": "high",
   "matched_features": [
-    {"feature_id": "feature:loan", "reason": "Ставка напрямую определяет стоимость кредитов компании"}
+    {
+      "feature_id": "feature:loan",
+      "reason": "Ставка напрямую определяет стоимость кредитов компании",
+      "rule": "product",
+      "weight": 0.35,
+      "contribution": 0.46
+    },
+    {
+      "feature_id": "feature:debt_dependence",
+      "reason": "Зависимость от заёмных средств высокая",
+      "rule": "exposure",
+      "weight": 0.3,
+      "contribution": 0.4
+    }
   ],
   "matched_terms": ["ключевая ставка", "кредит"],
   "reason": "Компания финансируется кредитами, а ставка не снизилась",
