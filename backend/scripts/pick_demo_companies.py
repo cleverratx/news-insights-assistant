@@ -25,12 +25,50 @@ RATE_SENSITIVE = [
 ]
 KEY_FIELDS = ["MAINOKVED_NAME", "REGION", "REVENUE_COMPANY"]
 TOP_PARTNERS = 5
+MIN_PARTNERS = 5
+DEBT_PRODUCTS = ["CL_PRODUCT_LOA_MARK", "CL_PRODUCT_LEA_MARK"]
+MISSING_PARTNER = "нет в выгрузке юрлиц"
+
+# Роли демо-компаний: ленты должны заметно отличаться, поэтому берём по одной компании
+# каждого типа бизнеса. Тип — по классу ОКВЭД, первым двум цифрам кода.
+ARCHETYPES: dict[str, tuple[str, set[str]]] = {
+    "importer": ("импортёр", {"45", "46"}),
+    "manufacturing": ("производство", {f"{number:02d}" for number in range(10, 34)}),
+    "services_retail": (
+        "услуги или ритейл",
+        {"47", "49", "50", "51", "52", "53", "55", "56"}
+        | {f"{number:02d}" for number in range(58, 64)}
+        | {f"{number:02d}" for number in range(68, 83)}
+        | {f"{number:02d}" for number in range(85, 97)},
+    ),
+}
+TRANSPORT = {"49", "50", "51", "52", "53"}
+LEGEND_ROLES = {"платит нам": "покупатель", "платим мы": "поставщик"}
 
 
 def industry_section(code: object) -> str:
     text = str(code).strip()
     digits = "".join(character for character in text if character.isdigit())
     return digits[:2] if digits else "нет"
+
+
+def archetype_of(section: str) -> str | None:
+    return next((key for key, (_, sections) in ARCHETYPES.items() if section in sections), None)
+
+
+def blockers(row: pd.Series, partner_count: int) -> list[str]:
+    """Чего не хватает строке для демо: на бедной строке половина фич профиля не отработает."""
+    missing = []
+    if not is_positive_mark(row.get("FTS_FLAG")):
+        missing.append("нет ВЭД (FTS_FLAG)")
+    if not any(is_positive_mark(row.get(column)) for column in DEBT_PRODUCTS):
+        missing.append("нет кредита или лизинга")
+    group = row.get("GROUP_ID")
+    if not isinstance(group, str) or not group.strip() or row.get("_group_size", 1) <= 1:
+        missing.append("нет группы компаний (GROUP_ID)")
+    if partner_count < MIN_PARTNERS:
+        missing.append(f"контрагентов меньше {MIN_PARTNERS}: {partner_count}")
+    return missing
 
 
 def score_company(row: pd.Series, partner_count: int, person_count: int) -> tuple[int, list[str]]:
@@ -109,6 +147,7 @@ def build_cards(
 
     partner_counts: dict[str, int] = {}
     if not payments.empty:
+        payments = payments[payments["BENEFICIARY"].astype(str) != payments["PAYER"].astype(str)]
         pairs = pd.concat(
             [
                 payments[["BENEFICIARY", "PAYER"]].rename(
@@ -135,6 +174,7 @@ def build_cards(
         person_count = person_counts.get(company_id, 0)
         score, reasons = score_company(row, partner_count, person_count)
         revenue = to_number(pd.Series([row.get("REVENUE_COMPANY")])).iloc[0]
+        section = industry_section(row.get("MAINOKVED_CODE"))
         scored.append(
             {
                 "id": company_id,
@@ -143,7 +183,9 @@ def build_cards(
                 "reasons": reasons,
                 "partners": partner_count,
                 "persons": person_count,
-                "section": industry_section(row.get("MAINOKVED_CODE")),
+                "section": section,
+                "archetype": archetype_of(section),
+                "blockers": blockers(row, partner_count),
                 "revenue": float(revenue) if pd.notna(revenue) else 0.0,
             }
         )
@@ -153,26 +195,7 @@ def build_cards(
     if segment_only:
         scored = large
 
-    scored.sort(key=lambda item: (item["score"], item["partners"]), reverse=True)
-
-    picked: list[dict[str, object]] = []
-    used_sections: set[str] = set()
-    picked_ids: set[str] = set()
-    for item in scored:
-        if len(picked) >= count:
-            break
-        if item["section"] in used_sections:
-            continue
-        used_sections.add(str(item["section"]))
-        picked_ids.add(str(item["id"]))
-        picked.append(item)
-
-    for item in scored:
-        if len(picked) >= count:
-            break
-        if str(item["id"]) not in picked_ids:
-            picked_ids.add(str(item["id"]))
-            picked.append(item)
+    picked = pick(scored, count)
 
     industries = dict(
         zip(
@@ -181,18 +204,75 @@ def build_cards(
             strict=False,
         )
     )
+    sections = dict(
+        zip(
+            frame["SYNTHETIC_U"].astype(str),
+            frame.get("MAINOKVED_CODE", pd.Series(dtype=str)).map(industry_section),
+            strict=False,
+        )
+    )
     for item in picked:
         partners = counterparties(payments, item["id"]).head(TOP_PARTNERS).copy()
         partners["industry"] = partners["partner"].map(
-            lambda partner: industries.get(str(partner), "нет в выгрузке юрлиц")
+            lambda partner: industries.get(str(partner), MISSING_PARTNER)
         )
+        partners["section"] = partners["partner"].map(lambda partner: sections.get(str(partner)))
         item["top_partners"] = partners
     return picked, segment_only
 
 
+def rank(item: dict[str, object]) -> tuple[int, int]:
+    return int(str(item["score"])), int(str(item["partners"]))
+
+
+def pick(scored: list[dict[str, object]], count: int) -> list[dict[str, object]]:
+    """По одной лучшей компании на роль из ARCHETYPES среди тех, кому ничего не мешает.
+    Если для роли таких нет, слот добирается лучшей подходящей компанией другой отрасли.
+    Если и подходящих не осталось — берём лучшую из остальных, сначала недостающей роли;
+    в карточке тогда перечислено, чего ей не хватает."""
+    ordered = sorted(scored, key=rank, reverse=True)
+    fit = [item for item in ordered if not item["blockers"]]
+    picked: list[dict[str, object]] = []
+    ids: set[str] = set()
+    sections: set[str] = set()
+
+    def free(item: dict[str, object]) -> bool:
+        return str(item["id"]) not in ids and str(item["section"]) not in sections
+
+    def fill(pool: list[dict[str, object]], by_role: bool) -> None:
+        roles = [key for key in ARCHETYPES if all(item["archetype"] != key for item in picked)]
+        for role in roles if by_role else [None]:
+            for item in pool:
+                if len(picked) >= count:
+                    return
+                if free(item) and (role is None or item["archetype"] == role):
+                    picked.append(item)
+                    ids.add(str(item["id"]))
+                    sections.add(str(item["section"]))
+                    if role is not None:
+                        break
+
+    fill(fit, by_role=True)
+    fill(fit, by_role=False)
+    fill(ordered, by_role=True)
+    fill(ordered, by_role=False)
+    return picked
+
+
+def archetype_title(item: dict[str, object]) -> str:
+    archetype = item["archetype"]
+    return ARCHETYPES[str(archetype)][0] if archetype else "другая отрасль"
+
+
 def render_card(item: dict[str, object]) -> str:
     row = item["row"]
-    lines = [f"\n## Компания {item['id']}\n"]
+    lines = [f"\n## Компания {item['id']}\n", f"\n**Роль в демо:** {archetype_title(item)}\n"]
+    missing = item["blockers"]
+    if isinstance(missing, list) and missing:
+        lines.append(
+            "\n**Не проходит отбор, взята за неимением лучшей:** " + "; ".join(missing) + "\n"
+        )
+    lines.append("\n")
 
     facts = [
         ("Отрасль", row.get("MAINOKVED_NAME")),
@@ -280,33 +360,53 @@ def markdown_table(frame: pd.DataFrame) -> str:
     return "\n".join(lines) + "\n"
 
 
+def legend_role(direction: str, section: object) -> str:
+    """Роль по умолчанию: кто платит нам — покупатель, кому платим — поставщик, а если
+    это транспортная компания — перевозчик. Правится руками вместе с названием."""
+    if direction == "платим мы" and section in TRANSPORT:
+        return "перевозчик"
+    return LEGEND_ROLES.get(direction, "")
+
+
 def render_legend(items: list[dict[str, object]]) -> str:
+    """Заготовка в формате data/samples/legends.yaml (ADR 0003): остаётся вписать названия,
+    а для контрагентов, которых нет в выгрузке, — отрасль и код ОКВЭД."""
     lines = [
-        "# Легенда для демо: названия подставляются поверх обезличенных данных.",
-        "# Профиль и связи берутся из выгрузки кейса, здесь только имена и публичные факты.",
-        "# Заполнять руками. Названия должны быть вымышленными:",
-        "# проверьте поиском, что такой компании не существует.",
+        "# Заготовка демо-легенды. Заполненная легенда — data/samples/legends.yaml, формат",
+        "# и правила — в её шапке и в ADR 0003. Названия вымышленные: проверьте поиском,",
+        "# что такой компании нет. Роли проставлены по направлению платежей, проверьте их.",
         "",
         "companies:",
     ]
     for item in items:
         row = item["row"]
+        lines.append(
+            f"  # {archetype_title(item)}: {row.get('MAINOKVED_NAME', '')}, "
+            f"{row.get('REGION', '')}"
+        )
         lines.append(f"  - synthetic_u: \"{item['id']}\"")
         lines.append('    name: ""')
-        lines.append('    site: ""')
-        lines.append(f"    industry_hint: \"{row.get('MAINOKVED_NAME', '')}\"")
-        lines.append(f"    region_hint: \"{row.get('REGION', '')}\"")
-        lines.append("    public_facts: []")
+        lines.append('    description: ""')
+        lines.append("    brands: []")
         partners = item["top_partners"]
+        if not isinstance(partners, pd.DataFrame) or partners.empty:
+            lines.append("    partners: []")
+            lines.append("")
+            continue
         lines.append("    partners:")
-        if isinstance(partners, pd.DataFrame) and not partners.empty:
-            for partner in partners.itertuples(index=False):
-                lines.append(f'      - synthetic_u: "{partner.partner}"')
-                lines.append('        name: ""')
-                lines.append(f'        role: "{partner.role}"')
-                lines.append(f'        industry_hint: "{partner.industry}"')
-        else:
-            lines.append("      []")
+        seen: set[str] = set()
+        for partner in partners.itertuples(index=False):
+            if partner.partner in seen:
+                continue
+            seen.add(partner.partner)
+            lines.append(f'      - synthetic_u: "{partner.partner}"')
+            lines.append('        name: ""')
+            lines.append(f'        role: "{legend_role(partner.role, partner.section)}"')
+            if partner.industry == MISSING_PARTNER:
+                lines.append('        industry: ""  # нет в выгрузке юрлиц: впишите отрасль')
+                lines.append('        okved_code: ""')
+            else:
+                lines.append(f"        # в выгрузке: {partner.industry}")
         lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -349,14 +449,18 @@ def main() -> None:
     report = [
         "# Эталонные компании для демо\n",
         f"Отобраны скриптом `backend/scripts/pick_demo_companies.py` {date.today():%d.%m.%Y}. "
-        "Критерии отбора: внешнеэкономическая деятельность, продукты, чувствительные к ставке, "
-        "наличие контрагентов и группы, заполненность ключевых полей, разные отрасли. "
+        f"Обязательные условия: ВЭД (`FTS_FLAG`), кредит или лизинг, группа компаний "
+        f"(`GROUP_ID`) и от {MIN_PARTNERS} контрагентов в платежах — на бедной строке половина "
+        "признаков профиля не отработает. Из прошедших берётся по одной компании на роль: "
+        "импортёр, производство, услуги или ритейл; внутри роли — по баллу за продукты, "
+        "контрагентов, связанных физлиц и заполненность ключевых полей. "
         f"{segment_note} Платежи самому себе не учитываются.\n",
     ]
     summary = pd.DataFrame(
         [
             {
                 "Компания": item["id"],
+                "Роль в демо": archetype_title(item),
                 "Отрасль": item["row"].get("MAINOKVED_NAME"),
                 "Регион": item["row"].get("REGION"),
                 "Контрагентов": item["partners"],
