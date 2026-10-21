@@ -10,6 +10,7 @@ from app.contracts.__main__ import rendered
 from app.contracts.competitors import Competitors
 from app.contracts.knowledge import KnowledgeBase, KnowledgeGaps
 from app.contracts.links import LinkedCompanies
+from app.contracts.news import NewsStory
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "docs/schemas/examples"
 
@@ -31,6 +32,7 @@ def example(name: str) -> dict[str, Any]:
         ("knowledge_gaps", KnowledgeGaps),
         ("linked_companies", LinkedCompanies),
         ("competitors", Competitors),
+        ("news_story", NewsStory),
     ],
 )
 def test_examples_are_valid(name: str, model: type[BaseModel]) -> None:
