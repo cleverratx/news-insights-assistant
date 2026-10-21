@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from contextlib import suppress
 from typing import Annotated, Any
 
 import asyncpg
@@ -8,6 +9,7 @@ from app.contracts.profile import CompanyProfile
 from app.core.db import get_pool
 from app.profile.builder import load_profile
 from app.profile.knowledge import apply_knowledge, knowledge_base
+from app.profile.links import ManualLink, apply_links, manual_links
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -41,8 +43,9 @@ async def company_profile(company_id: CompanyId, connection: Connection) -> Comp
         raise HTTPException(503, "Выгрузка не загружена: выполните python -m app.data") from None
     if profile is None:
         raise HTTPException(404, "Компания не найдена")
-    try:
-        base = await knowledge_base(connection, company_id)
-    except asyncpg.UndefinedTableError:
-        return profile
-    return apply_knowledge(profile, base)
+    with suppress(asyncpg.UndefinedTableError):
+        profile = apply_knowledge(profile, await knowledge_base(connection, company_id))
+    manual: list[ManualLink] = []
+    with suppress(asyncpg.UndefinedTableError):
+        manual = await manual_links(connection, company_id)
+    return apply_links(profile, manual)

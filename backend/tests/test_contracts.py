@@ -8,6 +8,7 @@ from pydantic import BaseModel, ValidationError
 from app.contracts import CompanyProfile, Insight, NewsItem, RankedItem
 from app.contracts.__main__ import rendered
 from app.contracts.knowledge import KnowledgeBase, KnowledgeGaps
+from app.contracts.links import LinkedCompanies
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "docs/schemas/examples"
 
@@ -27,6 +28,7 @@ def example(name: str) -> dict[str, Any]:
         ("insight", Insight),
         ("knowledge_base", KnowledgeBase),
         ("knowledge_gaps", KnowledgeGaps),
+        ("linked_companies", LinkedCompanies),
     ],
 )
 def test_examples_are_valid(name: str, model: type[BaseModel]) -> None:

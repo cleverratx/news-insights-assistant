@@ -9,7 +9,7 @@
 | `app/profile` | профиль компании по выгрузкам кейса: отрасль, размер, продукты банка, регионы, контрагенты, группа |
 | `app/rank` | отбор кандидатов из ленты под профиль и ранжирование по значимости |
 | `app/agent` | оркестратор: план, вызов инструментов, общий контекст, самопроверка, сборка ответа |
-| `app/api` | HTTP-контракт для фронтенда, схемы ответов, OpenAPI; `GET /api/companies/{id}/profile`, база знаний и правки клиента `/api/companies/{id}/knowledge` |
+| `app/api` | HTTP-контракт для фронтенда, схемы ответов, OpenAPI; `GET /api/companies/{id}/profile`, база знаний и правки клиента `/api/companies/{id}/knowledge`, связанные компании `/api/companies/{id}/links` |
 | `app/worker` | фоновые задачи: периодический сбор, пересчёт витрин, прогрев сводок |
 | `app/llm` | HTTP-клиент LLM, выбор модели, повторы и общий бюджет через Redis |
 | `app/contracts` | общие схемы обмена: `CompanyProfile`, `NewsItem`, `RankedItem`, `Insight`; JSON-схемы — в [schemas/](schemas/README.md) |
