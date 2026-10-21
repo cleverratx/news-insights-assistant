@@ -1,4 +1,5 @@
-"""Пайплайн новостей (A3-09): сбор → нормализация → сюжеты → разбор → факты одним запуском.
+"""Пайплайн новостей (A3-09): сбор → нормализация → сюжеты → разбор → факты → сущности
+одним запуском.
 
 Отказоустойчивость на трёх уровнях:
 
@@ -13,11 +14,12 @@
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import asdict, dataclass, field, is_dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.news.classify import Completer, classify_pending
 from app.news.dedup import dedup_pending
+from app.news.entities import index as index_entities
 from app.news.extract import extract_pending
 from app.news.fetch import Fetcher, Source, run_once
 from app.news.issues import ensure_schema, failure, record
@@ -29,6 +31,8 @@ WHERE created_at >= $1
 GROUP BY stage, kind
 ORDER BY stage, kind
 """
+
+ENTITY_WINDOW = timedelta(days=14)
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +71,7 @@ async def run_pipeline(
         ("dedup", lambda: dedup_pending(connection, now=moment)),
         ("classify", lambda: classify_pending(connection, llm, now=moment)),
         ("extract", lambda: extract_pending(connection, llm, sources, now=moment)),
+        ("entities", lambda: index_entities(connection, moment - ENTITY_WINDOW)),
     ]
     for name, step in steps:
         try:
