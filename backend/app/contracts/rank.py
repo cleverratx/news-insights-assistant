@@ -22,14 +22,31 @@ class RankStage(StrEnum):
 class FeatureMatch(Contract):
     feature_id: Id = Field(description="Идентификатор признака из CompanyProfile.features")
     reason: Text
+    rule: Id | None = Field(default=None, description="Правило сопоставления, которое сработало")
+    weight: Score | None = Field(default=None, description="Вес признака по этому правилу")
+    contribution: Score | None = Field(
+        default=None, description="Вклад признака в итоговый балл: сумма вкладов равна final"
+    )
 
 
 class ScoreBreakdown(Contract):
     lexical: float | None = Field(default=None, ge=0, allow_inf_nan=False, description="Сырой BM25")
     lexical_norm: Score | None = None
     llm: Score | None = Field(default=None, description="Оценка переранжирования моделью")
-    recency: Score | None = None
+    relevance: Score | None = Field(
+        default=None, description="Совпадение с признаками компании по правилам отбора"
+    )
+    recency: Score | None = Field(
+        default=None, description="Свежесть: 1 — только что, 0,5 — полураспад"
+    )
+    scale: Score | None = Field(
+        default=None, description="Масштаб события: тема, охват изданий, подтверждённые цифры"
+    )
     final: Score
+    factors: list[Text] = Field(
+        default_factory=list,
+        description="Пояснения к баллу для интерфейса: свежесть, масштаб, штрафы",
+    )
 
 
 class RankedItem(Contract):

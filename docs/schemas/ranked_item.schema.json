@@ -16,6 +16,51 @@
           "minLength": 1,
           "title": "Reason",
           "type": "string"
+        },
+        "rule": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Правило сопоставления, которое сработало",
+          "title": "Rule"
+        },
+        "weight": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Вес признака по этому правилу",
+          "title": "Weight"
+        },
+        "contribution": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Вклад признака в итоговый балл: сумма вкладов равна final",
+          "title": "Contribution"
         }
       },
       "required": [
@@ -79,6 +124,21 @@
           "description": "Оценка переранжирования моделью",
           "title": "Llm"
         },
+        "relevance": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Совпадение с признаками компании по правилам отбора",
+          "title": "Relevance"
+        },
         "recency": {
           "anyOf": [
             {
@@ -91,13 +151,38 @@
             }
           ],
           "default": null,
+          "description": "Свежесть: 1 — только что, 0,5 — полураспад",
           "title": "Recency"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Масштаб события: тема, охват изданий, подтверждённые цифры",
+          "title": "Scale"
         },
         "final": {
           "maximum": 1,
           "minimum": 0,
           "title": "Final",
           "type": "number"
+        },
+        "factors": {
+          "description": "Пояснения к баллу для интерфейса: свежесть, масштаб, штрафы",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Factors",
+          "type": "array"
         }
       },
       "required": [
