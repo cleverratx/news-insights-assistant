@@ -87,6 +87,17 @@ def sniff_separator(path: Path, encoding: str) -> str:
 
 
 def load_table(path: Path) -> LoadedTable:
+    if not path.exists():
+        raise SystemExit(
+            f"Файл не найден: {path}\n"
+            f"Проверено по пути: {path.resolve()}\n"
+            "Скрипты запускаются из папки backend, пути считаются от неё: "
+            "выгрузки по умолчанию лежат в ../data/raw/. "
+            "Можно передать и полный путь к файлу."
+        )
+    if path.is_dir():
+        raise SystemExit(f"Это папка, а не файл выгрузки: {path}")
+
     last_error: Exception | None = None
     for encoding in ENCODINGS:
         try:
@@ -119,6 +130,72 @@ def split_link_table(frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         payments = frame[payment_columns].dropna(subset=["BENEFICIARY", "PAYER"])
 
     return persons, payments
+
+
+PAYMENTS_FILE = "df_Uid_payment_hack.csv"
+
+
+@dataclass
+class CaseTables:
+    companies: LoadedTable
+    links: LoadedTable
+    payments_file: LoadedTable | None
+    persons: pd.DataFrame
+    payments: pd.DataFrame
+    self_payments: int
+
+
+def resolve_payments_path(links: Path, payments: Path | None) -> Path | None:
+    if payments is not None:
+        return payments
+    candidate = links.parent / PAYMENTS_FILE
+    return candidate if candidate.exists() else None
+
+
+def drop_self_payments(payments: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    if payments.empty:
+        return payments, 0
+    same = payments["BENEFICIARY"].astype(str) == payments["PAYER"].astype(str)
+    return payments[~same], int(same.sum())
+
+
+def load_case(companies: Path, links: Path, payments: Path | None) -> CaseTables:
+    company_table = load_table(companies)
+    link_table = load_table(links)
+    persons, embedded = split_link_table(link_table.frame)
+
+    payment_table = None
+    frames = [embedded] if not embedded.empty else []
+    payments_path = resolve_payments_path(links, payments)
+    if payments_path is not None:
+        payment_table = load_table(payments_path)
+        _, from_file = split_link_table(payment_table.frame)
+        if not from_file.empty:
+            frames.append(from_file)
+
+    merged = (
+        pd.concat(frames, ignore_index=True)
+        if frames
+        else pd.DataFrame(columns=LINK_PAYMENT_COLUMNS)
+    )
+    cleaned, self_count = drop_self_payments(merged)
+    return CaseTables(
+        companies=company_table,
+        links=link_table,
+        payments_file=payment_table,
+        persons=persons,
+        payments=cleaned,
+        self_payments=self_count,
+    )
+
+
+def share(part: float, total: float) -> str:
+    if not total:
+        return "—"
+    value = part / total
+    if 0 < value < 0.01:
+        return "<1%"
+    return f"{value:.0%}"
 
 
 def to_number(series: pd.Series) -> pd.Series:

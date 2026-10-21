@@ -11,10 +11,11 @@ from case_data import (
     counterparties,
     format_amount,
     is_positive_mark,
-    load_table,
-    split_link_table,
+    load_case,
     to_number,
 )
+
+LARGE_BUSINESS_REVENUE = 15_000_000_000
 
 RATE_SENSITIVE = [
     "CL_PRODUCT_LOA_MARK",
@@ -92,9 +93,13 @@ def score_company(row: pd.Series, partner_count: int, person_count: int) -> tupl
 
 
 def build_cards(
-    companies: pd.DataFrame, persons: pd.DataFrame, payments: pd.DataFrame, count: int
-) -> list[dict[str, object]]:
-    frame = companies.copy()
+    companies: pd.DataFrame,
+    persons: pd.DataFrame,
+    payments: pd.DataFrame,
+    count: int,
+    min_revenue: float,
+) -> tuple[list[dict[str, object]], bool]:
+    frame = companies.drop_duplicates(subset=["SYNTHETIC_U"]).copy()
 
     if "GROUP_ID" in frame.columns:
         sizes = frame["GROUP_ID"].map(frame["GROUP_ID"].value_counts())
@@ -129,6 +134,7 @@ def build_cards(
         partner_count = partner_counts.get(company_id, 0)
         person_count = person_counts.get(company_id, 0)
         score, reasons = score_company(row, partner_count, person_count)
+        revenue = to_number(pd.Series([row.get("REVENUE_COMPANY")])).iloc[0]
         scored.append(
             {
                 "id": company_id,
@@ -138,10 +144,16 @@ def build_cards(
                 "partners": partner_count,
                 "persons": person_count,
                 "section": industry_section(row.get("MAINOKVED_CODE")),
+                "revenue": float(revenue) if pd.notna(revenue) else 0.0,
             }
         )
 
-    scored.sort(key=lambda item: item["score"], reverse=True)
+    large = [item for item in scored if float(str(item["revenue"])) >= min_revenue]
+    segment_only = len(large) >= count
+    if segment_only:
+        scored = large
+
+    scored.sort(key=lambda item: (item["score"], item["partners"]), reverse=True)
 
     picked: list[dict[str, object]] = []
     used_sections: set[str] = set()
@@ -162,9 +174,20 @@ def build_cards(
             picked_ids.add(str(item["id"]))
             picked.append(item)
 
+    industries = dict(
+        zip(
+            frame["SYNTHETIC_U"].astype(str),
+            frame.get("MAINOKVED_NAME", pd.Series(dtype=str)).astype(str),
+            strict=False,
+        )
+    )
     for item in picked:
-        item["top_partners"] = counterparties(payments, item["id"]).head(TOP_PARTNERS)
-    return picked
+        partners = counterparties(payments, item["id"]).head(TOP_PARTNERS).copy()
+        partners["industry"] = partners["partner"].map(
+            lambda partner: industries.get(str(partner), "нет в выгрузке юрлиц")
+        )
+        item["top_partners"] = partners
+    return picked, segment_only
 
 
 def render_card(item: dict[str, object]) -> str:
@@ -221,6 +244,7 @@ def render_card(item: dict[str, object]) -> str:
                 "role": "Направление",
                 "PAY_AMT": "Объём",
                 "PAY_CNT": "Платежей",
+                "industry": "Отрасль контрагента",
             }
         )
         lines.append(markdown_table(shown))
@@ -280,6 +304,7 @@ def render_legend(items: list[dict[str, object]]) -> str:
                 lines.append(f'      - synthetic_u: "{partner.partner}"')
                 lines.append('        name: ""')
                 lines.append(f'        role: "{partner.role}"')
+                lines.append(f'        industry_hint: "{partner.industry}"')
         else:
             lines.append("      []")
         lines.append("")
@@ -290,21 +315,43 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Выбор эталонных компаний для демо (задача A1-09)")
     parser.add_argument("companies", type=Path, help="путь к df_Uid_data_hack.csv")
     parser.add_argument("links", type=Path, help="путь к df_Fid_Uid_link_hack.csv")
+    parser.add_argument(
+        "--payments",
+        type=Path,
+        help="путь к df_Uid_payment_hack.csv; по умолчанию ищется рядом с файлом связей",
+    )
     parser.add_argument("-n", "--count", type=int, default=3, help="сколько компаний отобрать")
+    parser.add_argument(
+        "--min-revenue",
+        type=float,
+        default=LARGE_BUSINESS_REVENUE,
+        help="нижняя граница выручки; по умолчанию сегмент кейса — от 15 млрд",
+    )
     parser.add_argument("--out", type=Path, default=Path("docs/demo-companies.md"))
     parser.add_argument("--legend", type=Path, default=Path("data/samples/legends.generated.yaml"))
     args = parser.parse_args()
 
-    companies = load_table(args.companies).frame
-    persons, payments = split_link_table(load_table(args.links).frame)
+    case = load_case(args.companies, args.links, args.payments)
+    if case.payments.empty:
+        print("Внимание: платежей нет, контрагенты не учтены. Проверьте --payments.")
 
-    picked = build_cards(companies, persons, payments, args.count)
+    picked, segment_only = build_cards(
+        case.companies.frame, case.persons, case.payments, args.count, args.min_revenue
+    )
 
+    segment_note = (
+        f"Кандидаты ограничены целевым сегментом кейса: выручка от "
+        f"{format_amount(args.min_revenue)}."
+        if segment_only
+        else f"Компаний с выручкой от {format_amount(args.min_revenue)} меньше, чем нужно, "
+        "поэтому отбор шёл по всей выгрузке."
+    )
     report = [
         "# Эталонные компании для демо\n",
         f"Отобраны скриптом `backend/scripts/pick_demo_companies.py` {date.today():%d.%m.%Y}. "
         "Критерии отбора: внешнеэкономическая деятельность, продукты, чувствительные к ставке, "
-        "наличие контрагентов и группы, заполненность ключевых полей, разные отрасли.\n",
+        "наличие контрагентов и группы, заполненность ключевых полей, разные отрасли. "
+        f"{segment_note} Платежи самому себе не учитываются.\n",
     ]
     summary = pd.DataFrame(
         [
