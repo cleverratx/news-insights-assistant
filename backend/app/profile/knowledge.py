@@ -375,12 +375,19 @@ async def sync_draft(
 
 async def knowledge_for(connection: Any, company_id: str) -> KnowledgeBase | None:
     """База знаний компании с актуальным черновиком из данных банка. None — компании нет."""
+    loaded = await profile_with_knowledge(connection, company_id)
+    return loaded[1] if loaded else None
+
+
+async def profile_with_knowledge(
+    connection: Any, company_id: str
+) -> tuple[CompanyProfile, KnowledgeBase] | None:
     profile = await load_profile(connection, company_id)
     if profile is None:
         return None
     await ensure_schema(connection)
     await sync_draft(connection, profile)
-    return await knowledge_base(connection, company_id)
+    return profile, await knowledge_base(connection, company_id)
 
 
 # Правки клиента в профиле (A2-14): факты клиента становятся признаками профиля, а то, что

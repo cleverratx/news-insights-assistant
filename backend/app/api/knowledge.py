@@ -1,12 +1,18 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, Self
 
 import asyncpg
 from fastapi import APIRouter, HTTPException, Path, Query, Response
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.api.companies import CompanyId, Connection
-from app.contracts.knowledge import FactCategory, FactSource, KnowledgeBase, KnowledgeFact
-from app.profile import knowledge
+from app.contracts.knowledge import (
+    FactCategory,
+    FactSource,
+    KnowledgeBase,
+    KnowledgeFact,
+    KnowledgeGaps,
+)
+from app.profile import gaps, knowledge
 
 router = APIRouter(prefix="/companies", tags=["knowledge"])
 
@@ -142,3 +148,52 @@ async def delete_fact(company_id: CompanyId, fact_id: FactId, connection: Connec
     fact = await company_fact(connection, company_id, fact_id)
     await store(connection, knowledge.delete(fact))
     return Response(status_code=204)
+
+
+class Answer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str | None = Field(default=None, min_length=1, max_length=2000)
+    value: str | float | bool | None = None
+    not_applicable: bool = Field(
+        default=False, description="Вопрос не про эту компанию: больше не задаём"
+    )
+
+    @model_validator(mode="after")
+    def text_or_not_applicable(self) -> Self:
+        if self.text is None and not self.not_applicable:
+            raise ValueError("Нужен текст ответа или not_applicable")
+        return self
+
+
+QuestionKey = Annotated[str, Path(min_length=1, max_length=200, examples=["seasonality.peak"])]
+
+
+@router.get("/{company_id}/knowledge/questions", response_model=KnowledgeGaps, responses=NOT_FOUND)
+async def get_questions(company_id: CompanyId, connection: Connection) -> KnowledgeGaps:
+    """Чего система о компании не знает: вопросы клиенту и предположения на подтверждение."""
+    try:
+        loaded = await knowledge.profile_with_knowledge(connection, company_id)
+    except asyncpg.UndefinedTableError:
+        raise HTTPException(503, "Выгрузка не загружена: выполните python -m app.data") from None
+    if loaded is None:
+        raise HTTPException(404, "Компания не найдена")
+    return gaps.gaps(*loaded)
+
+
+@router.post(
+    "/{company_id}/knowledge/questions/{key}/answer",
+    response_model=KnowledgeFact,
+    status_code=201,
+    responses=NOT_FOUND | CONFLICT,
+)
+async def answer_question(
+    company_id: CompanyId, key: QuestionKey, body: Answer, connection: Connection
+) -> KnowledgeFact:
+    """Ответ клиента ложится в базу знаний фактом клиента с ключом вопроса."""
+    if key not in gaps.SLOT_BY_KEY:
+        raise HTTPException(404, "Такого вопроса нет")
+    base = await company_knowledge(connection, company_id)
+    text = gaps.NOT_APPLICABLE if body.not_applicable else body.text or ""
+    value = False if body.not_applicable else body.value
+    return await store(connection, gaps.answer(base, key, text, value))
