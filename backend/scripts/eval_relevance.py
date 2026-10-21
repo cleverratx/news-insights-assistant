@@ -159,21 +159,27 @@ def baseline_ranking(snapshot: Snapshot, top: int) -> list[str]:
     return ranking[:top]
 
 
-async def pool(snapshot: Snapshot, path: Path) -> None:
+async def pool(
+    snapshot: Snapshot,
+    path: Path,
+    system_top: int = SYSTEM_TOP,
+    baseline_top: int = BASELINE_TOP,
+    random_extra: int = RANDOM_EXTRA,
+) -> None:
     by_id = {item.id: item for item in snapshot.materials}
     rows = []
     for profile in snapshot.profiles:
         chosen = list(
             dict.fromkeys(
                 [
-                    *await system_ranking(profile, snapshot, SYSTEM_TOP),
-                    *baseline_ranking(snapshot, BASELINE_TOP),
+                    *await system_ranking(profile, snapshot, system_top),
+                    *baseline_ranking(snapshot, baseline_top),
                 ]
             )
         )
         rng = random.Random(f"{SEED}:{profile.company_id}")  # noqa: S311 — воспроизводимая выборка
         rest = sorted(item.id for item in window(snapshot) if item.id not in chosen)
-        chosen += rng.sample(rest, min(RANDOM_EXTRA, len(rest)))
+        chosen += rng.sample(rest, min(random_extra, len(rest)))
         rng.shuffle(chosen)
         for news_id in chosen:
             item = by_id[news_id]
