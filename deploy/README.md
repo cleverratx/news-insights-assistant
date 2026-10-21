@@ -70,8 +70,8 @@ nginx получает только адрес API; браузер исполь�
 | `LLM_MAX_RETRIES`, `LLM_RETRY_BASE_SECONDS` | число повторов и начальная задержка backoff |
 | `LLM_MAX_OUTPUT_TOKENS`, `LLM_MAX_INPUT_BYTES` | лимит генерации и размера сообщений |
 | `LLM_BUDGET_TIMEZONE` | по умолчанию `UTC`: сброс суток в 03:00 МСК согласно инструкции организаторов |
-| `NEWS_SOURCES_FILE` | путь к будущей конфигурации источников |
-| `NEWS_FETCH_INTERVAL_MINUTES`, `NEWS_USER_AGENT` | период сбора и User-Agent будущего парсера |
+| `NEWS_SOURCES_FILE` | список источников новостей; относительный путь — от каталога `backend` |
+| `NEWS_FETCH_INTERVAL_MINUTES`, `NEWS_USER_AGENT` | интервал обхода источника, если в списке он не задан, и User-Agent парсера |
 | `DATA_DIR` | каталог данных; `/app/data` в Compose |
 | `LEGEND_FILE` | демо-легенда относительно `DATA_DIR`; пусто или нет файла — компании показываются по идентификаторам |
 

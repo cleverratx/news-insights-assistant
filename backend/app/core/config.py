@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     llm_max_input_bytes: int = Field(default=24000, gt=0, le=1000000)
     llm_budget_timezone: str = "UTC"
 
-    news_sources_file: str = "config/sources.yaml"
+    news_sources_file: str = "app/news/sources.yaml"
     news_fetch_interval_minutes: int = Field(default=30, gt=0)
     news_user_agent: str = "alfa-news-insights/0.1"
 

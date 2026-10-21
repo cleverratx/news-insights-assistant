@@ -1,0 +1,121 @@
+# Источники новостей (A3-01). Только открытые RSS деловых СМИ и регуляторов: кейс разрешает
+# любые законные бесплатные способы сбора, рекомендованного списка нет.
+#
+#   id               — постоянный идентификатор, попадает в материалы и журнал обхода
+#   kind             — media (СМИ) или regulator (ЦБ, министерства): официальная позиция
+#   url              — адрес RSS
+#   interval_minutes — как часто обходить; регуляторы публикуют реже
+#   fetch_article    — скачивать страницу статьи: в ленте только заголовок или анонс
+#   max_items        — сколько свежих записей брать за обход
+#   backup_for       — резервный источник: обходится, только пока все перечисленные
+#                      источники недоступны
+#   enabled          — false, чтобы временно выключить источник без удаления
+#
+# Проверено 21.10.2026: все включённые ленты отвечают. ТАСС и РБК отсюда недоступны,
+# поэтому выключены и оставлены резервом на стенде.
+
+sources:
+  - id: interfax
+    name: Интерфакс
+    kind: media
+    url: https://www.interfax.ru/rss
+    interval_minutes: 20
+    fetch_article: true
+    max_items: 25
+
+  - id: kommersant-economics
+    name: Коммерсантъ — Экономика
+    kind: media
+    url: https://www.kommersant.ru/rss/section-economics.xml
+    interval_minutes: 30
+    fetch_article: true
+
+  - id: vedomosti-business
+    name: Ведомости — Бизнес
+    kind: media
+    url: https://www.vedomosti.ru/rss/rubric/business
+    interval_minutes: 30
+    fetch_article: true
+
+  - id: vedomosti-economics
+    name: Ведомости — Экономика
+    kind: media
+    url: https://www.vedomosti.ru/rss/rubric/economics
+    interval_minutes: 30
+    fetch_article: true
+
+  - id: vedomosti-finance
+    name: Ведомости — Финансы
+    kind: media
+    url: https://www.vedomosti.ru/rss/rubric/finance
+    interval_minutes: 30
+    fetch_article: true
+
+  - id: prime
+    name: ПРАЙМ
+    kind: media
+    url: https://1prime.ru/export/rss2/index.xml
+    interval_minutes: 20
+    fetch_article: true
+
+  - id: rg
+    name: Российская газета
+    kind: media
+    url: https://rg.ru/xml/index.xml
+    interval_minutes: 30
+
+  - id: forbes
+    name: Forbes
+    kind: media
+    url: https://www.forbes.ru/newrss.xml
+    interval_minutes: 60
+
+  - id: cbr-press
+    name: Банк России — пресс-релизы
+    kind: regulator
+    url: https://www.cbr.ru/rss/RssPress
+    interval_minutes: 60
+
+  - id: cbr-events
+    name: Банк России — события
+    kind: regulator
+    url: https://www.cbr.ru/rss/eventrss
+    interval_minutes: 60
+    fetch_article: true
+
+  - id: minpromtorg
+    name: Минпромторг России
+    kind: regulator
+    url: https://minpromtorg.gov.ru/rss/
+    interval_minutes: 120
+
+  - id: ria-archive
+    name: РИА Новости
+    kind: media
+    url: https://ria.ru/export/rss2/archive/index.xml
+    interval_minutes: 30
+    fetch_article: true
+    backup_for: [interfax, prime]
+
+  - id: kommersant-news
+    name: Коммерсантъ — Все новости
+    kind: media
+    url: https://www.kommersant.ru/rss/news.xml
+    interval_minutes: 30
+    fetch_article: true
+    backup_for: [kommersant-economics]
+
+  - id: tass
+    name: ТАСС
+    kind: media
+    url: https://tass.ru/rss/v2.xml
+    interval_minutes: 20
+    fetch_article: true
+    enabled: false
+
+  - id: rbc
+    name: РБК
+    kind: media
+    url: https://rssexport.rbc.ru/rbcnews/news/30/full.rss
+    interval_minutes: 20
+    enabled: false
