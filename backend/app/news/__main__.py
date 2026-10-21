@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import sys
+from dataclasses import asdict
 from datetime import UTC, datetime
 
 import asyncpg
@@ -11,6 +12,7 @@ import httpx
 from app.core.config import get_settings
 from app.core.db import postgres_dsn
 from app.news.fetch import Fetcher, FetchError, FetchReport, load_sources, next_wakeup, run_once
+from app.news.normalize import normalize_pending
 
 
 def summary(report: FetchReport) -> dict[str, object]:
@@ -42,14 +44,30 @@ async def crawl(only: str | None, loop: bool) -> None:
         await connection.close()
 
 
+async def renormalize(everything: bool) -> None:
+    settings = get_settings()
+    sources = load_sources()
+    connection = await asyncpg.connect(postgres_dsn(settings.database_url.get_secret_value()))
+    try:
+        report = await normalize_pending(connection, sources, everything=everything)
+    finally:
+        await connection.close()
+    print(json.dumps(asdict(report), ensure_ascii=False))
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Сбор новостей из источников (A3-01)")
-    parser.add_argument("--source", help="обойти один источник вне расписания")
-    parser.add_argument("--loop", action="store_true", help="обходить по расписанию, не выходя")
+    parser = argparse.ArgumentParser(description="Новости: сбор (A3-01) и нормализация (A3-02)")
+    parser.add_argument("command", nargs="?", choices=["fetch", "normalize"], default="fetch")
+    parser.add_argument("--source", help="fetch: обойти один источник вне расписания")
+    parser.add_argument("--loop", action="store_true", help="fetch: обходить по расписанию")
+    parser.add_argument("--all", action="store_true", help="normalize: пересчитать все записи")
     args = parser.parse_args()
     logging.basicConfig(level=get_settings().log_level.upper())
     try:
-        asyncio.run(crawl(args.source, args.loop))
+        if args.command == "normalize":
+            asyncio.run(renormalize(args.all))
+        else:
+            asyncio.run(crawl(args.source, args.loop))
     except FetchError as error:
         print(str(error), file=sys.stderr)
         raise SystemExit(1) from None

@@ -108,6 +108,7 @@ class Source(BaseModel):
     fetch_article: bool = False
     max_items: int = Field(default=30, ge=1, le=200)
     backup_for: list[str] = Field(default_factory=list)
+    text_selector: str | None = None
     enabled: bool = True
 
 
