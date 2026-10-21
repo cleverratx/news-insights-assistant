@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.contracts import CompanyProfile, Insight, NewsItem, RankedItem
+from app.contracts.competitors import Competitors
 from app.contracts.knowledge import KnowledgeBase, KnowledgeGaps
 from app.contracts.links import LinkedCompanies
 
@@ -20,6 +21,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "knowledge_base": KnowledgeBase,
     "knowledge_gaps": KnowledgeGaps,
     "linked_companies": LinkedCompanies,
+    "competitors": Competitors,
 }
 
 

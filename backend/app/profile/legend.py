@@ -2,8 +2,10 @@
 
 Легенда задаёт название, описание и бренды демо-компании, а её крупнейшим контрагентам —
 название, роль (покупатель, поставщик, перевозчик) и отрасль словами, если контрагента нет
-в выгрузке юрлиц. Признаки, чувствительность и отбор считаются по выгрузке: если легенда
-и данные расходятся, правы данные. Условное название в поиск новостей не идёт, из легенды
+в выгрузке юрлиц. Ещё в легенде — реальные конкуренты из открытых источников: их ищет
+scripts/find_competitors.py, а связь с клиентом у них одна — «работают на одном рынке».
+Признаки, чувствительность и отбор считаются по выгрузке: если легенда и данные расходятся,
+правы данные. Условное название в поиск новостей не идёт, из легенды
 в поиск попадает только отрасль контрагента, которого нет в выгрузке.
 
 Нет файла, пустой или битый файл, пустое имя — сервис работает на синтетических
@@ -70,6 +72,22 @@ class PartnerEntry(BaseModel):
         return blank_is_none(value)
 
 
+class CompetitorEntry(BaseModel):
+    """Реальный игрок рынка из открытого источника. url — первоисточник, по нему же id."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str
+    url: str | None = None
+    region: str | None = None
+    industry: str | None = None
+
+    @field_validator("url", "region", "industry", mode="before")
+    @classmethod
+    def empty(cls, value: object) -> object:
+        return blank_is_none(value)
+
+
 class CompanyEntry(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -78,6 +96,7 @@ class CompanyEntry(BaseModel):
     description: str | None = None
     brands: list[str] = Field(default_factory=list)
     partners: list[PartnerEntry] = Field(default_factory=list)
+    competitors: list[CompetitorEntry] = Field(default_factory=list)
 
     @field_validator("description", mode="before")
     @classmethod
@@ -105,14 +124,18 @@ class Legends:
     companies: dict[str, Legend] = field(default_factory=dict)
     partners: dict[str, Partner] = field(default_factory=dict)
     roles: dict[tuple[str, str], CounterpartyRole] = field(default_factory=dict)
+    competitors: dict[str, list[CompetitorEntry]] = field(default_factory=dict)
 
     def __bool__(self) -> bool:
-        return bool(self.companies or self.partners)
+        return bool(self.companies or self.partners or self.competitors)
 
     @classmethod
     def from_entries(cls, entries: list[CompanyEntry]) -> "Legends":
         legends = cls()
         for entry in entries:
+            named = [item for item in entry.competitors if item.name.strip()]
+            if named:
+                legends.competitors[entry.synthetic_u] = named
             if entry.name.strip():
                 legends.companies[entry.synthetic_u] = Legend(
                     name=entry.name.strip(), description=entry.description, brands=entry.brands

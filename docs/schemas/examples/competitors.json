@@ -1,0 +1,158 @@
+{
+  "schema_version": "1.0",
+  "company_id": "U_900001",
+  "competitors": [
+    {
+      "id": "client:5d1e8a20c4f7",
+      "source": "client",
+      "company_id": null,
+      "name": "ООО «Морепродукт Трейд»",
+      "industry": null,
+      "segment": null,
+      "region": null,
+      "revenue_rub": null,
+      "score": null,
+      "reasons": [
+        "Назвал клиент"
+      ],
+      "url": null,
+      "fact_id": "fact:9f1c2b7a64e0"
+    },
+    {
+      "id": "wikidata:Q13610282",
+      "source": "open_source",
+      "company_id": null,
+      "name": "Metro Cash & Carry",
+      "industry": "пищевая промышленность и оптовая торговля",
+      "segment": null,
+      "region": null,
+      "revenue_rub": null,
+      "score": null,
+      "reasons": [
+        "Реальный игрок вашего рынка по открытым источникам"
+      ],
+      "url": "https://www.wikidata.org/wiki/Q13610282",
+      "fact_id": null
+    },
+    {
+      "id": "wikidata:Q4400200",
+      "source": "open_source",
+      "company_id": null,
+      "name": "Русагро",
+      "industry": "пищевая промышленность и оптовая торговля",
+      "segment": null,
+      "region": null,
+      "revenue_rub": null,
+      "score": null,
+      "reasons": [
+        "Реальный игрок вашего рынка по открытым источникам"
+      ],
+      "url": "https://www.wikidata.org/wiki/Q4400200",
+      "fact_id": null
+    },
+    {
+      "id": "wikidata:Q4295539",
+      "source": "open_source",
+      "company_id": null,
+      "name": "Мираторг",
+      "industry": "пищевая промышленность и оптовая торговля",
+      "segment": null,
+      "region": null,
+      "revenue_rub": null,
+      "score": null,
+      "reasons": [
+        "Реальный игрок вашего рынка по открытым источникам"
+      ],
+      "url": "https://www.wikidata.org/wiki/Q4295539",
+      "fact_id": null
+    },
+    {
+      "id": "wikidata:Q4529499",
+      "source": "open_source",
+      "company_id": null,
+      "name": "ЭФКО",
+      "industry": "пищевая промышленность и оптовая торговля",
+      "segment": null,
+      "region": null,
+      "revenue_rub": null,
+      "score": null,
+      "reasons": [
+        "Реальный игрок вашего рынка по открытым источникам"
+      ],
+      "url": "https://www.wikidata.org/wiki/Q4529499",
+      "fact_id": null
+    },
+    {
+      "id": "U_900504",
+      "source": "bank_data",
+      "company_id": "U_900504",
+      "name": null,
+      "industry": "Торговля оптовая прочими пищевыми продуктами, включая рыбу, ракообразных и моллюсков",
+      "segment": "food",
+      "region": "Москва",
+      "revenue_rub": 13040000000.0,
+      "score": 0.909,
+      "reasons": [
+        "Тот же вид деятельности: ОКВЭД 46.38",
+        "Выручка 13 млрд ₽ — сопоставима с вашей (18,2 млрд ₽)",
+        "Тот же регион: Москва"
+      ],
+      "url": null,
+      "fact_id": null
+    },
+    {
+      "id": "U_900506",
+      "source": "bank_data",
+      "company_id": "U_900506",
+      "name": null,
+      "industry": "Торговля оптовая прочими пищевыми продуктами, включая рыбу, ракообразных и моллюсков",
+      "segment": "food",
+      "region": "Республика Татарстан",
+      "revenue_rub": 16996000000.0,
+      "score": 0.7813,
+      "reasons": [
+        "Тот же вид деятельности: ОКВЭД 46.38",
+        "Выручка 17 млрд ₽ — сопоставима с вашей (18,2 млрд ₽)"
+      ],
+      "url": null,
+      "fact_id": null
+    },
+    {
+      "id": "U_900507",
+      "source": "bank_data",
+      "company_id": "U_900507",
+      "name": null,
+      "industry": "Торговля оптовая прочими пищевыми продуктами, включая рыбу, ракообразных и моллюсков",
+      "segment": "food",
+      "region": "Челябинская область",
+      "revenue_rub": 16936000000.0,
+      "score": 0.7803,
+      "reasons": [
+        "Тот же вид деятельности: ОКВЭД 46.38",
+        "Выручка 16,9 млрд ₽ — сопоставима с вашей (18,2 млрд ₽)"
+      ],
+      "url": null,
+      "fact_id": null
+    }
+  ],
+  "excluded": [
+    {
+      "id": "wikidata:Q4513187",
+      "source": "open_source",
+      "company_id": null,
+      "name": "Черкизово",
+      "industry": "пищевая промышленность и оптовая торговля",
+      "segment": null,
+      "region": "Москва",
+      "revenue_rub": null,
+      "score": null,
+      "reasons": [
+        "Реальный игрок вашего рынка по открытым источникам",
+        "Тот же регион: Москва"
+      ],
+      "url": "https://www.wikidata.org/wiki/Q4513187",
+      "fact_id": "fact:3a7d0c51b9e2"
+    }
+  ],
+  "warnings": []
+}
