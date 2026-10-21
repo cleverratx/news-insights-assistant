@@ -25,6 +25,14 @@
           "title": "Topics",
           "type": "array"
         },
+        "markers": {
+          "description": "Маркеры для фильтров ленты, от 1 до 3, главный первым",
+          "items": {
+            "$ref": "#/$defs/Marker"
+          },
+          "title": "Markers",
+          "type": "array"
+        },
         "okved_codes": {
           "items": {
             "minLength": 1,
@@ -338,6 +346,23 @@
       ],
       "title": "KeyFact",
       "type": "object"
+    },
+    "Marker": {
+      "description": "Маркер новости для фильтров ленты. Список закрыт: модель выбирает из него, а не\nпридумывает свои.",
+      "enum": [
+        "economy_rate",
+        "fx",
+        "regulation_taxes",
+        "trade_duties",
+        "commodities_prices",
+        "logistics",
+        "labor",
+        "technology",
+        "industry_event",
+        "incident"
+      ],
+      "title": "Marker",
+      "type": "string"
     },
     "MaterialKind": {
       "enum": [

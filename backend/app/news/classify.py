@@ -30,6 +30,7 @@ from app.news.dedup import ensure_schema as ensure_dedup
 from app.news.issues import ensure_schema as ensure_issues
 from app.news.issues import failure
 from app.news.issues import record as record_issue
+from app.news.markers import from_topics, known, prompt_list
 from app.profile.okved import SEGMENTS
 
 MAX_INPUT_CHARS = 3000
@@ -81,6 +82,7 @@ SYSTEM_PROMPT = """Ты классифицируешь деловые новос
 Верни только JSON-объект без пояснений и без markdown, ровно с такими полями:
 {{
   "topics": [от 1 до 4 тем из списка ниже, самая важная первой],
+  "markers": [от 1 до 3 маркеров из списка ниже, главный первым; других не придумывай],
   "segments": [id затронутых сегментов рынка из списка ниже; пусто, если затронута вся экономика],
   "industries": [затронутые отрасли словами, до 4],
   "regions": [регионы России, о которых новость; пусто, если вся страна],
@@ -93,6 +95,9 @@ SYSTEM_PROMPT = """Ты классифицируешь деловые новос
 
 Темы:
 {topics}
+
+Маркеры (id: название — о чём):
+{markers}
 
 Сегменты рынка (id — название):
 {segments}
@@ -107,11 +112,13 @@ class Completer(Protocol):
 
 
 class Answer(BaseModel):
-    """Ответ модели. Неизвестные сегменты отбрасываются: модель путается в id, а не в сути."""
+    """Ответ модели. Неизвестные сегменты и маркеры отбрасываются: список закрыт, а модель
+    чаще путается в id, чем в сути."""
 
     model_config = ConfigDict(extra="ignore")
 
     topics: list[Topic] = Field(min_length=1)
+    markers: list[str] = Field(default_factory=list)
     segments: list[str] = Field(default_factory=list)
     industries: list[str] = Field(default_factory=list)
     regions: list[str] = Field(default_factory=list)
@@ -125,6 +132,11 @@ class Answer(BaseModel):
     @classmethod
     def few_topics(cls, value: list[Topic]) -> list[Topic]:
         return list(dict.fromkeys(value))[:MAX_TOPICS]
+
+    @field_validator("markers")
+    @classmethod
+    def known_markers(cls, value: list[str]) -> list[str]:
+        return [marker.value for marker in known(value)]
 
     @field_validator("segments")
     @classmethod
@@ -141,7 +153,7 @@ class Answer(BaseModel):
 def system_prompt() -> str:
     topics = "\n".join(f"- {topic.value}: {hint}" for topic, hint in TOPIC_HINTS.items())
     segments = "\n".join(f"- {key}: {SEGMENTS[key].name}" for key in sorted(SEGMENT_IDS))
-    return SYSTEM_PROMPT.format(topics=topics, segments=segments)
+    return SYSTEM_PROMPT.format(topics=topics, markers=prompt_list(), segments=segments)
 
 
 def news_prompt(item: NewsItem) -> str:
@@ -169,8 +181,11 @@ def parse_answer(text: str) -> Answer:
 
 
 def from_answer(answer: Answer, model: str) -> Classification:
+    """Маркеры не из списка модель не протащит: они отброшены ещё при разборе ответа.
+    Если не осталось ни одного, маркеры выводятся из тем."""
     return Classification(
         topics=answer.topics,
+        markers=known(answer.markers) or from_topics(answer.topics),
         segments=answer.segments,
         industries=answer.industries,
         regions=answer.regions,
@@ -204,6 +219,7 @@ def rule_classify(item: NewsItem) -> Classification:
         topics.append(Topic.INDUSTRY)
     return Classification(
         topics=topics[:MAX_TOPICS] or [Topic.OTHER],
+        markers=from_topics(topics, text),
         segments=segments,
         industries=[SEGMENTS[key].name for key in segments],
         confidence=RULES_CONFIDENCE,

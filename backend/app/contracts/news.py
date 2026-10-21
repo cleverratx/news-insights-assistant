@@ -82,6 +82,22 @@ class KeyFact(Contract):
     )
 
 
+class Marker(StrEnum):
+    """Маркер новости для фильтров ленты. Список закрыт: модель выбирает из него, а не
+    придумывает свои."""
+
+    ECONOMY_RATE = "economy_rate"
+    FX = "fx"
+    REGULATION_TAXES = "regulation_taxes"
+    TRADE_DUTIES = "trade_duties"
+    COMMODITIES_PRICES = "commodities_prices"
+    LOGISTICS = "logistics"
+    LABOR = "labor"
+    TECHNOLOGY = "technology"
+    INDUSTRY_EVENT = "industry_event"
+    INCIDENT = "incident"
+
+
 class Horizon(StrEnum):
     DAYS = "days"
     WEEKS = "weeks"
@@ -91,6 +107,10 @@ class Horizon(StrEnum):
 
 class Classification(Contract):
     topics: list[Topic] = Field(min_length=1, description="Тип события")
+    markers: list[Marker] = Field(
+        default_factory=list,
+        description="Маркеры для фильтров ленты, от 1 до 3, главный первым",
+    )
     okved_codes: list[Text] = Field(default_factory=list)
     segments: list[Id] = Field(
         default_factory=list, description="Затронутые сегменты рынка из справочника ОКВЭД"

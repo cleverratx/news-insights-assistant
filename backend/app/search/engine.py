@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from rank_bm25 import BM25Okapi
+from rank_bm25 import BM25Plus
 
 from app.contracts.news import MaterialKind, NewsItem
 from app.contracts.search import SearchHit
@@ -125,17 +125,20 @@ class Index:
         self.passages = list(found)
         documents = [tokens(f"{passage.item.title} {passage.text}") for passage in self.passages]
         self.vocabulary = [set(document) for document in documents]
-        self.bm25 = BM25Okapi(documents) if documents else None
+        self.bm25 = BM25Plus(documents) if documents else None
 
     def search(
         self,
         query: str,
         limit: int = 20,
         kinds: set[MaterialKind] | None = None,
+        only: set[str] | None = None,
         since: datetime | None = None,
     ) -> list[Candidate]:
         """BM25, умноженный на долю слов запроса во фрагменте: подпись графика, где десять
-        раз повторено «цены», не обгонит абзац, где есть и «цены», и «золото»."""
+        раз повторено «цены», не обгонит абзац, где есть и «цены», и «золото». Фильтры
+        (kinds, since, only) применяются к результатам, а не к индексу: на маленьком корпусе
+        idf уходит в минус, и BM25 не находит ничего."""
         terms = tokens(query)
         if self.bm25 is None or not terms:
             return []
@@ -151,6 +154,8 @@ class Index:
             passage = self.passages[index]
             if scores[index] <= 0:
                 break
+            if only is not None and passage.item.id not in only:
+                continue
             if kinds and passage.item.kind not in kinds:
                 continue
             if since and passage.item.published_at < since:
