@@ -25,6 +25,7 @@ class Topic(StrEnum):
     FX = "fx"
     COMMODITIES = "commodities"
     TRADE = "trade"
+    LOGISTICS = "logistics"
     SANCTIONS = "sanctions"
     REGULATION = "regulation"
     TAXES = "taxes"
@@ -71,15 +72,34 @@ class KeyFact(Contract):
     fragment_id: Id | None = None
 
 
+class Horizon(StrEnum):
+    DAYS = "days"
+    WEEKS = "weeks"
+    MONTHS = "months"
+    YEARS = "years"
+
+
 class Classification(Contract):
-    topics: list[Topic] = Field(min_length=1)
+    topics: list[Topic] = Field(min_length=1, description="Тип события")
     okved_codes: list[Text] = Field(default_factory=list)
-    industries: list[Text] = Field(default_factory=list)
+    segments: list[Id] = Field(
+        default_factory=list, description="Затронутые сегменты рынка из справочника ОКВЭД"
+    )
+    industries: list[Text] = Field(default_factory=list, description="Отрасли словами")
     regions: list[Text] = Field(default_factory=list)
     countries: list[Text] = Field(default_factory=list)
     entities: list[Text] = Field(default_factory=list)
     sentiment: Literal["positive", "negative", "neutral", "mixed"] | None = None
+    horizon: Horizon | None = Field(
+        default=None,
+        description="Когда скажется на бизнесе: days — сразу, weeks — в ближайшие недели, "
+        "months — в пределах года, years — дольше",
+    )
     confidence: Score | None = None
+    method: Literal["llm", "rules"] = Field(
+        default="llm", description="llm — разобрала модель, rules — запасной разбор по словарю"
+    )
+    model: Text | None = Field(default=None, description="Какая разрешённая модель разобрала")
 
 
 class Dedup(Contract):
