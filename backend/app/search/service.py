@@ -10,8 +10,9 @@ import asyncpg
 from pydantic import ValidationError
 
 from app.cache.store import LLMCache
-from app.contracts.news import MaterialKind, NewsItem
+from app.contracts.news import Marker, MaterialKind, NewsItem
 from app.contracts.search import SearchResult
+from app.news.markers import filter_items
 from app.search.engine import Index, passages
 from app.search.rerank import Completer, rerank
 
@@ -59,14 +60,17 @@ async def search(
     kinds: Sequence[MaterialKind] = (MaterialKind.BANK_ANALYTICS, MaterialKind.NEWS),
     limit: int = 5,
     since: datetime | None = None,
+    markers: Sequence[Marker] = (),
     now: datetime | None = None,
 ) -> SearchResult:
     """Фрагменты по запросу с цитатой и ссылкой. kinds=[bank_analytics] — только позиция
-    банка: так агент отвечает на вопрос «как это оценивает банк»."""
+    банка: так агент отвечает на вопрос «как это оценивает банк». markers — только материалы
+    с одним из маркеров (A3-10)."""
     wanted = set(kinds)
     items, warnings = await load(connection, wanted, now or datetime.now(UTC))
     index = Index(passages(items))
-    candidates = index.search(query, limit=max(limit * 4, 20), kinds=wanted, since=since)
+    only = {item.id for item in filter_items(items, markers)} if markers else None
+    candidates = index.search(query, limit=max(limit * 4, 20), kinds=wanted, since=since, only=only)
     reranked = await rerank(llm, query, candidates, limit, LLMCache(connection))
     if reranked.error:
         warnings.append(f"Переранжирование моделью не удалось: {reranked.error}")
