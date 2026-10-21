@@ -24,6 +24,7 @@ data/interim/
 *.parquet
 !data/samples/*.csv
 !eval/relevance/labels.csv
+!eval/holdout/labels.csv
 
 .idea/
 .vscode/
