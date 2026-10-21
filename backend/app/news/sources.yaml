@@ -7,6 +7,8 @@
 #   interval_minutes — как часто обходить; регуляторы публикуют реже
 #   fetch_article    — скачивать страницу статьи: в ленте только заголовок или анонс
 #   max_items        — сколько свежих записей брать за обход
+#   text_selector    — CSS-селектор абзацев статьи для нормализации; без него текст ищется
+#                      общим алгоритмом
 #   backup_for       — резервный источник: обходится, только пока все перечисленные
 #                      источники недоступны
 #   enabled          — false, чтобы временно выключить источник без удаления
@@ -22,6 +24,7 @@ sources:
     interval_minutes: 20
     fetch_article: true
     max_items: 25
+    text_selector: "article[itemprop=articleBody] p, article p"
 
   - id: kommersant-economics
     name: Коммерсантъ — Экономика
@@ -29,6 +32,7 @@ sources:
     url: https://www.kommersant.ru/rss/section-economics.xml
     interval_minutes: 30
     fetch_article: true
+    text_selector: ".doc-text-block__paragraph"
 
   - id: vedomosti-business
     name: Ведомости — Бизнес
@@ -36,6 +40,7 @@ sources:
     url: https://www.vedomosti.ru/rss/rubric/business
     interval_minutes: 30
     fetch_article: true
+    text_selector: ".article-boxes-list p, .box-paragraph__text"
 
   - id: vedomosti-economics
     name: Ведомости — Экономика
@@ -43,6 +48,7 @@ sources:
     url: https://www.vedomosti.ru/rss/rubric/economics
     interval_minutes: 30
     fetch_article: true
+    text_selector: ".article-boxes-list p, .box-paragraph__text"
 
   - id: vedomosti-finance
     name: Ведомости — Финансы
@@ -50,6 +56,7 @@ sources:
     url: https://www.vedomosti.ru/rss/rubric/finance
     interval_minutes: 30
     fetch_article: true
+    text_selector: ".article-boxes-list p, .box-paragraph__text"
 
   - id: prime
     name: ПРАЙМ
@@ -57,12 +64,14 @@ sources:
     url: https://1prime.ru/export/rss2/index.xml
     interval_minutes: 20
     fetch_article: true
+    text_selector: ".article__body .article__text"
 
   - id: rg
     name: Российская газета
     kind: media
     url: https://rg.ru/xml/index.xml
     interval_minutes: 30
+    fetch_article: true
 
   - id: forbes
     name: Forbes
@@ -82,6 +91,7 @@ sources:
     url: https://www.cbr.ru/rss/eventrss
     interval_minutes: 60
     fetch_article: true
+    text_selector: ".lead-text p, .landing-text p, .landing-text li"
 
   - id: minpromtorg
     name: Минпромторг России
@@ -96,6 +106,7 @@ sources:
     interval_minutes: 30
     fetch_article: true
     backup_for: [interfax, prime]
+    text_selector: ".article__body .article__text"
 
   - id: kommersant-news
     name: Коммерсантъ — Все новости
@@ -104,6 +115,7 @@ sources:
     interval_minutes: 30
     fetch_article: true
     backup_for: [kommersant-economics]
+    text_selector: ".doc-text-block__paragraph"
 
   - id: tass
     name: ТАСС
