@@ -53,6 +53,18 @@
             }
           ],
           "default": null
+        },
+        "polarity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Polarity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Риск или возможность по тональности события для бизнеса"
         }
       },
       "required": [
@@ -394,6 +406,15 @@
       "title": "Placeholder",
       "type": "object"
     },
+    "Polarity": {
+      "enum": [
+        "risk",
+        "opportunity",
+        "neutral"
+      ],
+      "title": "Polarity",
+      "type": "string"
+    },
     "RankStage": {
       "enum": [
         "candidate",
@@ -616,6 +637,15 @@
         "$ref": "#/$defs/FeedRejection"
       },
       "title": "Rejected",
+      "type": "array"
+    },
+    "adjustments": {
+      "description": "Как изменён порядок ради разнообразия: разведены события, поднят риск",
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Adjustments",
       "type": "array"
     },
     "warnings": {
