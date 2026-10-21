@@ -85,6 +85,9 @@ BANK_VIEW = re.compile(
     re.IGNORECASE,
 )
 FORECAST = re.compile(r"\b(ожида|прогноз|ориентиру)", re.IGNORECASE)
+CAPTION = re.compile(r"^(рис\.?|рисунок|график|таблица|табл\.|источник|примечание)\s*\d*", re.I)
+CAPTION_LIMIT = 250
+SENTENCE_END = re.compile(r"[.!?…:;»)\]]$")
 SENTENCE = re.compile(r"(?<=[.!?…])\s+(?=[А-ЯЁA-Z«\"])")
 THEMES: dict[Topic, tuple[str, ...]] = {
     Topic.KEY_RATE: ("ключев", "ставк", "дкп"),
@@ -192,9 +195,17 @@ def paragraphs(text: str) -> list[str]:
                 joined += line
             else:
                 joined = f"{joined} {line}".strip()
-        if joined and not DISCLAIMER.search(joined):
+        if joined and not DISCLAIMER.search(joined) and not is_caption(joined):
             blocks.append(joined)
     return blocks
+
+
+def is_caption(text: str) -> bool:
+    """Подпись графика или таблицы: «Рис. 5: …», «Источник: …» или короткий обрывок без точки
+    в конце, как OCR читает легенду диаграммы."""
+    return bool(CAPTION.match(text)) or (
+        len(text) < CAPTION_LIMIT and not SENTENCE_END.search(text)
+    )
 
 
 def document_date(pages: Sequence[Page], file_name: str) -> date | None:

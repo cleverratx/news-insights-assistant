@@ -53,6 +53,10 @@ OSmirnov@alfabank.ru
 30
 2024 2025 2026
 
+Рис. 4: Изменение наличных денег в обращении, накопленным итогом с начала года, млрд руб.
+
+авг24 сен24 окт24 ноя24 дек24 янв25 фев25 мар25 апр25 май25 июн25 июл25 авг25
+
 Мы ожидаем сохранения ставки 14,0% до конца года. По нашему мнению, риски
 для инфляции смещены вверх.
 
@@ -68,7 +72,7 @@ def test_paragraphs_join_lines_and_drop_noise() -> None:
     rate = next(text for text in found if text.startswith("ЦБ РФ сохранил"))
     assert "пресс-релиз содержит" in rate
     assert not any("Все права защищены" in text for text in found)
-    assert not any(text.startswith(("40", "2024")) for text in found)
+    assert not any(text.startswith(("40", "2024", "Рис.", "авг24")) for text in found)
     assert not any("@" in text for text in found)
 
 
