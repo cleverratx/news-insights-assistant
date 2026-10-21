@@ -1,0 +1,640 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "feed.schema.json",
+  "$defs": {
+    "FeedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "Тип события для бейджа: название главного маркера",
+          "minLength": 1,
+          "title": "Type",
+          "type": "string"
+        },
+        "markers": {
+          "items": {
+            "$ref": "#/$defs/Marker"
+          },
+          "title": "Markers",
+          "type": "array"
+        },
+        "topics": {
+          "items": {
+            "$ref": "#/$defs/Topic"
+          },
+          "title": "Topics",
+          "type": "array"
+        },
+        "sentiment": {
+          "anyOf": [
+            {
+              "enum": [
+                "positive",
+                "negative",
+                "neutral",
+                "mixed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sentiment"
+        },
+        "horizon": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Horizon"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "FeedEvent",
+      "type": "object"
+    },
+    "FeedFeature": {
+      "additionalProperties": false,
+      "description": "Признак компании, из-за которого новость попала в ленту: для «почему это для вас».",
+      "properties": {
+        "feature_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Feature Id",
+          "type": "string"
+        },
+        "label": {
+          "description": "Формулировка признака из профиля",
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Как новость связана с этим признаком",
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "rule": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Правило отбора или llm — сослалась модель",
+          "title": "Rule"
+        },
+        "contribution": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Вклад признака в итоговый балл",
+          "title": "Contribution"
+        }
+      },
+      "required": [
+        "feature_id",
+        "label",
+        "reason"
+      ],
+      "title": "FeedFeature",
+      "type": "object"
+    },
+    "FeedItem": {
+      "additionalProperties": false,
+      "description": "Материал ленты компании: карточка, тип события, балл и объяснение релевантности.",
+      "properties": {
+        "rank": {
+          "minimum": 1,
+          "title": "Rank",
+          "type": "integer"
+        },
+        "news_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        },
+        "story_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сюжет, если событие пишут несколько изданий",
+          "title": "Story Id"
+        },
+        "kind": {
+          "$ref": "#/$defs/MaterialKind",
+          "description": "bank_analytics — позиция Альфа-Банка, news — внешняя новость"
+        },
+        "card": {
+          "$ref": "#/$defs/NewsCard"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "coverage": {
+          "description": "Сколько изданий пишут о событии",
+          "minimum": 1,
+          "title": "Coverage",
+          "type": "integer"
+        },
+        "event": {
+          "$ref": "#/$defs/FeedEvent"
+        },
+        "stage": {
+          "$ref": "#/$defs/RankStage",
+          "description": "reranked — релевантность подтвердила модель"
+        },
+        "significance": {
+          "$ref": "#/$defs/Significance"
+        },
+        "score": {
+          "$ref": "#/$defs/ScoreBreakdown"
+        },
+        "explanation": {
+          "description": "Почему эта новость для вас: аргумент модели или правил",
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "features": {
+          "items": {
+            "$ref": "#/$defs/FeedFeature"
+          },
+          "title": "Features",
+          "type": "array"
+        }
+      },
+      "required": [
+        "rank",
+        "news_id",
+        "kind",
+        "card",
+        "coverage",
+        "event",
+        "stage",
+        "significance",
+        "score",
+        "explanation"
+      ],
+      "title": "FeedItem",
+      "type": "object"
+    },
+    "FeedRejection": {
+      "additionalProperties": false,
+      "properties": {
+        "news_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Аргумент модели, почему новость не касается компании",
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "news_id",
+        "title",
+        "reason"
+      ],
+      "title": "FeedRejection",
+      "type": "object"
+    },
+    "Horizon": {
+      "enum": [
+        "days",
+        "weeks",
+        "months",
+        "years"
+      ],
+      "title": "Horizon",
+      "type": "string"
+    },
+    "Marker": {
+      "description": "Маркер новости для фильтров ленты. Список закрыт: модель выбирает из него, а не\nпридумывает свои.",
+      "enum": [
+        "economy_rate",
+        "fx",
+        "regulation_taxes",
+        "trade_duties",
+        "commodities_prices",
+        "logistics",
+        "labor",
+        "technology",
+        "industry_event",
+        "incident"
+      ],
+      "title": "Marker",
+      "type": "string"
+    },
+    "MaterialKind": {
+      "enum": [
+        "news",
+        "bank_analytics"
+      ],
+      "title": "MaterialKind",
+      "type": "string"
+    },
+    "NewsCard": {
+      "additionalProperties": false,
+      "description": "Карточка оригинала: издание, дата, ссылка на статью и картинка, если она есть.",
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "news_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "source": {
+          "description": "Издание",
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "published_at": {
+          "format": "date-time",
+          "title": "Published At",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Статья в первоисточнике",
+          "title": "Url"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Картинка статьи; null — показывать placeholder",
+          "title": "Image"
+        },
+        "placeholder": {
+          "$ref": "#/$defs/Placeholder"
+        }
+      },
+      "required": [
+        "news_id",
+        "title",
+        "source",
+        "published_at",
+        "placeholder"
+      ],
+      "title": "NewsCard",
+      "type": "object"
+    },
+    "Placeholder": {
+      "additionalProperties": false,
+      "description": "Чем заполнить место картинки, если её нет: карточка не должна менять вёрстку.",
+      "properties": {
+        "initials": {
+          "description": "Буквы издания: «РГ», «И»",
+          "minLength": 1,
+          "title": "Initials",
+          "type": "string"
+        },
+        "domain": {
+          "description": "Домен статьи: vedomosti.ru",
+          "minLength": 1,
+          "title": "Domain",
+          "type": "string"
+        },
+        "color": {
+          "description": "Цвет фона, постоянный у издания",
+          "minLength": 1,
+          "pattern": "^#[0-9A-F]{6}$",
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "initials",
+        "domain",
+        "color"
+      ],
+      "title": "Placeholder",
+      "type": "object"
+    },
+    "RankStage": {
+      "enum": [
+        "candidate",
+        "reranked"
+      ],
+      "title": "RankStage",
+      "type": "string"
+    },
+    "ScoreBreakdown": {
+      "additionalProperties": false,
+      "properties": {
+        "lexical": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сырой BM25",
+          "title": "Lexical"
+        },
+        "lexical_norm": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lexical Norm"
+        },
+        "llm": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Оценка переранжирования моделью",
+          "title": "Llm"
+        },
+        "relevance": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Совпадение с признаками компании по правилам отбора",
+          "title": "Relevance"
+        },
+        "recency": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Свежесть: 1 — только что, 0,5 — полураспад",
+          "title": "Recency"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Масштаб события: тема, охват изданий, подтверждённые цифры",
+          "title": "Scale"
+        },
+        "final": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Final",
+          "type": "number"
+        },
+        "factors": {
+          "description": "Пояснения к баллу для интерфейса: свежесть, масштаб, штрафы",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Factors",
+          "type": "array"
+        }
+      },
+      "required": [
+        "final"
+      ],
+      "title": "ScoreBreakdown",
+      "type": "object"
+    },
+    "Significance": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Significance",
+      "type": "string"
+    },
+    "Topic": {
+      "enum": [
+        "key_rate",
+        "inflation",
+        "fx",
+        "commodities",
+        "trade",
+        "logistics",
+        "sanctions",
+        "regulation",
+        "taxes",
+        "labor",
+        "consumption",
+        "debt_market",
+        "macro",
+        "industry",
+        "regional",
+        "company",
+        "other"
+      ],
+      "title": "Topic",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Отранжированная лента компании. Отклонённые моделью новости видны с аргументом.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "company_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Company Id",
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "period_days": {
+      "minimum": 1,
+      "title": "Period Days",
+      "type": "integer"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/FeedItem"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "verified": {
+      "description": "Верхних кандидатов проверила модель",
+      "title": "Verified",
+      "type": "boolean"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
+    "considered": {
+      "description": "Сколько событий рассмотрено за период",
+      "minimum": 0,
+      "title": "Considered",
+      "type": "integer"
+    },
+    "dropped_by_rules": {
+      "description": "Отсеяно правилами: не совпали с компанией",
+      "minimum": 0,
+      "title": "Dropped By Rules",
+      "type": "integer"
+    },
+    "rejected": {
+      "description": "Отклонено моделью, с аргументом",
+      "items": {
+        "$ref": "#/$defs/FeedRejection"
+      },
+      "title": "Rejected",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "company_id",
+    "generated_at",
+    "period_days",
+    "verified",
+    "considered",
+    "dropped_by_rules"
+  ],
+  "title": "Feed",
+  "type": "object"
+}

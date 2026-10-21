@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from app.contracts import CompanyProfile, Insight, NewsItem, RankedItem
 from app.contracts.competitors import Competitors
+from app.contracts.feed import Feed
 from app.contracts.knowledge import KnowledgeBase, KnowledgeGaps
 from app.contracts.links import LinkedCompanies
 from app.contracts.news import NewsCard, NewsStory
@@ -27,6 +28,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "competitors": Competitors,
     "news_story": NewsStory,
     "news_card": NewsCard,
+    "feed": Feed,
 }
 
 

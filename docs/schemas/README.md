@@ -7,6 +7,7 @@
 | [company_profile](company_profile.schema.json) | `app/profile` | `rank`, `agent`, фронтенд | бизнес-контекст компании и список признаков, на которые можно сослаться |
 | [news_item](news_item.schema.json) | `app/news` | `rank`, `agent`, фронтенд | новость или материал аналитики банка после нормализации и классификации |
 | [news_story](news_story.schema.json) | `app/news/dedup.py` | `rank`, `agent`, фронтенд | сюжет: одно событие из нескольких изданий, карточка и ссылки на все публикации |
+| [feed](feed.schema.json) | `app/api/feed.py` | фронтенд | лента компании: карточка, тип события, балл с расшифровкой, объяснение релевантности, отклонённые моделью |
 | [ranked_item](ranked_item.schema.json) | `app/rank` | `agent`, фронтенд | материал, отобранный под компанию, с разложением оценки и совпавшими признаками |
 | [insight](insight.schema.json) | `app/agent` | фронтенд, API | ответ на шесть вопросов кейса со ссылками на источники |
 | [search_result](search_result.schema.json) | `app/search` | `agent`, фронтенд | найденные фрагменты аналитики банка и новостей с дословной цитатой и ссылкой на место в документе |
