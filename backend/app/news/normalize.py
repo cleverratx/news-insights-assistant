@@ -28,6 +28,7 @@ from selectolax.parser import HTMLParser, Node
 
 from app.contracts.news import Channel, Dedup, Fragment, MaterialKind, NewsItem
 from app.contracts.news import Source as SourceRef
+from app.news.cards import as_url, pick_image
 from app.news.fetch import Source
 from app.news.issues import Issue, failure, paywalled, repair
 from app.news.issues import ensure_schema as ensure_issues
@@ -271,6 +272,7 @@ class RawRecord:
     feed_text: str | None = None
     html: str | None = None
     published_at: datetime | None = None
+    image_url: str | None = None
 
     @classmethod
     def from_record(cls, record: Any) -> "RawRecord":
@@ -284,6 +286,7 @@ class RawRecord:
             feed_text=record["feed_text"],
             html=record["html"],
             published_at=record["published_at"],
+            image_url=record.get("image_url"),
         )
 
 
@@ -352,6 +355,7 @@ def normalize(raw: RawRecord, source: Source | None) -> Normalized:
         ),
         url=HttpUrl(raw.url),
         title=title,
+        image=as_url(pick_image(raw.url, raw.image_url, raw.html, raw.feed_text)),
         published_at=publication_time(raw),
         collected_at=raw.fetched_at,
         language=language(f"{title} {text}"),

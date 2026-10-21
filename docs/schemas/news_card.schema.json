@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "news_card.schema.json",
+  "$defs": {
+    "Placeholder": {
+      "additionalProperties": false,
+      "description": "Чем заполнить место картинки, если её нет: карточка не должна менять вёрстку.",
+      "properties": {
+        "initials": {
+          "description": "Буквы издания: «РГ», «И»",
+          "minLength": 1,
+          "title": "Initials",
+          "type": "string"
+        },
+        "domain": {
+          "description": "Домен статьи: vedomosti.ru",
+          "minLength": 1,
+          "title": "Domain",
+          "type": "string"
+        },
+        "color": {
+          "description": "Цвет фона, постоянный у издания",
+          "minLength": 1,
+          "pattern": "^#[0-9A-F]{6}$",
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "initials",
+        "domain",
+        "color"
+      ],
+      "title": "Placeholder",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Карточка оригинала: издание, дата, ссылка на статью и картинка, если она есть.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "news_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "News Id",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "source": {
+      "description": "Издание",
+      "minLength": 1,
+      "title": "Source",
+      "type": "string"
+    },
+    "published_at": {
+      "format": "date-time",
+      "title": "Published At",
+      "type": "string"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Статья в первоисточнике",
+      "title": "Url"
+    },
+    "image": {
+      "anyOf": [
+        {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Картинка статьи; null — показывать placeholder",
+      "title": "Image"
+    },
+    "placeholder": {
+      "$ref": "#/$defs/Placeholder"
+    }
+  },
+  "required": [
+    "news_id",
+    "title",
+    "source",
+    "published_at",
+    "placeholder"
+  ],
+  "title": "NewsCard",
+  "type": "object"
+}

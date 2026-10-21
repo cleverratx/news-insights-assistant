@@ -147,6 +147,9 @@ class NewsItem(Contract):
     source: Source
     url: HttpUrl | None = None
     title: Text
+    image: HttpUrl | None = Field(
+        default=None, description="Картинка статьи: из ленты или og:image; пусто, если нет"
+    )
     published_at: AwareDatetime
     collected_at: AwareDatetime
     language: Text = "ru"
@@ -219,3 +222,26 @@ class NewsStory(Contract):
         if self.first_published_at > self.last_published_at:
             raise ValueError("Сюжет начинается позже, чем заканчивается")
         return self
+
+
+class Placeholder(Contract):
+    """Чем заполнить место картинки, если её нет: карточка не должна менять вёрстку."""
+
+    initials: Text = Field(description="Буквы издания: «РГ», «И»")
+    domain: Text = Field(description="Домен статьи: vedomosti.ru")
+    color: Text = Field(pattern=r"^#[0-9A-F]{6}$", description="Цвет фона, постоянный у издания")
+
+
+class NewsCard(Contract):
+    """Карточка оригинала: издание, дата, ссылка на статью и картинка, если она есть."""
+
+    schema_version: Literal["1.0"] = SCHEMA_VERSION
+    news_id: Id
+    title: Text
+    source: Text = Field(description="Издание")
+    published_at: AwareDatetime
+    url: HttpUrl | None = Field(default=None, description="Статья в первоисточнике")
+    image: HttpUrl | None = Field(
+        default=None, description="Картинка статьи; null — показывать placeholder"
+    )
+    placeholder: Placeholder
