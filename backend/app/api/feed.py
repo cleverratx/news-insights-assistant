@@ -20,16 +20,19 @@ from fastapi import APIRouter, Depends, Query
 
 from app.api.companies import CompanyId, Connection, company_profile
 from app.cache.store import LLMCache
+from app.contracts.common import Significance
 from app.contracts.feed import Feed, FeedEvent, FeedFeature, FeedItem, FeedRejection
 from app.contracts.news import Marker, MaterialKind, NewsItem
 from app.contracts.profile import CompanyProfile
-from app.contracts.rank import RankedItem, RankStage
+from app.contracts.rank import Importance, ImportanceLevel, RankedItem, RankStage
 from app.core.config import get_settings
 from app.llm.client import open_llm_client
 from app.llm.errors import LLMConfigurationError
 from app.news.cards import card, shared_images
 from app.news.markers import markers_of, matches, title
 from app.rank.diversity import diversify, entry, polarity
+from app.rank.importance import DEFAULT_MIN_IMPORTANCE, importance
+from app.rank.importance import scale as importance_scale
 from app.rank.llm_filter import Completer, verify
 from app.rank.score import Scored, score
 from app.search.service import NEWS_DAYS, load
@@ -39,6 +42,12 @@ DEFAULT_LIMIT = 20
 MAX_LIMIT = 50
 MAX_REASONS = 2
 OTHER_EVENT = "Прочее"
+SIGNIFICANCE = {
+    ImportanceLevel.CRITICAL: Significance.HIGH,
+    ImportanceLevel.IMPORTANT: Significance.HIGH,
+    ImportanceLevel.INFO: Significance.MEDIUM,
+    ImportanceLevel.BACKGROUND: Significance.LOW,
+}
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/companies", tags=["feed"])
@@ -90,7 +99,11 @@ def explanation(ranked: RankedItem) -> str:
 
 
 def feed_item(
-    ranked: RankedItem, story: Story, labels: dict[str, str], shared: set[str]
+    ranked: RankedItem,
+    story: Story,
+    weight: Importance,
+    labels: dict[str, str],
+    shared: set[str],
 ) -> FeedItem:
     news = story.news
     markers = markers_of(news)
@@ -112,7 +125,8 @@ def feed_item(
             polarity=polarity(news),
         ),
         stage=ranked.stage,
-        significance=ranked.significance,
+        significance=SIGNIFICANCE[weight.level],
+        importance=weight,
         score=ranked.score,
         explanation=explanation(ranked),
         features=[
@@ -138,6 +152,7 @@ async def build_feed(
     limit: int = DEFAULT_LIMIT,
     markers: Sequence[Marker] = (),
     unverified: bool = False,
+    min_importance: float = DEFAULT_MIN_IMPORTANCE,
     cache: LLMCache | None = None,
     shared: set[str] | None = None,
 ) -> Feed:
@@ -152,13 +167,24 @@ async def build_feed(
     by_id = {story.news.id: story for story in found}
     filtered = await verify(llm, profile, [(story.news, story.scored) for story in found], cache)
     verified = filtered.model is not None
-    visible = {
-        ranked.news_id: ranked
+    allowed = [
+        ranked
         for ranked in filtered.items
         if unverified or not verified or ranked.stage is RankStage.RERANKED
+    ]
+    weights = {
+        ranked.news_id: importance(
+            by_id[ranked.news_id].scored, by_id[ranked.news_id].news.kind, ranked.score.llm
+        )
+        for ranked in allowed
+    }
+    visible = {
+        ranked.news_id: ranked
+        for ranked in sorted(allowed, key=lambda ranked: -weights[ranked.news_id].score)
+        if weights[ranked.news_id].score >= min_importance
     }
     diverse = diversify(
-        [entry(by_id[news_id].news, ranked.score.final) for news_id, ranked in visible.items()]
+        [entry(by_id[news_id].news, weights[news_id].score / 10) for news_id in visible]
     )
     shown = [visible[news_id] for news_id in diverse.order][:limit]
     labels = {feature.id: feature.label for feature in profile.features}
@@ -174,6 +200,7 @@ async def build_feed(
             feed_item(
                 ranked.model_copy(update={"rank": rank}),
                 by_id[ranked.news_id],
+                weights[ranked.news_id],
                 labels,
                 shared or set(),
             )
@@ -183,6 +210,9 @@ async def build_feed(
         model=filtered.model,
         considered=len(found),
         dropped_by_rules=sum(1 for rejection in filtered.rejected if rejection.by == "rules"),
+        min_importance=min_importance,
+        hidden_below_threshold=len(allowed) - len(visible),
+        importance_scale=importance_scale(),
         rejected=[
             FeedRejection(
                 news_id=rejection.news_id,
@@ -215,10 +245,15 @@ async def company_feed(
     unverified: Annotated[
         bool, Query(description="Показать и кандидатов, которых модель не проверила")
     ] = False,
+    min_importance: Annotated[
+        float | None,
+        Query(ge=0, le=10, description="Порог важности 0–10; по умолчанию FEED_MIN_IMPORTANCE"),
+    ] = None,
 ) -> Feed:
     """Лента инсайтов компании: новости и аналитика банка, отобранные под её признаки и
-    отранжированные по баллу. У каждой — тип события, балл с расшифровкой вклада признаков и
-    объяснение, почему она важна этой компании."""
+    отранжированные по важности 0–10. У каждой — тип события, уровень важности с вкладом
+    каждого фактора, балл с расшифровкой признаков и объяснение, почему она важна компании.
+    Материалы ниже порога важности скрыты, их число — в hidden_below_threshold."""
     profile = await company_profile(company_id, connection)
     now = datetime.now(UTC)
     items, warnings = await load(connection, {MaterialKind.BANK_ANALYTICS, MaterialKind.NEWS}, now)
@@ -234,6 +269,9 @@ async def company_feed(
         limit=limit,
         markers=markers or [],
         unverified=unverified,
+        min_importance=(
+            get_settings().feed_min_importance if min_importance is None else min_importance
+        ),
         cache=LLMCache(connection),
         shared=shared,
     )

@@ -70,3 +70,45 @@ class RankedItem(Contract):
         if self.stage is RankStage.RERANKED and self.score.llm is None:
             raise ValueError("После переранжирования должна быть оценка модели")
         return self
+
+
+class ImportanceLevel(StrEnum):
+    CRITICAL = "critical"
+    IMPORTANT = "important"
+    INFO = "info"
+    BACKGROUND = "background"
+
+
+class ImportanceFactor(Contract):
+    """Слагаемое балла важности: сколько баллов дал фактор и почему."""
+
+    id: Id = Field(description="relevance, breadth, scale, recency, model, bank")
+    title: Text
+    points: float = Field(ge=0, le=10, allow_inf_nan=False)
+    max_points: float = Field(gt=0, le=10, allow_inf_nan=False)
+    detail: Text
+
+
+class Importance(Contract):
+    """Степень важности материала для компании: 0–10, уровень и вклад каждого фактора.
+    Сумма points всех факторов равна score."""
+
+    score: float = Field(ge=0, le=10, allow_inf_nan=False)
+    level: ImportanceLevel
+    title: Text = Field(description="Критично, Важно, К сведению, Фон")
+    factors: list[ImportanceFactor] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def factors_add_up(self) -> Self:
+        if abs(sum(factor.points for factor in self.factors) - self.score) > 0.051:
+            raise ValueError("Сумма вкладов факторов не равна баллу важности")
+        return self
+
+
+class ImportanceScale(Contract):
+    """Критерий уровня для пользователя: с какого балла и что это значит."""
+
+    level: ImportanceLevel
+    title: Text
+    min_score: float = Field(ge=0, le=10, allow_inf_nan=False)
+    description: Text

@@ -5,7 +5,7 @@ from pydantic import AwareDatetime, Field
 
 from app.contracts.common import SCHEMA_VERSION, Contract, Id, Score, Significance, Text
 from app.contracts.news import Horizon, Marker, MaterialKind, NewsCard, Topic
-from app.contracts.rank import RankStage, ScoreBreakdown
+from app.contracts.rank import Importance, ImportanceScale, RankStage, ScoreBreakdown
 
 
 class Polarity(StrEnum):
@@ -51,7 +51,8 @@ class FeedItem(Contract):
     coverage: int = Field(ge=1, description="Сколько изданий пишут о событии")
     event: FeedEvent
     stage: RankStage = Field(description="reranked — релевантность подтвердила модель")
-    significance: Significance
+    significance: Significance = Field(description="Из уровня важности: критично и важно — high")
+    importance: Importance = Field(description="Балл 0–10, уровень и вклад каждого фактора")
     score: ScoreBreakdown
     explanation: Text = Field(description="Почему эта новость для вас: аргумент модели или правил")
     features: list[FeedFeature] = Field(default_factory=list)
@@ -75,6 +76,11 @@ class Feed(Contract):
     model: Text | None = None
     considered: int = Field(ge=0, description="Сколько событий рассмотрено за период")
     dropped_by_rules: int = Field(ge=0, description="Отсеяно правилами: не совпали с компанией")
+    min_importance: float = Field(ge=0, le=10, description="Порог отсечения по баллу важности")
+    hidden_below_threshold: int = Field(ge=0, description="Скрыто: важность ниже порога")
+    importance_scale: list[ImportanceScale] = Field(
+        default_factory=list, description="Уровни важности и их критерии для пользователя"
+    )
     rejected: list[FeedRejection] = Field(
         default_factory=list, description="Отклонено моделью, с аргументом"
     )

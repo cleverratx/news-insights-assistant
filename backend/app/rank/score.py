@@ -73,6 +73,9 @@ class Scored:
     factors: list[str] = field(default_factory=list)
     terms: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    recency_note: str = ""
+    scale_note: str = ""
+    penalties: list[str] = field(default_factory=list)
 
     @property
     def significance(self) -> Significance:
@@ -184,4 +187,7 @@ def score(
         factors=factors,
         terms=matching.terms(),
         warnings=matching.warnings,
+        recency_note=fresh_note,
+        scale_note=size_note,
+        penalties=matching.penalties,
     )
