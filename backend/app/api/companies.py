@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from app.contracts.profile import CompanyProfile
 from app.core.db import get_pool
 from app.profile.builder import load_profile
+from app.profile.knowledge import apply_knowledge, knowledge_base
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -40,4 +41,8 @@ async def company_profile(company_id: CompanyId, connection: Connection) -> Comp
         raise HTTPException(503, "Выгрузка не загружена: выполните python -m app.data") from None
     if profile is None:
         raise HTTPException(404, "Компания не найдена")
-    return profile
+    try:
+        base = await knowledge_base(connection, company_id)
+    except asyncpg.UndefinedTableError:
+        return profile
+    return apply_knowledge(profile, base)

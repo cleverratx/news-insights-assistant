@@ -252,7 +252,8 @@
         "group",
         "counterparty",
         "ownership",
-        "lifecycle"
+        "lifecycle",
+        "knowledge"
       ],
       "title": "FeatureKind",
       "type": "string"
