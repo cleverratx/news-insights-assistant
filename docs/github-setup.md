@@ -48,3 +48,21 @@ Settings → Collaborators and teams → Add people → `alfa-hack-2026`, рол
 - Коммит с сообщением `fix` отклоняется, `fix(ci): поправил кэш зависимостей` проходит.
 - В открытом PR доступна только кнопка Squash and merge.
 - В списке проверок PR видны `backend`, `frontend` и `deployment`.
+- После слияния PR его ветка исчезает из списка веток сама.
+
+## 5. Уборка слитых веток
+
+Если автоудаление включили не сразу, на GitHub остаются ветки уже слитых PR. Git их слитыми не считает: при squash коммиты ветки не попадают в `main`, поэтому `git branch --merged` их не видит. Ориентируемся на статус PR:
+
+```
+gh pr list --state merged --limit 200 --json headRefName --jq ".[].headRefName"
+```
+
+Проверить список глазами, затем удалить на GitHub и у себя:
+
+```
+gh pr list --state merged --limit 200 --json headRefName --jq ".[].headRefName" | xargs -n1 git push origin --delete
+git fetch --prune
+```
+
+Ветку открытого PR так не удалить — её нет в списке слитых.

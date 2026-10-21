@@ -11,16 +11,18 @@ from case_data import (
     LINK_PERSON_COLUMNS,
     PRODUCT_COLUMNS,
     PRODUCT_TITLES,
+    CaseTables,
     LoadedTable,
     format_amount,
     is_positive_mark,
-    load_table,
-    split_link_table,
+    load_case,
+    share,
     to_number,
 )
 
 MAX_TOP_VALUES = 10
 LOW_FILL_THRESHOLD = 0.5
+LARGE_BUSINESS_REVENUE = 15_000_000_000
 
 
 def column_overview(frame: pd.DataFrame) -> pd.DataFrame:
@@ -34,7 +36,7 @@ def column_overview(frame: pd.DataFrame) -> pd.DataFrame:
         rows.append(
             {
                 "Поле": column,
-                "Заполнено": f"{filled / total:.0%}" if total else "—",
+                "Заполнено": share(filled, total),
                 "Уникальных": unique,
                 "Примеры": ", ".join(sample) if len(sample) else "—",
             }
@@ -97,9 +99,12 @@ def describe_file(table: LoadedTable) -> str:
     )
 
 
-def payments_section(payments: pd.DataFrame, companies: pd.DataFrame) -> str:
+def payments_section(payments: pd.DataFrame, companies: pd.DataFrame, self_payments: int) -> str:
     if payments.empty:
-        return "Платежей в файле связей не найдено.\n"
+        return (
+            "Платежей не найдено: ни в файле связей, ни в отдельном файле "
+            "df_Uid_payment_hack.csv рядом с ним. Передайте путь через --payments.\n"
+        )
 
     amounts = (
         to_number(payments["PAY_AMT"]) if "PAY_AMT" in payments.columns else pd.Series(dtype=float)
@@ -126,6 +131,7 @@ def payments_section(payments: pd.DataFrame, companies: pd.DataFrame) -> str:
 
     lines = [
         f"- строк платежей: {len(payments)}",
+        f"- отброшено платежей самому себе (BENEFICIARY = PAYER): {self_payments}",
         f"- компаний с платежами: {len(per_company)}"
         + (f", из них есть в выгрузке юрлиц: {known}" if company_ids else ""),
         f"- контрагентов на компанию: медиана {per_company.median():.0f}, "
@@ -188,11 +194,12 @@ def usability_section(frame: pd.DataFrame) -> str:
     sparse = []
     for column in frame.columns:
         series = frame[column]
-        filled = series.notna().sum() / total if total else 0
+        filled_rows = int(series.notna().sum())
+        filled = filled_rows / total if total else 0
         if series.nunique(dropna=True) <= 1:
             constants.append(column)
         elif filled < LOW_FILL_THRESHOLD:
-            sparse.append(f"{column} ({filled:.0%})")
+            sparse.append(f"{column} ({share(filled_rows, total)}, строк: {filled_rows})")
 
     lines = []
     lines.append(
@@ -205,9 +212,12 @@ def usability_section(frame: pd.DataFrame) -> str:
     return "\n".join(lines) + "\n"
 
 
-def build_report(companies_table: LoadedTable, link_table: LoadedTable) -> str:
+def build_report(case: CaseTables) -> str:
+    companies_table = case.companies
+    link_table = case.links
     companies = companies_table.frame
-    persons, payments = split_link_table(link_table.frame)
+    persons = case.persons
+    payments = case.payments
 
     parts: list[str] = []
     parts.append("# Профиль данных кейса\n")
@@ -219,9 +229,16 @@ def build_report(companies_table: LoadedTable, link_table: LoadedTable) -> str:
     parts.append("\n## Файлы\n")
     parts.append(describe_file(companies_table))
     parts.append(describe_file(link_table))
+    if case.payments_file is not None:
+        parts.append(describe_file(case.payments_file))
 
     missing_company = missing_columns(companies, COMPANY_COLUMNS)
-    missing_link = missing_columns(link_table.frame, LINK_PERSON_COLUMNS + LINK_PAYMENT_COLUMNS)
+    payment_columns = set(link_table.frame.columns)
+    if case.payments_file is not None:
+        payment_columns |= set(case.payments_file.frame.columns)
+    missing_link = [
+        column for column in LINK_PERSON_COLUMNS if column not in link_table.frame.columns
+    ] + [column for column in LINK_PAYMENT_COLUMNS if column not in payment_columns]
     parts.append("\n## Сверка с описанием кейса\n")
     parts.append(
         "- полей юрлиц из приложения 1 нет в файле: "
@@ -242,6 +259,12 @@ def build_report(companies_table: LoadedTable, link_table: LoadedTable) -> str:
     if "REVENUE_COMPANY" in companies.columns:
         parts.append("\n## Выручка\n")
         parts.append(markdown_table(numeric_summary(companies["REVENUE_COMPANY"])))
+        revenue = to_number(companies["REVENUE_COMPANY"])
+        large = int((revenue >= LARGE_BUSINESS_REVENUE).sum())
+        parts.append(
+            f"\n- компаний с выручкой от 15 млрд (целевой сегмент кейса): {large} "
+            f"({share(large, len(companies))})\n"
+        )
 
     for column, title in (
         ("MAINOKVED_NAME", "Отрасли"),
@@ -259,12 +282,12 @@ def build_report(companies_table: LoadedTable, link_table: LoadedTable) -> str:
     for column in PRODUCT_COLUMNS:
         if column not in companies.columns:
             continue
-        share = companies[column].apply(is_positive_mark).mean()
+        ratio = companies[column].apply(is_positive_mark).mean()
         product_rows.append(
             {
                 "Продукт": PRODUCT_TITLES.get(column, column),
                 "Поле": column,
-                "Доля компаний": f"{share:.1%}",
+                "Доля компаний": f"{ratio:.1%}",
             }
         )
     if product_rows:
@@ -272,9 +295,9 @@ def build_report(companies_table: LoadedTable, link_table: LoadedTable) -> str:
         parts.append(markdown_table(pd.DataFrame(product_rows)))
 
     if "FTS_FLAG" in companies.columns:
-        share = companies["FTS_FLAG"].apply(is_positive_mark).mean()
+        ratio = companies["FTS_FLAG"].apply(is_positive_mark).mean()
         parts.append("\n## Внешнеэкономическая деятельность\n")
-        parts.append(f"- компаний с признаком ФТС: {share:.1%}\n")
+        parts.append(f"- компаний с признаком ФТС: {ratio:.1%}\n")
         if "FTS_COUNTRY_NAME" in companies.columns:
             parts.append(markdown_table(top_values(companies["FTS_COUNTRY_NAME"])))
 
@@ -286,7 +309,7 @@ def build_report(companies_table: LoadedTable, link_table: LoadedTable) -> str:
         parts.append(markdown_table(column_overview(persons)))
 
     parts.append("\n## Платежи и контрагенты\n")
-    parts.append(payments_section(payments, companies))
+    parts.append(payments_section(payments, companies, case.self_payments))
 
     parts.append("\n## Консистентность\n")
     parts.append(consistency_section(companies, persons, payments))
@@ -302,14 +325,16 @@ def main() -> None:
     parser.add_argument("companies", type=Path, help="путь к df_Uid_data_hack.csv")
     parser.add_argument("links", type=Path, help="путь к df_Fid_Uid_link_hack.csv")
     parser.add_argument(
+        "--payments",
+        type=Path,
+        help="путь к df_Uid_payment_hack.csv; по умолчанию ищется рядом с файлом связей",
+    )
+    parser.add_argument(
         "--out", type=Path, default=Path("docs/data-profile.md"), help="куда положить отчёт"
     )
     args = parser.parse_args()
 
-    companies_table = load_table(args.companies)
-    link_table = load_table(args.links)
-
-    report = build_report(companies_table, link_table)
+    report = build_report(load_case(args.companies, args.links, args.payments))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(report, encoding="utf-8")
     print(f"Отчёт: {args.out}")
