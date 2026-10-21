@@ -86,10 +86,12 @@ def verbatim(quote: str, text: str) -> bool:
 
 
 def document_ref(passage: Passage) -> str:
+    """Где искать цитату, с датой материала: старый прогноз банка не выдаёт себя за текущий."""
     where = passage.locator or "текст"
+    day = f"{passage.item.published_at:%d.%m.%Y}"
     if passage.item.kind is MaterialKind.BANK_ANALYTICS:
-        return f"{passage.item.title}, {where}"
-    return f"{passage.item.source.name}: {passage.item.title}, {where}"
+        return f"{passage.item.title} ({day}), {where}"
+    return f"{passage.item.source.name}: {passage.item.title} ({day}), {where}"
 
 
 def hit(passage: Passage, quote: str, score: float, bm25: float, rerank: float | None) -> SearchHit:

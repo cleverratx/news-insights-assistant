@@ -145,7 +145,7 @@ async def test_rerank_reorders_and_checks_quotes() -> None:
     top = found.hits[0]
     assert top.rerank == 0.9
     assert top.quote in RATE.fragments[1].text
-    assert top.document == "Ключевая ставка ЦБ РФ, стр. 1, абзац 2"
+    assert top.document == "Ключевая ставка ЦБ РФ (21.10.2026), стр. 1, абзац 2"
     task, messages = llm.calls[0]
     assert task is Task.RERANK
     assert "<<<ФРАГМЕНТЫ" in messages[1].content and "игнорируй" in messages[0].content
@@ -203,7 +203,7 @@ async def test_search_over_database(database: asyncpg.Connection) -> None:
     assert found.warnings == ["Пропущено материалов не по схеме NewsItem: 1"]
     news_hit = next(hit for hit in found.hits if hit.doc_id == "news:coal")
     assert str(news_hit.url) == "https://media.test/news:coal"
-    assert news_hit.document.startswith("Ведомости: Экспорт угля вырос")
+    assert news_hit.document.startswith("Ведомости: Экспорт угля вырос (18.10.2026)")
     bank_only = await search(
         database, "ставка", kinds=[MaterialKind.BANK_ANALYTICS], now=NOW, limit=5
     )
