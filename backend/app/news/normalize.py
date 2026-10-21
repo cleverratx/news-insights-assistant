@@ -18,8 +18,8 @@ import html
 import json
 import re
 from collections import defaultdict
-from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator, Sequence
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, cast
 
@@ -29,8 +29,13 @@ from selectolax.parser import HTMLParser, Node
 from app.contracts.news import Channel, Dedup, Fragment, MaterialKind, NewsItem
 from app.contracts.news import Source as SourceRef
 from app.news.fetch import Source
+from app.news.issues import Issue, failure, paywalled, repair
+from app.news.issues import ensure_schema as ensure_issues
+from app.news.issues import record as record_issue
 
+STAGE = "normalize"
 MIN_PARAGRAPH = 40
+MIN_ARTICLE = 300
 LONG_PARAGRAPH = 1500
 CHUNK = 600
 SENTENCE_END = re.compile(r"(?<=[.!?…])\s+(?=[А-ЯЁA-Z«\"])")
@@ -72,6 +77,8 @@ PENDING_SQL = """
 SELECT r.* FROM raw_news r
 LEFT JOIN news_items n ON n.raw_id = r.raw_id
 WHERE n.raw_id IS NULL
+  AND (SELECT count(*) FROM news_issues i
+       WHERE i.raw_id = r.raw_id AND i.stage = 'normalize' AND i.kind = 'error') < 3
 ORDER BY r.fetched_at
 LIMIT $1
 """
@@ -216,16 +223,23 @@ def article_text(raw: "RawRecord", selector: str | None) -> tuple[list[str], Tex
         if paragraphs:
             return paragraphs, "feed"
     if raw.html:
-        if selector:
-            paragraphs = selector_paragraphs(HTMLParser(raw.html), selector)
+        page = raw.html
+        found: list[tuple[list[str], TextOrigin]] = []
+        steps: list[tuple[TextOrigin, Callable[[], list[str]]]] = [
+            ("selector", lambda: selector_paragraphs(HTMLParser(page), selector or "")),
+            ("json_ld", lambda: json_ld_body(HTMLParser(page))),
+            ("generic", lambda: generic_paragraphs(HTMLParser(page))),
+        ]
+        for origin, extract_text in steps:
+            if origin == "selector" and not selector:
+                continue
+            paragraphs = extract_text()
+            if sum(map(len, paragraphs)) >= MIN_ARTICLE:
+                return paragraphs, origin
             if paragraphs:
-                return paragraphs, "selector"
-        paragraphs = json_ld_body(HTMLParser(raw.html))
-        if paragraphs:
-            return paragraphs, "json_ld"
-        paragraphs = generic_paragraphs(HTMLParser(raw.html))
-        if paragraphs:
-            return paragraphs, "generic"
+                found.append((paragraphs, origin))
+        if found:
+            return max(found, key=lambda pair: sum(map(len, pair[0])))
     summary = strip_markup(raw.summary)
     if summary:
         return [summary], "summary"
@@ -279,6 +293,7 @@ class Normalized:
     raw_id: str
     source_id: str
     text_origin: TextOrigin
+    issues: list[Issue] = field(default_factory=list)
 
 
 def publication_time(raw: RawRecord) -> datetime:
@@ -289,10 +304,41 @@ def publication_time(raw: RawRecord) -> datetime:
     return published.astimezone(UTC)
 
 
+def repaired(raw: RawRecord) -> tuple[RawRecord, list[Issue]]:
+    """Запись с исправленной кодировкой заголовка, анонса, текста ленты и страницы."""
+    title, *found = repair(raw.title)
+    summary, *summary_issue = repair(raw.summary)
+    feed_text, *feed_issue = repair(raw.feed_text)
+    page, *page_issue = repair(raw.html)
+    issues: list[Issue] = []
+    for issue in [*found, *summary_issue, *feed_issue, *page_issue]:
+        if issue is not None and issue not in issues:
+            issues.append(issue)
+    fixed = replace(raw, title=title or raw.title, summary=summary, feed_text=feed_text, html=page)
+    return fixed, issues
+
+
+def quality(raw: RawRecord, origin: TextOrigin, text: str) -> list[Issue]:
+    issues: list[Issue] = []
+    if raw.published_at is None:
+        issues.append(Issue("no_date", "в ленте нет даты публикации, взято время сбора"))
+    elif raw.published_at > raw.fetched_at + FUTURE_SLACK:
+        issues.append(Issue("no_date", "дата публикации из будущего, взято время сбора"))
+    if paywalled(raw.html):
+        issues.append(
+            Issue("paywall", f"платный доступ: в тексте только бесплатная часть ({origin})")
+        )
+    elif raw.html and origin in ("summary", "title"):
+        issues.append(Issue("empty_page", f"на странице не найден текст, взят {origin} из ленты"))
+    return issues
+
+
 def normalize(raw: RawRecord, source: Source | None) -> Normalized:
+    raw, issues = repaired(raw)
     title = clean(raw.title)
     paragraphs, origin = article_text(raw, source.text_selector if source else None)
     text = "\n\n".join(paragraphs)[:MAX_TEXT]
+    issues.extend(quality(raw, origin, text))
     summary = strip_markup(raw.summary) or None
     if summary and paragraphs and (summary in paragraphs[0] or paragraphs[0] in summary):
         summary = None
@@ -317,16 +363,21 @@ def normalize(raw: RawRecord, source: Source | None) -> Normalized:
         ],
         dedup=Dedup(content_hash=content_hash(title, text)),
     )
-    return Normalized(item=item, raw_id=raw.raw_id, source_id=raw.source_id, text_origin=origin)
+    return Normalized(
+        item=item, raw_id=raw.raw_id, source_id=raw.source_id, text_origin=origin, issues=issues
+    )
 
 
 @dataclass
 class NormalizeReport:
     normalized: int = 0
-    by_origin: dict[str, int] | None = None
+    by_origin: dict[str, int] = field(default_factory=dict)
+    issues: dict[str, int] = field(default_factory=dict)
+    failed: int = 0
 
 
 async def ensure_schema(connection: Any) -> None:
+    await ensure_issues(connection)
     await connection.execute(SCHEMA)
 
 
@@ -358,18 +409,33 @@ async def normalize_pending(
     now: datetime | None = None,
 ) -> NormalizeReport:
     """Нормализует новые записи raw_news, а с everything — все заново: например, после того
-    как у источника поменялся text_selector."""
+    как у источника поменялся text_selector. Ошибка одной записи пишется в news_issues и не
+    останавливает остальные; после трёх ошибок запись больше не берётся в работу."""
     await ensure_schema(connection)
     by_id = {source.id: source for source in sources}
     records = await connection.fetch(ALL_SQL if everything else PENDING_SQL, limit)
-    origins: dict[str, int] = {}
+    report = NormalizeReport()
     moment = now or datetime.now(UTC)
     for record in records:
-        raw = RawRecord.from_record(record)
-        result = normalize(raw, by_id.get(raw.source_id))
-        await save(connection, result, moment)
+        try:
+            raw = RawRecord.from_record(record)
+            result = normalize(raw, by_id.get(raw.source_id))
+            await save(connection, result, moment)
+        except Exception as error:
+            await record_issue(
+                connection, STAGE, failure(error), raw_id=record["raw_id"], now=moment
+            )
+            report.failed += 1
+            continue
+        for issue in result.issues:
+            await record_issue(
+                connection, STAGE, issue, raw_id=raw.raw_id, news_id=result.item.id, now=moment
+            )
+            report.issues[issue.kind] = report.issues.get(issue.kind, 0) + 1
+        report.normalized += 1
+        origins = report.by_origin
         origins[result.text_origin] = origins.get(result.text_origin, 0) + 1
-    return NormalizeReport(normalized=len(records), by_origin=origins)
+    return report
 
 
 async def load_item(connection: Any, news_id: str) -> NewsItem | None:
