@@ -124,3 +124,48 @@ class NewsItem(Contract):
         if self.dedup.duplicate_of == self.id:
             raise ValueError("Материал не может быть дубликатом самого себя")
         return self
+
+
+class StoryMatch(StrEnum):
+    FIRST = "first"
+    EXACT = "exact"
+    SIMILAR = "similar"
+
+
+class StoryItem(Contract):
+    """Публикация в сюжете: какое издание, когда и насколько она похожа на сюжет."""
+
+    news_id: Id
+    source: Text = Field(description="Издание")
+    url: HttpUrl | None = Field(default=None, description="Ссылка на первоисточник")
+    title: Text
+    published_at: AwareDatetime
+    match: StoryMatch = Field(
+        description="first — первая публикация, exact — перепечатка, similar — то же событие"
+    )
+    similarity: Score | None = Field(default=None, description="Сходство с ближайшей публикацией")
+    duplicate_of: Id | None = None
+
+
+class NewsStory(Contract):
+    """Одно событие из нескольких изданий — одна карточка; ссылки на все публикации сохранены."""
+
+    schema_version: Literal["1.0"] = SCHEMA_VERSION
+    id: Id = Field(description="Dedup.cluster_id публикаций сюжета")
+    representative_id: Id = Field(
+        description="Публикация для карточки: официальный источник, иначе первая, иначе полнее"
+    )
+    title: Text
+    first_published_at: AwareDatetime
+    last_published_at: AwareDatetime
+    items: list[StoryItem] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def consistent(self) -> Self:
+        ids = [item.news_id for item in self.items]
+        require_unique(ids, "публикаций сюжета")
+        if self.representative_id not in ids:
+            raise ValueError("Публикация для карточки должна быть в сюжете")
+        if self.first_published_at > self.last_published_at:
+            raise ValueError("Сюжет начинается позже, чем заканчивается")
+        return self

@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "news_story.schema.json",
+  "$defs": {
+    "StoryItem": {
+      "additionalProperties": false,
+      "description": "Публикация в сюжете: какое издание, когда и насколько она похожа на сюжет.",
+      "properties": {
+        "news_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        },
+        "source": {
+          "description": "Издание",
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ссылка на первоисточник",
+          "title": "Url"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "published_at": {
+          "format": "date-time",
+          "title": "Published At",
+          "type": "string"
+        },
+        "match": {
+          "$ref": "#/$defs/StoryMatch",
+          "description": "first — первая публикация, exact — перепечатка, similar — то же событие"
+        },
+        "similarity": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сходство с ближайшей публикацией",
+          "title": "Similarity"
+        },
+        "duplicate_of": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duplicate Of"
+        }
+      },
+      "required": [
+        "news_id",
+        "source",
+        "title",
+        "published_at",
+        "match"
+      ],
+      "title": "StoryItem",
+      "type": "object"
+    },
+    "StoryMatch": {
+      "enum": [
+        "first",
+        "exact",
+        "similar"
+      ],
+      "title": "StoryMatch",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Одно событие из нескольких изданий — одна карточка; ссылки на все публикации сохранены.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "id": {
+      "description": "Dedup.cluster_id публикаций сюжета",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Id",
+      "type": "string"
+    },
+    "representative_id": {
+      "description": "Публикация для карточки: официальный источник, иначе первая, иначе полнее",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Representative Id",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "first_published_at": {
+      "format": "date-time",
+      "title": "First Published At",
+      "type": "string"
+    },
+    "last_published_at": {
+      "format": "date-time",
+      "title": "Last Published At",
+      "type": "string"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/StoryItem"
+      },
+      "minItems": 1,
+      "title": "Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "representative_id",
+    "title",
+    "first_published_at",
+    "last_published_at",
+    "items"
+  ],
+  "title": "NewsStory",
+  "type": "object"
+}

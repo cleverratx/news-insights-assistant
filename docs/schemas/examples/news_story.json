@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "id": "story:3f9a1c0e7b2d4a6c8e1f0a2b",
+  "representative_id": "news:3f9a1c0e7b2d4a6c8e1f0a2b",
+  "title": "Банк России сохранил ключевую ставку на уровне 14%",
+  "first_published_at": "2026-10-24T10:30:00Z",
+  "last_published_at": "2026-10-24T11:15:00Z",
+  "items": [
+    {
+      "news_id": "news:3f9a1c0e7b2d4a6c8e1f0a2b",
+      "source": "Банк России — пресс-релизы",
+      "url": "https://example.org/press/key-rate-2026-10-24",
+      "title": "Банк России сохранил ключевую ставку на уровне 14%",
+      "published_at": "2026-10-24T10:30:00Z",
+      "match": "first",
+      "similarity": null,
+      "duplicate_of": null
+    },
+    {
+      "news_id": "news:8c2e4f6a0b1d3e5f7a9c0b2d",
+      "source": "Деловая газета",
+      "url": "https://example.org/news/cb-rate-hold",
+      "title": "ЦБ оставил ставку 14% и ужесточил сигнал",
+      "published_at": "2026-10-24T10:42:00Z",
+      "match": "similar",
+      "similarity": 0.62,
+      "duplicate_of": null
+    },
+    {
+      "news_id": "news:1a3c5e7f9b0d2f4a6c8e0a1b",
+      "source": "Агентство экономических новостей",
+      "url": "https://example.org/agency/cb-rate-hold",
+      "title": "ЦБ оставил ставку 14% и ужесточил сигнал",
+      "published_at": "2026-10-24T11:15:00Z",
+      "match": "exact",
+      "similarity": 1.0,
+      "duplicate_of": "news:8c2e4f6a0b1d3e5f7a9c0b2d"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ from app.contracts import CompanyProfile, Insight, NewsItem, RankedItem
 from app.contracts.competitors import Competitors
 from app.contracts.knowledge import KnowledgeBase, KnowledgeGaps
 from app.contracts.links import LinkedCompanies
+from app.contracts.news import NewsStory
 
 SCHEMA_DIR = Path(__file__).resolve().parents[3] / "docs" / "schemas"
 
@@ -22,6 +23,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "knowledge_gaps": KnowledgeGaps,
     "linked_companies": LinkedCompanies,
     "competitors": Competitors,
+    "news_story": NewsStory,
 }
 
 
