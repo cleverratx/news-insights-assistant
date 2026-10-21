@@ -53,6 +53,9 @@ class Settings(BaseSettings):
 
     data_dir: str = "data"
     legend_file: str = "samples/legends.yaml"
+    analytics_dir: str = "raw/analytics"
+    ocr_command: str = "tesseract"
+    ocr_languages: str = "rus+eng"
 
     @field_validator("llm_model_fast", "llm_model_smart", mode="before")
     @classmethod
