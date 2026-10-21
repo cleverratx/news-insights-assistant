@@ -32,6 +32,7 @@ class FeatureKind(StrEnum):
     COUNTERPARTY = "counterparty"
     OWNERSHIP = "ownership"
     LIFECYCLE = "lifecycle"
+    KNOWLEDGE = "knowledge"
 
 
 class ProfileFeature(Contract):

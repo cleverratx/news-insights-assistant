@@ -21,8 +21,10 @@ from app.contracts.knowledge import (
     KnowledgeBase,
     KnowledgeFact,
 )
-from app.contracts.profile import CompanyProfile
+from app.contracts.news import Topic
+from app.contracts.profile import CompanyProfile, Exposure, FeatureKind, ProfileFeature
 from app.profile.builder import load_profile
+from app.profile.derived import FX_EXPOSURES
 from app.profile.okved import SEGMENTS
 
 SCHEMA = """
@@ -379,3 +381,50 @@ async def knowledge_for(connection: Any, company_id: str) -> KnowledgeBase | Non
     await ensure_schema(connection)
     await sync_draft(connection, profile)
     return await knowledge_base(connection, company_id)
+
+
+# Правки клиента в профиле (A2-14): факты клиента становятся признаками профиля, а то, что
+# клиент знает лучше данных, меняет чувствительность. Профиль собирается на каждый запрос,
+# поэтому правка сразу видна отбору и агенту, которые читают профиль.
+
+TRADE_DIRECTION_KEY = "markets.trade_direction"
+
+
+def knowledge_feature_id(fact: KnowledgeFact) -> str:
+    return f"feature:knowledge:{fact.key}" if fact.key else f"feature:{fact.id}"
+
+
+def apply_knowledge(profile: CompanyProfile, base: KnowledgeBase) -> CompanyProfile:
+    """Профиль с учётом подтверждённого клиентом. Автоматические факты уже есть в профиле."""
+    client_facts = [fact for fact in base.facts if fact.source is FactSource.CLIENT]
+    if not client_facts:
+        return profile
+    features = [
+        ProfileFeature(
+            id=knowledge_feature_id(fact),
+            kind=FeatureKind.KNOWLEDGE,
+            label=f"Со слов клиента: {fact.text}",
+            value=fact.value,
+            source_fields=[f"knowledge:{fact.id}"],
+        )
+        for fact in client_facts
+    ]
+    exposures = list(profile.exposures)
+    direction = next((fact for fact in client_facts if fact.key == TRADE_DIRECTION_KEY), None)
+    if direction is not None and direction.value in FX_EXPOSURES:
+        fx = next((item for item in exposures if item.topic is Topic.FX), None)
+        sign, reason = FX_EXPOSURES[str(direction.value)]
+        customs = [ref for ref in (fx.feature_ids if fx else []) if ref == "feature:customs"]
+        updated = Exposure(
+            topic=Topic.FX,
+            direction=sign,
+            reason=f"{reason}. Направление ВЭД подтвердил клиент: {direction.text}",
+            feature_ids=[knowledge_feature_id(direction), *customs],
+            keywords=fx.keywords if fx else ["курс рубля"],
+        )
+        exposures = [updated if item is fx else item for item in exposures]
+        if fx is None:
+            exposures.append(updated)
+    return profile.model_copy(
+        update={"features": [*profile.features, *features], "exposures": exposures}
+    )
