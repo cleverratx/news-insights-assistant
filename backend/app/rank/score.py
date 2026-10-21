@@ -53,6 +53,12 @@ HIGH = 0.6
 MEDIUM = 0.35
 
 
+def significance(final: float) -> Significance:
+    if final >= HIGH:
+        return Significance.HIGH
+    return Significance.MEDIUM if final >= MEDIUM else Significance.LOW
+
+
 @dataclass
 class Scored:
     """Балл новости для компании с расшифровкой: из чего сложился и какие признаки дали вклад."""
@@ -70,9 +76,7 @@ class Scored:
 
     @property
     def significance(self) -> Significance:
-        if self.final >= HIGH:
-            return Significance.HIGH
-        return Significance.MEDIUM if self.final >= MEDIUM else Significance.LOW
+        return significance(self.final)
 
     def breakdown(self) -> ScoreBreakdown:
         return ScoreBreakdown(
