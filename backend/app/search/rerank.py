@@ -16,6 +16,7 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from app.cache.store import LLMCache, schema_text, version_of
 from app.contracts.search import SearchHit
 from app.llm.errors import LLMError
 from app.llm.models import LLMResult, Message, Task
@@ -25,6 +26,7 @@ MAX_CANDIDATES = 12
 MAX_PASSAGE = 700
 MODEL_WEIGHT = 0.8
 MIN_RELEVANCE = 0.2
+CACHE_KIND = "rerank"
 
 logger = logging.getLogger(__name__)
 
@@ -84,22 +86,50 @@ class Reranked:
     error: str | None = None
 
 
+def cache_version() -> str:
+    return version_of(SYSTEM_PROMPT, schema_text(Answer))
+
+
+async def judge(
+    llm: Completer | None, text: str, cache: LLMCache | None
+) -> tuple[Answer, str] | None:
+    """Оценки модели для запроса с кандидатами: из кеша, если тот же запрос с теми же
+    фрагментами уже оценивали, иначе вызов модели."""
+    if cache is not None:
+        hit = await cache.get(CACHE_KIND, cache_version(), text)
+        if hit is not None:
+            return Answer.model_validate(hit.result), hit.model
+    if llm is None:
+        return None
+    messages = [Message(role="system", content=SYSTEM_PROMPT), Message(role="user", content=text)]
+    result = await llm.complete(Task.RERANK, messages)
+    answer = parse(result.text)
+    if cache is not None:
+        dump = answer.model_dump(mode="json")
+        await cache.put(
+            CACHE_KIND, cache_version(), text, dump, result.model.value, result.cost_rub
+        )
+    return answer, result.model.value
+
+
 async def rerank(
-    llm: Completer | None, query: str, candidates: Sequence[Candidate], limit: int
+    llm: Completer | None,
+    query: str,
+    candidates: Sequence[Candidate],
+    limit: int,
+    cache: LLMCache | None = None,
 ) -> Reranked:
     shortlist = list(candidates[:MAX_CANDIDATES])
-    if llm is None or not shortlist:
+    if not shortlist:
         return Reranked(bm25_hits(query, candidates, limit))
-    messages = [
-        Message(role="system", content=SYSTEM_PROMPT),
-        Message(role="user", content=prompt(query, shortlist)),
-    ]
     try:
-        result = await llm.complete(Task.RERANK, messages)
-        answer = parse(result.text)
+        judged_all = await judge(llm, prompt(query, shortlist), cache)
     except (LLMError, ValueError, ValidationError) as error:
         logger.warning("Переранжирование не удалось, порядок BM25: %s", error)
         return Reranked(bm25_hits(query, candidates, limit), error=str(error).splitlines()[0])
+    if judged_all is None:
+        return Reranked(bm25_hits(query, candidates, limit))
+    answer, model = judged_all
     scores = {item.id: item for item in answer.ranking}
     top = shortlist[0].bm25 or 1.0
     terms = tokens(query)
@@ -113,4 +143,4 @@ async def rerank(
         score = MODEL_WEIGHT * judged.score + (1 - MODEL_WEIGHT) * candidate.bm25 / top
         ranked.append(hit(candidate.passage, quote.strip(), score, candidate.bm25, judged.score))
     ranked.sort(key=lambda found: -found.score)
-    return Reranked(ranked[:limit], model=result.model.value)
+    return Reranked(ranked[:limit], model=model)

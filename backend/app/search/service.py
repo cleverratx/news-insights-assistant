@@ -9,6 +9,7 @@ from typing import Any
 import asyncpg
 from pydantic import ValidationError
 
+from app.cache.store import LLMCache
 from app.contracts.news import MaterialKind, NewsItem
 from app.contracts.search import SearchResult
 from app.search.engine import Index, passages
@@ -66,7 +67,7 @@ async def search(
     items, warnings = await load(connection, wanted, now or datetime.now(UTC))
     index = Index(passages(items))
     candidates = index.search(query, limit=max(limit * 4, 20), kinds=wanted, since=since)
-    reranked = await rerank(llm, query, candidates, limit)
+    reranked = await rerank(llm, query, candidates, limit, LLMCache(connection))
     if reranked.error:
         warnings.append(f"Переранжирование моделью не удалось: {reranked.error}")
     if not candidates:
