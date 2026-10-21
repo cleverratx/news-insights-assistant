@@ -91,3 +91,33 @@ class KnowledgeBase(Contract):
         if any(fact.deleted for fact in self.facts):
             raise ValueError("Удалённый факт не может быть действующим")
         return self
+
+
+class Question(Contract):
+    """То, чего система о компании не знает и что стоит спросить у клиента."""
+
+    key: Id = Field(description="Ключ факта, под которым ляжет ответ")
+    category: FactCategory
+    question: Text
+    why: Text = Field(description="Зачем это знать: что изменится в отборе и выводах")
+    priority: Literal["high", "medium", "low"]
+    based_on: list[Id] = Field(
+        default_factory=list, description="Признаки профиля, из-за которых вопрос задан именно так"
+    )
+
+
+class KnowledgeGaps(Contract):
+    """Чего система не знает о компании и что ей нужно подтвердить."""
+
+    schema_version: Literal["1.0"] = SCHEMA_VERSION
+    company_id: Id
+    questions: list[Question] = Field(default_factory=list)
+    to_confirm: list[KnowledgeFact] = Field(
+        default_factory=list, description="Предположения системы и данных банка: верно ли?"
+    )
+    known: int = Field(ge=0, description="Сколько фактов уже подтвердил клиент")
+
+    @model_validator(mode="after")
+    def unique_questions(self) -> Self:
+        require_unique((question.key for question in self.questions), "вопросов")
+        return self
