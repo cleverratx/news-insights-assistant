@@ -7,10 +7,15 @@ from pydantic import ValidationError
 from app.contracts.knowledge import FactCategory, FactSource, KnowledgeBase, KnowledgeFact
 from app.contracts.links import LinkedCompanyCard, LinkOrigin, RoleSource, Turnover
 from app.contracts.news import Topic
-from app.contracts.profile import CounterpartyRole
+from app.contracts.profile import (
+    CompanyProfile,
+    CounterpartyRole,
+    Exposure,
+    ExposureDirection,
+)
 from app.profile.builder import assemble
 from app.profile.graph import CompanyLinks, LinkedCompany, Payment
-from app.profile.knowledge import new_fact, resolve
+from app.profile.knowledge import apply_knowledge, new_fact, resolve
 from app.profile.legend import Legends, parse_legends
 from app.profile.links import (
     TOP_PAYMENT_CARDS,
@@ -239,3 +244,61 @@ def test_card_contract_rules() -> None:
             origins=[LinkOrigin.GROUP],
             incoming=Turnover(amount_rub=1, amount_share=1),
         )
+
+
+def client_role(partner_id: str, role: str) -> KnowledgeFact:
+    return new_fact(
+        "U_1",
+        FactCategory.SUPPLIERS,
+        f"{partner_id} — перевозчик",
+        FactSource.CLIENT,
+        key=role_key(partner_id),
+        value=role,
+        now=NOW,
+    )
+
+
+def logistics(profile: CompanyProfile) -> list[Exposure]:
+    return [item for item in profile.exposures if "грузоперевозки" in item.keywords]
+
+
+def test_client_carrier_adds_logistics_exposure() -> None:
+    links = CompanyLinks(
+        payments=[
+            pay(company("U_8"), "out", "300", 3),
+            pay(company("U_9", "46.38"), "out", "700", 7),
+            pay(company("U_10"), "out", "50", 1),
+        ]
+    )
+    plain = assemble(CLIENT, links)
+    assert logistics(plain) == []
+    knowledge = base(client_role("U_8", "carrier"), client_role("U_10", "carrier"))
+    profile = apply_links(apply_knowledge(plain, knowledge), [])
+    [exposure] = logistics(profile)
+    assert exposure.feature_ids == ["feature:knowledge:counterparty.U_8.role"]
+    assert exposure.direction is ExposureDirection.RISK
+    assert "U_8 — 29%" in exposure.reason
+    assert "U_10" not in exposure.reason
+
+
+def test_client_carrier_joins_existing_logistics_exposure() -> None:
+    links = CompanyLinks(
+        payments=[
+            pay(company("U_4", "49.41"), "out", "850", 15),
+            pay(company("U_9", "46.38"), "out", "150", 1),
+        ]
+    )
+    plain = assemble(CLIENT, links)
+    [before] = logistics(plain)
+    profile = apply_links(apply_knowledge(plain, base(client_role("U_4", "carrier"))), [])
+    [after] = logistics(profile)
+    assert after.feature_ids == [*before.feature_ids, "feature:knowledge:counterparty.U_4.role"]
+    assert after.reason.startswith(before.reason)
+    assert "U_4 — 85%" in after.reason
+
+
+def test_supplier_role_does_not_add_logistics() -> None:
+    links = CompanyLinks(payments=[pay(company("U_8"), "out", "300", 3)])
+    plain = assemble(CLIENT, links)
+    profile = apply_knowledge(plain, base(client_role("U_8", "supplier")))
+    assert apply_links(profile, []) is profile

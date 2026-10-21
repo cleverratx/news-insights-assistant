@@ -34,6 +34,11 @@ async def test_client_sets_role(api: AsyncClient) -> None:
     card = response.json()
     assert (card["role"], card["role_source"]) == ("carrier", "client")
 
+    profile = (await api.get(f"{BASE}/profile")).json()
+    feature_id = "feature:knowledge:counterparty.U_900102.role"
+    carriers = [item for item in profile["exposures"] if feature_id in item["feature_ids"]]
+    assert len(carriers) == 1 and "U_900102 — 40%" in carriers[0]["reason"]
+
     fact_id = card["role_fact_id"]
     history = (await api.get(f"{BASE}/knowledge/history", params={"fact_id": fact_id})).json()
     assert [item["value"] for item in history] == ["carrier"]

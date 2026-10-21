@@ -9,7 +9,7 @@ from app.contracts.profile import CompanyProfile
 from app.core.db import get_pool
 from app.profile.builder import load_profile
 from app.profile.knowledge import apply_knowledge, knowledge_base
-from app.profile.links import apply_links, manual_links
+from app.profile.links import ManualLink, apply_links, manual_links
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -45,6 +45,7 @@ async def company_profile(company_id: CompanyId, connection: Connection) -> Comp
         raise HTTPException(404, "Компания не найдена")
     with suppress(asyncpg.UndefinedTableError):
         profile = apply_knowledge(profile, await knowledge_base(connection, company_id))
+    manual: list[ManualLink] = []
     with suppress(asyncpg.UndefinedTableError):
-        profile = apply_links(profile, await manual_links(connection, company_id))
-    return profile
+        manual = await manual_links(connection, company_id)
+    return apply_links(profile, manual)

@@ -36,7 +36,14 @@ from app.contracts.profile import (
     ProfileFeature,
 )
 from app.profile.builder import COMPANY_SQL
-from app.profile.graph import CompanyLinks, Direction, LinkedCompany, by_revenue, fetch_links
+from app.profile.graph import (
+    SIGNIFICANT_SHARE,
+    CompanyLinks,
+    Direction,
+    LinkedCompany,
+    by_revenue,
+    fetch_links,
+)
 from app.profile.knowledge import ROLE_FACTS, new_fact, profile_with_knowledge, revise
 from app.profile.legend import Legends, get_legends
 from app.profile.okved import SEGMENTS, resolve
@@ -44,6 +51,7 @@ from app.profile.row import CompanyRow
 
 TOP_PAYMENT_CARDS = 30
 TOP_GROUP_CARDS = 20
+CARRIER_SEGMENT = "logistics"
 MANUAL_PREFIX = "manual:"
 ROLE_WORDS = {
     CounterpartyRole.BUYER: "покупатель",
@@ -317,13 +325,68 @@ def manual_link(
     )
 
 
+def client_carriers(profile: CompanyProfile) -> dict[str, str]:
+    """Контрагенты, которых клиент назвал перевозчиками: SYNTHETIC_U → признак с его ответом."""
+    prefix, suffix = "feature:knowledge:counterparty.", ".role"
+    return {
+        feature.id.removeprefix(prefix).removesuffix(suffix): feature.id
+        for feature in profile.features
+        if feature.id.startswith(prefix)
+        and feature.id.endswith(suffix)
+        and feature.value == CounterpartyRole.CARRIER.value
+    }
+
+
+def with_carriers(profile: CompanyProfile) -> list[Exposure]:
+    """Чувствительность к логистике от перевозчиков, которых отметил клиент. По платежам
+    перевозчика не отличить от поставщика, поэтому без ответа клиента её нет. Мелкий перевозчик
+    не в счёт: новости о тарифах нужны тем, у кого перевозки — заметная доля оборота."""
+    carriers = client_carriers(profile)
+    shares: dict[str, tuple[float, str]] = {}
+    for item in profile.counterparties:
+        share = item.share or 0.0
+        if item.company_id in carriers and share >= float(SIGNIFICANT_SHARE):
+            name = item.legend.name if item.legend else item.company_id
+            if share > shares.get(item.company_id, (0.0, ""))[0]:
+                shares[item.company_id] = share, f"{name} — {share * 100:.0f}%"
+    if not shares:
+        return list(profile.exposures)
+    ranked = sorted(shares.items(), key=lambda pair: pair[1][0], reverse=True)
+    parts = ", ".join(part for _, (_, part) in ranked)
+    reason = (
+        f"Со слов клиента, перевозчики получают заметную долю ваших платежей: {parts}. "
+        f"{CONSEQUENCES[CounterpartyRole.CARRIER].capitalize()}"
+    )
+    feature_ids = [carriers[company_id] for company_id, _ in ranked]
+    keywords = list(SEGMENTS[CARRIER_SEGMENT].keywords)
+    exposures = list(profile.exposures)
+    for index, current in enumerate(exposures):
+        if current.topic is Topic.INDUSTRY and current.keywords == keywords:
+            exposures[index] = current.model_copy(
+                update={
+                    "reason": f"{current.reason}. {reason}",
+                    "feature_ids": list(dict.fromkeys([*current.feature_ids, *feature_ids])),
+                }
+            )
+            return exposures
+    exposure = Exposure(
+        topic=Topic.INDUSTRY,
+        direction=ExposureDirection.RISK,
+        reason=reason,
+        feature_ids=feature_ids,
+        keywords=keywords,
+    )
+    return [*exposures, exposure]
+
+
 def apply_links(profile: CompanyProfile, manual: list[ManualLink]) -> CompanyProfile:
-    """Профиль с компаниями, которые добавил клиент: признак на каждую и отраслевая
+    """Профиль с тем, что клиент сказал о связанных компаниях: перевозчики из платежей дают
+    чувствительность к логистике, а добавленные вручную компании — признак и отраслевую
     чувствительность, если отрасль понятна. Отбор новостей найдёт рынок такой компании."""
-    if not manual:
+    exposures = with_carriers(profile)
+    if not manual and exposures == profile.exposures:
         return profile
     features: list[ProfileFeature] = []
-    exposures: list[Exposure] = []
     for link in manual:
         word = ROLE_WORDS[link.role]
         segment = link.segment
@@ -352,7 +415,7 @@ def apply_links(profile: CompanyProfile, manual: list[ManualLink]) -> CompanyPro
     return profile.model_copy(
         update={
             "features": [*profile.features, *features],
-            "exposures": [*profile.exposures, *exposures],
+            "exposures": exposures,
         }
     )
 
