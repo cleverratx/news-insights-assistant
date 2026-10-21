@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     news_sources_file: str = "app/news/sources.yaml"
     news_fetch_interval_minutes: int = Field(default=30, gt=0)
     news_user_agent: str = "alfa-news-insights/0.1"
+    feed_min_importance: float = Field(default=3.5, ge=0, le=10, allow_inf_nan=False)
 
     data_dir: str = "data"
     legend_file: str = "samples/legends.yaml"

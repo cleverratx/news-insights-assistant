@@ -198,7 +198,12 @@
           "description": "reranked — релевантность подтвердила модель"
         },
         "significance": {
-          "$ref": "#/$defs/Significance"
+          "$ref": "#/$defs/Significance",
+          "description": "Из уровня важности: критично и важно — high"
+        },
+        "importance": {
+          "$ref": "#/$defs/Importance",
+          "description": "Балл 0–10, уровень и вклад каждого фактора"
         },
         "score": {
           "$ref": "#/$defs/ScoreBreakdown"
@@ -226,6 +231,7 @@
         "event",
         "stage",
         "significance",
+        "importance",
         "score",
         "explanation"
       ],
@@ -270,6 +276,130 @@
       ],
       "title": "Horizon",
       "type": "string"
+    },
+    "Importance": {
+      "additionalProperties": false,
+      "description": "Степень важности материала для компании: 0–10, уровень и вклад каждого фактора.\nСумма points всех факторов равна score.",
+      "properties": {
+        "score": {
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "level": {
+          "$ref": "#/$defs/ImportanceLevel"
+        },
+        "title": {
+          "description": "Критично, Важно, К сведению, Фон",
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "factors": {
+          "items": {
+            "$ref": "#/$defs/ImportanceFactor"
+          },
+          "minItems": 1,
+          "title": "Factors",
+          "type": "array"
+        }
+      },
+      "required": [
+        "score",
+        "level",
+        "title",
+        "factors"
+      ],
+      "title": "Importance",
+      "type": "object"
+    },
+    "ImportanceFactor": {
+      "additionalProperties": false,
+      "description": "Слагаемое балла важности: сколько баллов дал фактор и почему.",
+      "properties": {
+        "id": {
+          "description": "relevance, breadth, scale, recency, model, bank",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "points": {
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Points",
+          "type": "number"
+        },
+        "max_points": {
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "title": "Max Points",
+          "type": "number"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "points",
+        "max_points",
+        "detail"
+      ],
+      "title": "ImportanceFactor",
+      "type": "object"
+    },
+    "ImportanceLevel": {
+      "enum": [
+        "critical",
+        "important",
+        "info",
+        "background"
+      ],
+      "title": "ImportanceLevel",
+      "type": "string"
+    },
+    "ImportanceScale": {
+      "additionalProperties": false,
+      "description": "Критерий уровня для пользователя: с какого балла и что это значит.",
+      "properties": {
+        "level": {
+          "$ref": "#/$defs/ImportanceLevel"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "min_score": {
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Min Score",
+          "type": "number"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "title",
+        "min_score",
+        "description"
+      ],
+      "title": "ImportanceScale",
+      "type": "object"
     },
     "Marker": {
       "description": "Маркер новости для фильтров ленты. Список закрыт: модель выбирает из него, а не\nпридумывает свои.",
@@ -631,6 +761,27 @@
       "title": "Dropped By Rules",
       "type": "integer"
     },
+    "min_importance": {
+      "description": "Порог отсечения по баллу важности",
+      "maximum": 10,
+      "minimum": 0,
+      "title": "Min Importance",
+      "type": "number"
+    },
+    "hidden_below_threshold": {
+      "description": "Скрыто: важность ниже порога",
+      "minimum": 0,
+      "title": "Hidden Below Threshold",
+      "type": "integer"
+    },
+    "importance_scale": {
+      "description": "Уровни важности и их критерии для пользователя",
+      "items": {
+        "$ref": "#/$defs/ImportanceScale"
+      },
+      "title": "Importance Scale",
+      "type": "array"
+    },
     "rejected": {
       "description": "Отклонено моделью, с аргументом",
       "items": {
@@ -663,7 +814,9 @@
     "period_days",
     "verified",
     "considered",
-    "dropped_by_rules"
+    "dropped_by_rules",
+    "min_importance",
+    "hidden_below_threshold"
   ],
   "title": "Feed",
   "type": "object"

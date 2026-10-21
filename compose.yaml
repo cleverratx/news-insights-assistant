@@ -28,6 +28,7 @@ x-backend: &backend
     NEWS_SOURCES_FILE: ${NEWS_SOURCES_FILE:-app/news/sources.yaml}
     NEWS_FETCH_INTERVAL_MINUTES: ${NEWS_FETCH_INTERVAL_MINUTES:-30}
     NEWS_USER_AGENT: ${NEWS_USER_AGENT:-alfa-news-insights/0.1}
+    FEED_MIN_IMPORTANCE: ${FEED_MIN_IMPORTANCE:-3.5}
     DATA_DIR: ${DATA_DIR:-/app/data}
     LEGEND_FILE: ${LEGEND_FILE:-samples/legends.yaml}
     ANALYTICS_DIR: ${ANALYTICS_DIR:-raw/analytics}
