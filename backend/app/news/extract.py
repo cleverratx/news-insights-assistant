@@ -26,6 +26,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from app.cache.store import LLMCache, schema_text, version_of
 from app.contracts.news import FactStatus, KeyFact, NewsItem
 from app.llm.errors import LLMError
 from app.llm.models import Message, Task
@@ -38,6 +39,7 @@ MAX_FACTS = 8
 MAX_FRAGMENTS = 25
 MAX_INPUT_CHARS = 6000
 FALLBACK_FACTS = 2
+CACHE_KIND = "extract"
 NUMBER = re.compile(r"\d+(?:[  ]\d{3})*(?:[.,]\d+)?")
 REPORTED = re.compile(
     r"\b(сообщил|сообщила|сообщили|заявил|заявила|заявили|по словам|по данным|"
@@ -157,6 +159,7 @@ class Outcome:
     rejected: int = 0
     error: str | None = None
     model_down: bool = False
+    cached: bool = False
 
 
 def to_facts(answer: Answer, fragments: dict[str, str]) -> tuple[list[KeyFact], int]:
@@ -202,13 +205,24 @@ def rule_facts(item: NewsItem) -> list[KeyFact]:
     return facts
 
 
-async def extract(llm: Completer | None, item: NewsItem) -> Outcome:
+def cache_version() -> str:
+    return version_of(SYSTEM_PROMPT, schema_text(Answer))
+
+
+async def extract(llm: Completer | None, item: NewsItem, cache: LLMCache | None = None) -> Outcome:
+    """Факты моделью; ответ из кеша проходит ту же проверку по тексту, что и свежий."""
+    fragments = {fragment.id: fragment.text for fragment in item.fragments}
+    prompt = news_prompt(item)
+    if cache is not None and fragments:
+        hit = await cache.get(CACHE_KIND, cache_version(), prompt)
+        if hit is not None:
+            facts, rejected = to_facts(Answer.model_validate(hit.result), fragments)
+            return Outcome(facts, "llm", hit.model, rejected=rejected, cached=True)
     if llm is None or not item.fragments:
         return Outcome(rule_facts(item), method="rules", error="модель не настроена")
-    fragments = {fragment.id: fragment.text for fragment in item.fragments}
     messages = [
         Message(role="system", content=SYSTEM_PROMPT),
-        Message(role="user", content=news_prompt(item)),
+        Message(role="user", content=prompt),
     ]
     cost = Decimal(0)
     error = ""
@@ -231,6 +245,9 @@ async def extract(llm: Completer | None, item: NewsItem) -> Outcome:
                 Message(role="user", content=REPAIR_PROMPT.format(error=error)),
             ]
             continue
+        if cache is not None:
+            dump = answer.model_dump(mode="json")
+            await cache.put(CACHE_KIND, cache_version(), prompt, dump, result.model.value, cost)
         facts, rejected = to_facts(answer, fragments)
         if rejected:
             logger.info("Отброшено фактов без опоры на текст в %s: %s", item.id, rejected)
@@ -285,6 +302,7 @@ class ExtractReport:
     stories: int = 0
     facts: int = 0
     rejected: int = 0
+    cached: int = 0
     by_rules: int = 0
     cost_rub: Decimal = Decimal(0)
     errors: list[str] = field(default_factory=list)
@@ -314,15 +332,16 @@ async def extract_pending(
             NewsItem.model_validate_json(record["item"])
         )
     report = ExtractReport()
+    cache = LLMCache(connection)
     down: str | None = None
     for cluster_id, items in groups.items():
         card = representative(items, official)
-        if down is not None:
-            outcome = Outcome(rule_facts(card), "rules", error=down)
-        else:
-            outcome = await extract(llm, card)
-            if outcome.model_down:
-                down = outcome.error
+        outcome = await extract(None if down else llm, card, cache)
+        if down is not None and not outcome.cached:
+            outcome.error = down
+        if outcome.model_down:
+            down = outcome.error
+        report.cached += outcome.cached
         await connection.execute(CLEAR_SQL, cluster_id, card.id)
         await connection.execute(
             SAVE_SQL,

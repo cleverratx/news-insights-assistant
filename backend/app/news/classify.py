@@ -22,6 +22,7 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from app.cache.store import LLMCache, schema_text, version_of
 from app.contracts.news import Classification, Horizon, NewsItem, Topic
 from app.llm.errors import LLMError
 from app.llm.models import LLMResult, Message, Task
@@ -31,6 +32,7 @@ from app.profile.okved import SEGMENTS
 MAX_INPUT_CHARS = 3000
 MAX_TOPICS = 4
 RULES_CONFIDENCE = 0.3
+CACHE_KIND = "classify"
 SEGMENT_IDS = frozenset(segment for segment in SEGMENTS if segment != "other")
 TOPIC_HINTS: dict[Topic, str] = {
     Topic.KEY_RATE: "ключевая ставка, денежно-кредитная политика ЦБ",
@@ -213,15 +215,27 @@ class Outcome:
     attempts: int = 0
     error: str | None = None
     model_down: bool = False
+    cached: bool = False
 
 
-async def classify(llm: Completer | None, item: NewsItem) -> Outcome:
-    """Разбор моделью с одной попыткой исправить ответ; без модели — по словарю."""
+def cache_version() -> str:
+    return version_of(system_prompt(), schema_text(Answer))
+
+
+async def classify(llm: Completer | None, item: NewsItem, cache: LLMCache | None = None) -> Outcome:
+    """Разбор моделью с одной попыткой исправить ответ; без модели — по словарю. Готовый
+    разбор того же текста берётся из кеша, и тогда модель не нужна вовсе."""
+    prompt = news_prompt(item)
+    if cache is not None:
+        hit = await cache.get(CACHE_KIND, cache_version(), prompt)
+        if hit is not None:
+            answer = Answer.model_validate(hit.result)
+            return Outcome(from_answer(answer, hit.model), cached=True)
     if llm is None:
         return Outcome(rule_classify(item), error="модель не настроена")
     messages = [
         Message(role="system", content=system_prompt()),
-        Message(role="user", content=news_prompt(item)),
+        Message(role="user", content=prompt),
     ]
     cost = Decimal(0)
     error = ""
@@ -242,6 +256,9 @@ async def classify(llm: Completer | None, item: NewsItem) -> Outcome:
                 Message(role="user", content=REPAIR_PROMPT.format(error=error)),
             ]
             continue
+        if cache is not None:
+            dump = answer.model_dump(mode="json")
+            await cache.put(CACHE_KIND, cache_version(), prompt, dump, result.model.value, cost)
         return Outcome(from_answer(answer, result.model.value), cost, attempt)
     logger.warning("Ответ модели по %s не прошёл проверку: %s", item.id, error)
     return Outcome(rule_classify(item), cost, 2, error)
@@ -292,6 +309,7 @@ UPDATE news_items SET item = jsonb_set(item, '{classification}', $2::jsonb) WHER
 class ClassifyReport:
     classified: int = 0
     copied: int = 0
+    cached: int = 0
     by_rules: int = 0
     cost_rub: Decimal = Decimal(0)
     errors: list[str] = field(default_factory=list)
@@ -338,10 +356,12 @@ async def classify_pending(
     """Разбор новых публикаций, свежие первыми. Публикация сюжета, у которого уже есть разбор
     моделью, получает его копию без вызова. retry_rules — переразобрать моделью то, что
     разобрано по словарю, когда бюджет снова доступен. Если модель отказала (бюджет, сеть),
-    остальные публикации обхода разбираются по словарю, без новых попыток."""
+    остальные публикации обхода берутся из кеша или разбираются по словарю, без новых
+    попыток."""
     await ensure_schema(connection)
     moment = now or datetime.now(UTC)
     report = ClassifyReport()
+    cache = LLMCache(connection)
     down: str | None = None
     for record in await connection.fetch(PENDING_SQL, limit, retry_rules):
         news_id, cluster_id = record["news_id"], record["cluster_id"]
@@ -354,12 +374,12 @@ async def classify_pending(
                 report.copied += 1
                 continue
         item = NewsItem.model_validate_json(record["item"])
-        if down is not None:
-            outcome = Outcome(rule_classify(item), error=down)
-        else:
-            outcome = await classify(llm, item)
-            if outcome.model_down:
-                down = outcome.error
+        outcome = await classify(None if down else llm, item, cache)
+        if down is not None and not outcome.cached:
+            outcome.error = down
+        if outcome.model_down:
+            down = outcome.error
+        report.cached += outcome.cached
         await store(connection, news_id, cluster_id, outcome, None, moment)
         report.classified += 1
         report.cost_rub += outcome.cost_rub
