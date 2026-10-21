@@ -8,6 +8,7 @@
 
 import json
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -20,6 +21,9 @@ from app.contracts.knowledge import (
     KnowledgeBase,
     KnowledgeFact,
 )
+from app.contracts.profile import CompanyProfile
+from app.profile.builder import load_profile
+from app.profile.okved import SEGMENTS
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS knowledge_facts (
@@ -62,10 +66,11 @@ def new_fact(
     value: str | float | bool | None = None,
     evidence: list[str] | None = None,
     now: datetime | None = None,
+    fact_id: str | None = None,
 ) -> KnowledgeFact:
     """Первая версия факта. Факт клиента сразу подтверждён, автоматический — предположение."""
     return KnowledgeFact(
-        id=f"fact:{uuid4().hex}",
+        id=fact_id or f"fact:{uuid4().hex}",
         company_id=company_id,
         version=1,
         key=key,
@@ -103,12 +108,17 @@ def rank(fact: KnowledgeFact) -> tuple[int, int, float]:
     return SOURCE_PRIORITY[fact.source], confirmed, -fact.created_at.timestamp()
 
 
-def resolve(company_id: str, versions: Iterable[KnowledgeFact]) -> KnowledgeBase:
-    """Действующая база знаний из истории версий."""
+def latest_versions(versions: Iterable[KnowledgeFact]) -> dict[str, KnowledgeFact]:
     latest: dict[str, KnowledgeFact] = {}
     for fact in versions:
         if fact.id not in latest or fact.version > latest[fact.id].version:
             latest[fact.id] = fact
+    return latest
+
+
+def resolve(company_id: str, versions: Iterable[KnowledgeFact]) -> KnowledgeBase:
+    """Действующая база знаний из истории версий."""
+    latest = latest_versions(versions)
     alive = [fact for fact in latest.values() if not fact.deleted]
     by_key: dict[str, list[KnowledgeFact]] = {}
     facts: list[KnowledgeFact] = []
@@ -192,3 +202,180 @@ async def history(connection: Any, company_id: str) -> list[KnowledgeFact]:
 
 async def knowledge_base(connection: Any, company_id: str) -> KnowledgeBase:
     return resolve(company_id, await history(connection, company_id))
+
+
+# Черновик из данных банка (A2-13): что видно по выгрузке, записано как предположение, пока
+# клиент не подтвердит. Взятое из выгрузки как есть — источник bank_data, наши оценки поверх
+# неё — system. У фактов черновика постоянные id и ключи: повторная сборка обновляет их,
+# а не плодит копии, и не трогает то, что клиент уже подтвердил, исправил или удалил.
+
+DRAFT_PREFIX = "draft"
+TOP_PARTNER_SEGMENTS = 3
+PARTNER_ROLES = {"incoming": "покупатели", "outgoing": "поставщики"}
+DRAFT_CHANGES = {"category", "text", "value", "source", "evidence"}
+
+
+@dataclass(frozen=True)
+class DraftSync:
+    created: int = 0
+    updated: int = 0
+    removed: int = 0
+    kept: int = 0
+
+
+def draft_id(company_id: str, key: str) -> str:
+    return f"{DRAFT_PREFIX}:{company_id}:{key}"
+
+
+def partner_summary(profile: CompanyProfile, direction: str) -> str | None:
+    shares: dict[str, float] = {}
+    for item in profile.counterparties:
+        if item.direction == direction:
+            segment = SEGMENTS[item.segment].name if item.segment else "отрасль не известна"
+            shares[segment] = shares.get(segment, 0.0) + (item.share or 0.0)
+    if not shares:
+        return None
+    top = sorted(shares.items(), key=lambda pair: pair[1], reverse=True)[:TOP_PARTNER_SEGMENTS]
+    parts = ", ".join(f"{segment} — {share * 100:.0f}%" for segment, share in top)
+    return f"Крупнейшие {PARTNER_ROLES[direction]} по платежам: {parts} оборота"
+
+
+def draft(profile: CompanyProfile, now: datetime | None = None) -> list[KnowledgeFact]:
+    """Черновик базы знаний по профилю. Каждый факт ссылается на признаки, из которых собран."""
+    features = {feature.id: feature for feature in profile.features}
+    facts: list[KnowledgeFact] = []
+
+    def add(
+        key: str,
+        category: FactCategory,
+        source: FactSource,
+        ids: list[str],
+        text: str | None = None,
+        value: str | float | bool | None = None,
+    ) -> None:
+        found = [features[ref] for ref in ids if ref in features]
+        if not found:
+            return
+        facts.append(
+            new_fact(
+                profile.company_id,
+                category,
+                text or "; ".join(feature.label for feature in found),
+                source,
+                key=key,
+                value=value,
+                evidence=[feature.id for feature in found],
+                now=now,
+                fact_id=draft_id(profile.company_id, key),
+            )
+        )
+
+    industry = profile.industry
+    add(
+        "products.industry",
+        FactCategory.PRODUCTS,
+        FactSource.BANK_DATA if industry.resolved_by == "code" else FactSource.SYSTEM,
+        ["feature:industry"],
+        f"Основная деятельность: {industry.okved_name or industry.segment_name}"
+        f" (сегмент «{industry.segment_name}»)",
+        industry.segment,
+    )
+    size = profile.scale.size_category
+    add(
+        "company.size",
+        FactCategory.OTHER,
+        FactSource.BANK_DATA,
+        ["feature:revenue", "feature:size", "feature:employees"],
+        value=size.value if size else None,
+    )
+    products = [f"feature:{product.value}" for product in profile.products]
+    add("bank.products", FactCategory.OTHER, FactSource.BANK_DATA, products)
+    add(
+        "constraints.debt", FactCategory.CONSTRAINTS, FactSource.SYSTEM, ["feature:debt_dependence"]
+    )
+    add(
+        "markets.foreign_trade",
+        FactCategory.MARKETS,
+        FactSource.BANK_DATA,
+        ["feature:customs"],
+        value=", ".join(profile.foreign_trade.countries) or None,
+    )
+    direction = features.get("feature:trade_direction")
+    add(
+        "markets.trade_direction",
+        FactCategory.MARKETS,
+        FactSource.SYSTEM,
+        ["feature:trade_direction"],
+        value=direction.value if direction else None,
+    )
+    add(
+        "constraints.sanctions",
+        FactCategory.CONSTRAINTS,
+        FactSource.SYSTEM,
+        ["feature:unfriendly_trade", "feature:payment_hub_trade"],
+    )
+    add(
+        "markets.regions",
+        FactCategory.MARKETS,
+        FactSource.BANK_DATA,
+        ["feature:region", "feature:city", "feature:geography"],
+    )
+    for side, key, category, concentration in (
+        ("incoming", "customers.main", FactCategory.CUSTOMERS, "feature:customer_concentration"),
+        ("outgoing", "suppliers.main", FactCategory.SUPPLIERS, "feature:supplier_concentration"),
+    ):
+        summary = partner_summary(profile, side)
+        if summary is not None:
+            ids = [f"feature:counterparties_{side}", concentration]
+            add(key, category, FactSource.BANK_DATA, ids, summary)
+    add(
+        "company.group",
+        FactCategory.OTHER,
+        FactSource.BANK_DATA,
+        ["feature:group", "feature:group_segments"],
+    )
+    return facts
+
+
+def same_content(left: KnowledgeFact, right: KnowledgeFact) -> bool:
+    return left.model_dump(include=DRAFT_CHANGES) == right.model_dump(include=DRAFT_CHANGES)
+
+
+async def sync_draft(
+    connection: Any, profile: CompanyProfile, now: datetime | None = None
+) -> DraftSync:
+    """Приводит черновик в базе к текущему профилю. Факты, которые клиент подтвердил, исправил
+    или удалил, не трогаем: решение клиента главнее данных."""
+    moment = now or datetime.now(UTC)
+    fresh = {fact.id: fact for fact in draft(profile, moment)}
+    latest = latest_versions(await history(connection, profile.company_id))
+    created = updated = removed = kept = 0
+    for fact_id, fact in fresh.items():
+        current = latest.get(fact_id)
+        if current is None:
+            await save(connection, fact)
+            created += 1
+        elif current.deleted or current.source is FactSource.CLIENT or same_content(current, fact):
+            kept += 1
+        else:
+            await save(
+                connection, revise(current, moment, **fact.model_dump(include=DRAFT_CHANGES))
+            )
+            updated += 1
+    prefix = f"{DRAFT_PREFIX}:{profile.company_id}:"
+    for fact_id, current in latest.items():
+        stale = fact_id.startswith(prefix) and fact_id not in fresh
+        if stale and not current.deleted and current.source is not FactSource.CLIENT:
+            await save(connection, delete(current, moment))
+            removed += 1
+    return DraftSync(created=created, updated=updated, removed=removed, kept=kept)
+
+
+async def knowledge_for(connection: Any, company_id: str) -> KnowledgeBase | None:
+    """База знаний компании с актуальным черновиком из данных банка. None — компании нет."""
+    profile = await load_profile(connection, company_id)
+    if profile is None:
+        return None
+    await ensure_schema(connection)
+    await sync_draft(connection, profile)
+    return await knowledge_base(connection, company_id)
