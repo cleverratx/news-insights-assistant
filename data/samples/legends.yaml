@@ -11,6 +11,11 @@
 #               в выгрузке юрлиц: по ним ищутся новости его отрасли. Если отрасль есть
 #               в выгрузке, правы данные, и эти поля не используются.
 #
+# competitors — реальные игроки рынка демо-компании из открытых источников (Wikidata), url —
+# первоисточник. Кандидатов ищет backend/scripts/find_competitors.py, в файл попадают только
+# проверенные руками. Связь с клиентом у них одна — «работают на одном рынке», а их названия
+# идут в поиск новостей: это реальные компании.
+#
 # Заготовку с крупнейшими контрагентами собирает backend/scripts/pick_demo_companies.py
 # в legends.generated.yaml. Сервис работает и без этого файла: тогда компании показываются
 # по идентификаторам, а лента не меняется.
@@ -46,6 +51,27 @@ companies:
         role: "покупатель"
         industry: "Производство мыла и моющих, чистящих и полирующих средств"
         okved_code: "20.41"
+    competitors:
+      - name: "Сибур"
+        url: "https://www.wikidata.org/wiki/Q899012"
+        region: "Москва"
+        industry: "химическая промышленность"
+      - name: "ФосАгро"
+        url: "https://www.wikidata.org/wiki/Q386414"
+        region: "Москва"
+        industry: "химическая промышленность"
+      - name: "Акрон"
+        url: "https://www.wikidata.org/wiki/Q4059809"
+        region: "Великий Новгород"
+        industry: "химическая промышленность"
+      - name: "Нижнекамскнефтехим"
+        url: "https://www.wikidata.org/wiki/Q4318867"
+        region: "Нижнекамск"
+        industry: "химическая промышленность"
+      - name: "Казаньоргсинтез"
+        url: "https://www.wikidata.org/wiki/Q4207929"
+        region: "Казань"
+        industry: "химическая промышленность"
 
   - synthetic_u: "U_19717"
     name: "ООО «Верхобье Петрол»"
@@ -72,6 +98,23 @@ companies:
         role: "покупатель"
         industry: "Выращивание зерновых культур"
         okved_code: "01.11.1"
+    competitors:
+      - name: "Газпром нефть"
+        url: "https://www.wikidata.org/wiki/Q1461799"
+        region: "Санкт-Петербург"
+        industry: "нефтяная промышленность"
+      - name: "Роснефть"
+        url: "https://www.wikidata.org/wiki/Q1141123"
+        region: "Москва"
+        industry: "нефтяная промышленность"
+      - name: "Лукойл"
+        url: "https://www.wikidata.org/wiki/Q329347"
+        region: "Москва"
+        industry: "нефтяная промышленность"
+      - name: "Татнефть"
+        url: "https://www.wikidata.org/wiki/Q1616858"
+        region: "Альметьевск"
+        industry: "нефтяная промышленность"
 
   - synthetic_u: "U_3263"
     name: "АО «Камавектор»"
@@ -101,6 +144,21 @@ companies:
         role: "перевозчик"
 
   # Синтетические компании из data/samples: сквозной сценарий без настоящих данных.
+    competitors:
+      - name: "Деловые линии"
+        url: "https://www.wikidata.org/wiki/Q120280086"
+        industry: "логистика"
+      - name: "СДЭК"
+        url: "https://www.wikidata.org/wiki/Q28665980"
+        region: "Новосибирск"
+        industry: "логистика"
+      - name: "РЖД Логистика"
+        url: "https://www.wikidata.org/wiki/Q65160026"
+        region: "Москва"
+        industry: "логистика"
+      - name: "Первая грузовая компания"
+        url: "https://www.wikidata.org/wiki/Q4348924"
+        industry: "логистика"
 
   - synthetic_u: "U_900001"
     name: "АО «Сытный Меридиан»"
@@ -129,6 +187,23 @@ companies:
         role: "покупатель"
       - synthetic_u: "U_900301"
         name: "ООО «Квадрант Аренды»"
+    competitors:
+      - name: "Metro Cash & Carry"
+        url: "https://www.wikidata.org/wiki/Q13610282"
+        industry: "пищевая промышленность и оптовая торговля"
+      - name: "Черкизово"
+        url: "https://www.wikidata.org/wiki/Q4513187"
+        region: "Москва"
+        industry: "пищевая промышленность и оптовая торговля"
+      - name: "Русагро"
+        url: "https://www.wikidata.org/wiki/Q4400200"
+        industry: "пищевая промышленность и оптовая торговля"
+      - name: "Мираторг"
+        url: "https://www.wikidata.org/wiki/Q4295539"
+        industry: "пищевая промышленность и оптовая торговля"
+      - name: "ЭФКО"
+        url: "https://www.wikidata.org/wiki/Q4529499"
+        industry: "пищевая промышленность и оптовая торговля"
 
   - synthetic_u: "U_900002"
     name: "ООО «Исетьмед»"
@@ -144,6 +219,18 @@ companies:
       - synthetic_u: "U_900210"
         name: "ООО «Микросхемикс»"
         role: "поставщик"
+    competitors:
+      - name: "Р-Фарм"
+        url: "https://www.wikidata.org/wiki/Q18398598"
+        region: "Москва"
+        industry: "фармацевтическая промышленность"
+      - name: "Биокад"
+        url: "https://www.wikidata.org/wiki/Q4086882"
+        region: "Московская область"
+        industry: "фармацевтическая промышленность"
+      - name: "Фармстандарт"
+        url: "https://www.wikidata.org/wiki/Q4391720"
+        industry: "фармацевтическая промышленность"
 
   - synthetic_u: "U_900003"
     name: "ООО «Кремнегорск Софт»"
@@ -162,3 +249,15 @@ companies:
       - synthetic_u: "U_900204"
         name: "АО «Финлизарт»"
         role: "поставщик"
+    competitors:
+      - name: "1С"
+        url: "https://www.wikidata.org/wiki/Q77202"
+        region: "Москва"
+        industry: "информационные технологии"
+      - name: "Яндекс"
+        url: "https://www.wikidata.org/wiki/Q5281"
+        region: "Москва"
+        industry: "информационные технологии"
+      - name: "Лаборатория Касперского"
+        url: "https://www.wikidata.org/wiki/Q489943"
+        industry: "информационные технологии"

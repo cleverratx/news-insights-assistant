@@ -33,6 +33,7 @@ class FeatureKind(StrEnum):
     OWNERSHIP = "ownership"
     LIFECYCLE = "lifecycle"
     KNOWLEDGE = "knowledge"
+    COMPETITOR = "competitor"
 
 
 class ProfileFeature(Contract):

@@ -5,10 +5,13 @@ from typing import Annotated, Any
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Path
 
+from app.contracts.knowledge import KnowledgeBase
 from app.contracts.profile import CompanyProfile
 from app.core.db import get_pool
 from app.profile.builder import load_profile
+from app.profile.competitors import apply_competitors
 from app.profile.knowledge import apply_knowledge, knowledge_base
+from app.profile.legend import get_legends
 from app.profile.links import ManualLink, apply_links, manual_links
 
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -43,8 +46,10 @@ async def company_profile(company_id: CompanyId, connection: Connection) -> Comp
         raise HTTPException(503, "Выгрузка не загружена: выполните python -m app.data") from None
     if profile is None:
         raise HTTPException(404, "Компания не найдена")
+    base = KnowledgeBase(company_id=company_id)
     with suppress(asyncpg.UndefinedTableError):
-        profile = apply_knowledge(profile, await knowledge_base(connection, company_id))
+        base = await knowledge_base(connection, company_id)
+    profile = apply_competitors(apply_knowledge(profile, base), base, get_legends())
     manual: list[ManualLink] = []
     with suppress(asyncpg.UndefinedTableError):
         manual = await manual_links(connection, company_id)

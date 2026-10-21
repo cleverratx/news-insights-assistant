@@ -273,7 +273,8 @@
         "counterparty",
         "ownership",
         "lifecycle",
-        "knowledge"
+        "knowledge",
+        "competitor"
       ],
       "title": "FeatureKind",
       "type": "string"

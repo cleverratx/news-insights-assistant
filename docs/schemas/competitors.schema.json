@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "competitors.schema.json",
+  "$defs": {
+    "Competitor": {
+      "additionalProperties": false,
+      "description": "Кандидат в конкуренты. Связь с клиентом одна — «работают на одном рынке».",
+      "properties": {
+        "id": {
+          "description": "SYNTHETIC_U, wikidata:<Q-id> или client:<id>",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/CompetitorSource"
+        },
+        "company_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SYNTHETIC_U компании из выгрузки",
+          "title": "Company Id"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Пусто у обезличенной компании выгрузки",
+          "title": "Name"
+        },
+        "industry": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Industry"
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сегмент рынка из справочника ОКВЭД",
+          "title": "Segment"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "revenue_rub": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revenue Rub"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сходство с клиентом по отрасли, выручке и региону",
+          "title": "Score"
+        },
+        "reasons": {
+          "description": "Почему это кандидат в конкуренты",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Reasons",
+          "type": "array"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Первоисточник для open_source",
+          "title": "Url"
+        },
+        "fact_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Факт базы знаний: клиент добавил или исключил компанию",
+          "title": "Fact Id"
+        }
+      },
+      "required": [
+        "id",
+        "source",
+        "reasons"
+      ],
+      "title": "Competitor",
+      "type": "object"
+    },
+    "CompetitorSource": {
+      "description": "bank_data — компания из выгрузки, похожая по признакам; open_source — реальный игрок\nрынка из открытого источника (для демо-легенды); client — назвал клиент.",
+      "enum": [
+        "bank_data",
+        "open_source",
+        "client"
+      ],
+      "title": "CompetitorSource",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Конкуренты клиента: кандидаты из выгрузки, реальные игроки рынка и названные клиентом.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "company_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Company Id",
+      "type": "string"
+    },
+    "competitors": {
+      "items": {
+        "$ref": "#/$defs/Competitor"
+      },
+      "title": "Competitors",
+      "type": "array"
+    },
+    "excluded": {
+      "description": "Кого клиент убрал из списка: можно вернуть",
+      "items": {
+        "$ref": "#/$defs/Competitor"
+      },
+      "title": "Excluded",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "company_id"
+  ],
+  "title": "Competitors",
+  "type": "object"
+}

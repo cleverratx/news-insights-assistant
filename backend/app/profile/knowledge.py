@@ -433,6 +433,7 @@ async def profile_with_knowledge(
 # поэтому правка сразу видна отбору и агенту, которые читают профиль.
 
 TRADE_DIRECTION_KEY = "markets.trade_direction"
+COMPETITORS_PREFIX = "competitors."
 
 
 def knowledge_feature_id(fact: KnowledgeFact) -> str:
@@ -440,8 +441,13 @@ def knowledge_feature_id(fact: KnowledgeFact) -> str:
 
 
 def apply_knowledge(profile: CompanyProfile, base: KnowledgeBase) -> CompanyProfile:
-    """Профиль с учётом подтверждённого клиентом. Автоматические факты уже есть в профиле."""
-    client_facts = [fact for fact in base.facts if fact.source is FactSource.CLIENT]
+    """Профиль с учётом подтверждённого клиентом. Автоматические факты уже есть в профиле,
+    а конкурентов в профиль приносит app/profile/competitors.py."""
+    client_facts = [
+        fact
+        for fact in base.facts
+        if fact.source is FactSource.CLIENT and not (fact.key or "").startswith(COMPETITORS_PREFIX)
+    ]
     if not client_facts:
         return profile
     features = [
