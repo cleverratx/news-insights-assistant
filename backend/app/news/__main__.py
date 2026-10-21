@@ -15,6 +15,7 @@ from app.llm.client import open_llm_client
 from app.llm.errors import LLMConfigurationError
 from app.news.classify import classify_pending
 from app.news.dedup import dedup_pending
+from app.news.extract import extract_pending
 from app.news.fetch import Fetcher, FetchError, FetchReport, load_sources, next_wakeup, run_once
 from app.news.normalize import normalize_pending
 
@@ -65,6 +66,24 @@ async def classify_news(limit: int, retry_rules: bool) -> None:
     print(json.dumps(asdict(report), ensure_ascii=False, default=str))
 
 
+async def extract_facts(limit: int, retry_rules: bool) -> None:
+    settings = get_settings()
+    sources = load_sources()
+    connection = await asyncpg.connect(postgres_dsn(settings.database_url.get_secret_value()))
+    try:
+        try:
+            async with open_llm_client(settings) as llm:
+                report = await extract_pending(
+                    connection, llm, sources, limit=limit, retry_rules=retry_rules
+                )
+        except LLMConfigurationError as error:
+            logging.warning("Модель не настроена, факты по первым предложениям: %s", error)
+            report = await extract_pending(connection, None, sources, limit=limit)
+    finally:
+        await connection.close()
+    print(json.dumps(asdict(report), ensure_ascii=False, default=str))
+
+
 async def deduplicate() -> None:
     settings = get_settings()
     connection = await asyncpg.connect(postgres_dsn(settings.database_url.get_secret_value()))
@@ -88,17 +107,24 @@ async def renormalize(everything: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Новости: сбор (A3-01), нормализация (A3-02), сюжеты (A3-03), разбор (A3-04)"
+        description="Новости: сбор, нормализация, сюжеты, разбор и факты (A3-01 — A3-05)"
     )
     parser.add_argument(
-        "command", nargs="?", choices=["fetch", "normalize", "dedup", "classify"], default="fetch"
+        "command",
+        nargs="?",
+        choices=["fetch", "normalize", "dedup", "classify", "extract"],
+        default="fetch",
     )
     parser.add_argument("--source", help="fetch: обойти один источник вне расписания")
     parser.add_argument("--loop", action="store_true", help="fetch: обходить по расписанию")
     parser.add_argument("--all", action="store_true", help="normalize: пересчитать все записи")
-    parser.add_argument("--limit", type=int, default=200, help="classify: сколько публикаций")
     parser.add_argument(
-        "--retry-rules", action="store_true", help="classify: переразобрать моделью словарные"
+        "--limit", type=int, default=200, help="classify, extract: сколько публикаций"
+    )
+    parser.add_argument(
+        "--retry-rules",
+        action="store_true",
+        help="classify, extract: переразобрать моделью словарные",
     )
     args = parser.parse_args()
     logging.basicConfig(level=get_settings().log_level.upper())
@@ -109,6 +135,8 @@ def main() -> None:
             asyncio.run(deduplicate())
         elif args.command == "classify":
             asyncio.run(classify_news(args.limit, args.retry_rules))
+        elif args.command == "extract":
+            asyncio.run(extract_facts(args.limit, args.retry_rules))
         else:
             asyncio.run(crawl(args.source, args.loop))
     except FetchError as error:

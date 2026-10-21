@@ -148,16 +148,19 @@ def news_prompt(item: NewsItem) -> str:
     )
 
 
-def parse_answer(text: str) -> Answer:
+def parse_json_object(text: str) -> Any:
     """JSON из ответа модели: допускаем обёртку ```json и текст вокруг объекта."""
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if match is None:
         raise ValueError("в ответе нет JSON-объекта")
     try:
-        data = json.loads(match.group(0))
+        return json.loads(match.group(0))
     except json.JSONDecodeError as error:
         raise ValueError(f"JSON не разобран: {error.msg}") from error
-    return Answer.model_validate(data)
+
+
+def parse_answer(text: str) -> Answer:
+    return Answer.model_validate(parse_json_object(text))
 
 
 def from_answer(answer: Answer, model: str) -> Classification:

@@ -283,6 +283,52 @@
           ],
           "default": null,
           "title": "Fragment Id"
+        },
+        "who": {
+          "description": "Участники: компании, ведомства, люди",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Who",
+          "type": "array"
+        },
+        "when": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Когда произошло или вступит в силу",
+          "title": "When"
+        },
+        "numbers": {
+          "description": "Цифры факта, как в тексте: «14%», «3,3 млрд долларов»",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Numbers",
+          "type": "array"
+        },
+        "source_says": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Для reported и forecast — чьи это слова или прогноз",
+          "title": "Source Says"
         }
       },
       "required": [
