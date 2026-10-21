@@ -472,6 +472,22 @@
       "title": "Title",
       "type": "string"
     },
+    "image": {
+      "anyOf": [
+        {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Картинка статьи: из ленты или og:image; пусто, если нет",
+      "title": "Image"
+    },
     "published_at": {
       "format": "date-time",
       "title": "Published At",

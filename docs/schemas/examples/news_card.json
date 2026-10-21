@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "news_id": "news:3f9a1c0e7b2d4a6c8e1f0a2b",
+  "title": "Синтетический пример: отгрузки угля в Китай выросли на 12%",
+  "source": "Деловая газета",
+  "published_at": "2026-10-22T09:30:00Z",
+  "url": "https://example.org/news/coal-exports",
+  "image": null,
+  "placeholder": {
+    "initials": "ДГ",
+    "domain": "example.org",
+    "color": "#1B6EF3"
+  }
+}

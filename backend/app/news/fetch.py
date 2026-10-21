@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS raw_news (
     article_status text NOT NULL
 );
 CREATE INDEX IF NOT EXISTS raw_news_source ON raw_news (source_id, fetched_at);
+ALTER TABLE raw_news ADD COLUMN IF NOT EXISTS image_url text;
 CREATE TABLE IF NOT EXISTS news_sources_state (
     source_id text PRIMARY KEY,
     last_attempt_at timestamptz NOT NULL,
@@ -71,8 +72,8 @@ CREATE TABLE IF NOT EXISTS news_sources_state (
 """
 INSERT_SQL = """
 INSERT INTO raw_news (raw_id, source_id, url, guid, title, summary, feed_text, html,
-                      published_at, fetched_at, article_status)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                      published_at, fetched_at, article_status, image_url)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 ON CONFLICT (url) DO NOTHING
 """
 KNOWN_SQL = "SELECT url FROM raw_news WHERE url = ANY($1::text[])"
@@ -229,6 +230,7 @@ class RawItem:
     html: str | None = None
     published_at: datetime | None = None
     article_status: ArticleStatus = "feed_only"
+    image_url: str | None = None
 
     @property
     def raw_id(self) -> str:
@@ -256,6 +258,19 @@ def entry_time(entry: Any) -> datetime | None:
         if value:
             return datetime.fromtimestamp(calendar.timegm(value), UTC)
     return None
+
+
+def entry_image(entry: Any) -> str | None:
+    """Картинка статьи из ленты: enclosure с типом image/*, media:content или
+    media:thumbnail. У Коммерсанта и Ведомостей это фото статьи, а не карточка для соцсетей."""
+    candidates = [
+        link.get("href")
+        for link in entry.get("links", [])
+        if link.get("rel") == "enclosure" and str(link.get("type", "image")).startswith("image")
+    ]
+    candidates += [media.get("url") for media in entry.get("media_content", [])]
+    candidates += [media.get("url") for media in entry.get("media_thumbnail", [])]
+    return next((url for url in candidates if url), None)
 
 
 def entry_text(entry: Any) -> str | None:
@@ -288,6 +303,7 @@ def parse_feed(source: Source, body: bytes, now: datetime) -> list[RawItem]:
                 summary=entry.get("summary") or None,
                 feed_text=entry_text(entry),
                 published_at=entry_time(entry),
+                image_url=entry_image(entry),
             ),
         )
         if len(items) >= source.max_items:
@@ -523,6 +539,7 @@ async def save_items(connection: Any, items: Sequence[RawItem]) -> int:
             item.published_at,
             item.fetched_at,
             item.article_status,
+            item.image_url,
         )
         saved += status == "INSERT 0 1"
     return saved
