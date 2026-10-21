@@ -475,7 +475,7 @@ SEGMENTS = {
                 "складская логистика",
                 "тарифы на перевозки",
             ),
-            (T.TRADE, T.COMMODITIES, T.SANCTIONS),
+            (T.LOGISTICS, T.TRADE, T.COMMODITIES, T.SANCTIONS),
         ),
         Segment(
             "hospitality",

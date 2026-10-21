@@ -22,9 +22,14 @@
   ],
   "classification": {
     "topics": ["key_rate", "macro"],
+    "segments": ["finance"],
+    "industries": ["банки и кредитование"],
     "entities": ["Банк России"],
     "sentiment": "neutral",
-    "confidence": 0.95
+    "horizon": "months",
+    "confidence": 0.95,
+    "method": "llm",
+    "model": "deepseek-v4.1-flash"
   },
   "dedup": {"content_hash": "sha256:demo-key-rate", "cluster_id": "story:key-rate-2026-09"}
 }

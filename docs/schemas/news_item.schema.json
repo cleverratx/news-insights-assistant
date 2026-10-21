@@ -17,6 +17,7 @@
       "additionalProperties": false,
       "properties": {
         "topics": {
+          "description": "Тип события",
           "items": {
             "$ref": "#/$defs/Topic"
           },
@@ -32,7 +33,18 @@
           "title": "Okved Codes",
           "type": "array"
         },
+        "segments": {
+          "description": "Затронутые сегменты рынка из справочника ОКВЭД",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Segments",
+          "type": "array"
+        },
         "industries": {
+          "description": "Отрасли словами",
           "items": {
             "minLength": 1,
             "type": "string"
@@ -82,6 +94,18 @@
           "default": null,
           "title": "Sentiment"
         },
+        "horizon": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Horizon"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Когда скажется на бизнесе: days — сразу, weeks — в ближайшие недели, months — в пределах года, years — дольше"
+        },
         "confidence": {
           "anyOf": [
             {
@@ -95,6 +119,30 @@
           ],
           "default": null,
           "title": "Confidence"
+        },
+        "method": {
+          "default": "llm",
+          "description": "llm — разобрала модель, rules — запасной разбор по словарю",
+          "enum": [
+            "llm",
+            "rules"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Какая разрешённая модель разобрала",
+          "title": "Model"
         }
       },
       "required": [
@@ -194,6 +242,16 @@
       "title": "Fragment",
       "type": "object"
     },
+    "Horizon": {
+      "enum": [
+        "days",
+        "weeks",
+        "months",
+        "years"
+      ],
+      "title": "Horizon",
+      "type": "string"
+    },
     "KeyFact": {
       "additionalProperties": false,
       "properties": {
@@ -285,6 +343,7 @@
         "fx",
         "commodities",
         "trade",
+        "logistics",
         "sanctions",
         "regulation",
         "taxes",
