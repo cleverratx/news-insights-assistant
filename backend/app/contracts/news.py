@@ -70,6 +70,16 @@ class KeyFact(Contract):
         )
     )
     fragment_id: Id | None = None
+    who: list[Text] = Field(
+        default_factory=list, description="Участники: компании, ведомства, люди"
+    )
+    when: Text | None = Field(default=None, description="Когда произошло или вступит в силу")
+    numbers: list[Text] = Field(
+        default_factory=list, description="Цифры факта, как в тексте: «14%», «3,3 млрд долларов»"
+    )
+    source_says: Text | None = Field(
+        default=None, description="Для reported и forecast — чьи это слова или прогноз"
+    )
 
 
 class Horizon(StrEnum):
