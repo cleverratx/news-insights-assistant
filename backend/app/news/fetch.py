@@ -29,6 +29,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from app.core.config import get_settings
+from app.news.issues import decode_html
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 FAILING_AFTER = 3
@@ -430,7 +431,8 @@ async def with_article(fetcher: Fetcher, item: RawItem) -> RawItem:
         return replace_item(item, article_status="failed")
     if len(response.content) > MAX_BODY_BYTES:
         return replace_item(item, article_status="too_large")
-    return replace_item(item, html=response.text, article_status="fetched")
+    page = decode_html(response.content, response.headers.get("content-type"))
+    return replace_item(item, html=page, article_status="fetched")
 
 
 def replace_item(item: RawItem, **changes: Any) -> RawItem:
@@ -559,6 +561,10 @@ async def run_once(
             result.error = str(error)
             state = next_state(source, states.get(source.id), moment, str(error))
             logger.warning("Источник %s недоступен: %s", source.id, error)
+        except Exception as error:
+            result.error = f"{type(error).__name__}: {error}"
+            state = next_state(source, states.get(source.id), moment, result.error)
+            logger.exception("Источник %s: сбой обработки, обход продолжается", source.id)
         await save_state(connection, state)
         report.sources.append(result)
     return report

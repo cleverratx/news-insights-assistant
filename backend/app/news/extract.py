@@ -34,6 +34,9 @@ from app.news.classify import Completer, parse_json_object
 from app.news.dedup import ensure_schema as ensure_dedup
 from app.news.dedup import representative
 from app.news.fetch import Source
+from app.news.issues import ensure_schema as ensure_issues
+from app.news.issues import failure
+from app.news.issues import record as record_issue
 
 MAX_FACTS = 8
 MAX_FRAGMENTS = 25
@@ -304,11 +307,13 @@ class ExtractReport:
     rejected: int = 0
     cached: int = 0
     by_rules: int = 0
+    failed: int = 0
     cost_rub: Decimal = Decimal(0)
     errors: list[str] = field(default_factory=list)
 
 
 async def ensure_schema(connection: Any) -> None:
+    await ensure_issues(connection)
     await ensure_dedup(connection)
     await connection.execute(SCHEMA)
 
@@ -327,45 +332,57 @@ async def extract_pending(
     moment = now or datetime.now(UTC)
     official = {source.name for source in sources if source.kind == "regulator"}
     groups: dict[str, list[NewsItem]] = {}
-    for record in await connection.fetch(PENDING_SQL, limit, retry_rules):
-        groups.setdefault(record["cluster_id"], []).append(
-            NewsItem.model_validate_json(record["item"])
-        )
     report = ExtractReport()
+    for record in await connection.fetch(PENDING_SQL, limit, retry_rules):
+        try:
+            item = NewsItem.model_validate_json(record["item"])
+        except ValidationError as error:
+            await record_issue(
+                connection, "extract", failure(error), news_id=record["news_id"], now=moment
+            )
+            report.failed += 1
+            continue
+        groups.setdefault(record["cluster_id"], []).append(item)
     cache = LLMCache(connection)
     down: str | None = None
     for cluster_id, items in groups.items():
-        card = representative(items, official)
-        outcome = await extract(None if down else llm, card, cache)
-        if down is not None and not outcome.cached:
-            outcome.error = down
-        if outcome.model_down:
-            down = outcome.error
-        report.cached += outcome.cached
-        await connection.execute(CLEAR_SQL, cluster_id, card.id)
-        await connection.execute(
-            SAVE_SQL,
-            card.id,
-            cluster_id,
-            outcome.method,
-            outcome.model,
-            len(outcome.facts),
-            outcome.rejected,
-            outcome.attempts,
-            outcome.cost_rub,
-            outcome.error,
-            moment,
-        )
-        facts = json.dumps(
-            [fact.model_dump(mode="json") for fact in outcome.facts], ensure_ascii=False
-        )
-        await connection.execute(ITEM_SQL, card.id, facts)
-        report.stories += 1
-        report.facts += len(outcome.facts)
-        report.rejected += outcome.rejected
-        report.cost_rub += outcome.cost_rub
-        if outcome.method == "rules":
-            report.by_rules += 1
-            if outcome.error and outcome.error not in report.errors:
-                report.errors.append(outcome.error)
+        try:
+            card = representative(items, official)
+            outcome = await extract(None if down else llm, card, cache)
+            if down is not None and not outcome.cached:
+                outcome.error = down
+            if outcome.model_down:
+                down = outcome.error
+            report.cached += outcome.cached
+            await connection.execute(CLEAR_SQL, cluster_id, card.id)
+            await connection.execute(
+                SAVE_SQL,
+                card.id,
+                cluster_id,
+                outcome.method,
+                outcome.model,
+                len(outcome.facts),
+                outcome.rejected,
+                outcome.attempts,
+                outcome.cost_rub,
+                outcome.error,
+                moment,
+            )
+            facts = json.dumps(
+                [fact.model_dump(mode="json") for fact in outcome.facts], ensure_ascii=False
+            )
+            await connection.execute(ITEM_SQL, card.id, facts)
+            report.stories += 1
+            report.facts += len(outcome.facts)
+            report.rejected += outcome.rejected
+            report.cost_rub += outcome.cost_rub
+            if outcome.method == "rules":
+                report.by_rules += 1
+                if outcome.error and outcome.error not in report.errors:
+                    report.errors.append(outcome.error)
+        except Exception as error:
+            await record_issue(
+                connection, "extract", failure(error), news_id=items[0].id, now=moment
+            )
+            report.failed += 1
     return report

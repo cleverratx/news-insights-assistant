@@ -27,6 +27,9 @@ from app.contracts.news import Classification, Horizon, NewsItem, Topic
 from app.llm.errors import LLMError
 from app.llm.models import LLMResult, Message, Task
 from app.news.dedup import ensure_schema as ensure_dedup
+from app.news.issues import ensure_schema as ensure_issues
+from app.news.issues import failure
+from app.news.issues import record as record_issue
 from app.profile.okved import SEGMENTS
 
 MAX_INPUT_CHARS = 3000
@@ -311,12 +314,14 @@ class ClassifyReport:
     copied: int = 0
     cached: int = 0
     by_rules: int = 0
+    failed: int = 0
     cost_rub: Decimal = Decimal(0)
     errors: list[str] = field(default_factory=list)
 
 
 async def ensure_schema(connection: Any) -> None:
     """Таблица разбора и таблица сюжетов: классификация работает и до первой дедупликации."""
+    await ensure_issues(connection)
     await ensure_dedup(connection)
     await connection.execute(SCHEMA)
 
@@ -364,27 +369,33 @@ async def classify_pending(
     cache = LLMCache(connection)
     down: str | None = None
     for record in await connection.fetch(PENDING_SQL, limit, retry_rules):
-        news_id, cluster_id = record["news_id"], record["cluster_id"]
-        done = await connection.fetchrow(CLUSTER_DONE_SQL, cluster_id) if cluster_id else None
-        if done is not None and done["news_id"] != news_id:
-            source = NewsItem.model_validate_json(done["item"])
-            if source.classification is not None:
-                copy = Outcome(source.classification)
-                await store(connection, news_id, cluster_id, copy, done["news_id"], moment)
-                report.copied += 1
-                continue
-        item = NewsItem.model_validate_json(record["item"])
-        outcome = await classify(None if down else llm, item, cache)
-        if down is not None and not outcome.cached:
-            outcome.error = down
-        if outcome.model_down:
-            down = outcome.error
-        report.cached += outcome.cached
-        await store(connection, news_id, cluster_id, outcome, None, moment)
-        report.classified += 1
-        report.cost_rub += outcome.cost_rub
-        if outcome.classification.method == "rules":
-            report.by_rules += 1
-            if outcome.error and outcome.error not in report.errors:
-                report.errors.append(outcome.error)
+        try:
+            news_id, cluster_id = record["news_id"], record["cluster_id"]
+            done = await connection.fetchrow(CLUSTER_DONE_SQL, cluster_id) if cluster_id else None
+            if done is not None and done["news_id"] != news_id:
+                source = NewsItem.model_validate_json(done["item"])
+                if source.classification is not None:
+                    copy = Outcome(source.classification)
+                    await store(connection, news_id, cluster_id, copy, done["news_id"], moment)
+                    report.copied += 1
+                    continue
+            item = NewsItem.model_validate_json(record["item"])
+            outcome = await classify(None if down else llm, item, cache)
+            if down is not None and not outcome.cached:
+                outcome.error = down
+            if outcome.model_down:
+                down = outcome.error
+            report.cached += outcome.cached
+            await store(connection, news_id, cluster_id, outcome, None, moment)
+            report.classified += 1
+            report.cost_rub += outcome.cost_rub
+            if outcome.classification.method == "rules":
+                report.by_rules += 1
+                if outcome.error and outcome.error not in report.errors:
+                    report.errors.append(outcome.error)
+        except Exception as error:
+            await record_issue(
+                connection, "classify", failure(error), news_id=record["news_id"], now=moment
+            )
+            report.failed += 1
     return report

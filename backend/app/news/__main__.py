@@ -18,6 +18,7 @@ from app.news.dedup import dedup_pending
 from app.news.extract import extract_pending
 from app.news.fetch import Fetcher, FetchError, FetchReport, load_sources, next_wakeup, run_once
 from app.news.normalize import normalize_pending
+from app.news.pipeline import run_pipeline
 
 
 def summary(report: FetchReport) -> dict[str, object]:
@@ -41,6 +42,31 @@ async def crawl(only: str | None, loop: bool) -> None:
             while True:
                 report = await run_once(connection, fetcher, sources, only=only)
                 print(json.dumps(summary(report), ensure_ascii=False), flush=True)
+                if not loop:
+                    return
+                wakeup = await next_wakeup(connection, sources, datetime.now(UTC))
+                await asyncio.sleep(max(60.0, (wakeup - datetime.now(UTC)).total_seconds()))
+    finally:
+        await connection.close()
+
+
+async def pipeline(loop: bool, skip_fetch: bool) -> None:
+    settings = get_settings()
+    sources = load_sources()
+    connection = await asyncpg.connect(postgres_dsn(settings.database_url.get_secret_value()))
+    try:
+        async with httpx.AsyncClient() as http:
+            fetcher = (
+                None if skip_fetch else Fetcher(http=http, user_agent=settings.news_user_agent)
+            )
+            while True:
+                try:
+                    async with open_llm_client(settings) as llm:
+                        report = await run_pipeline(connection, fetcher, llm, sources)
+                except LLMConfigurationError as error:
+                    logging.warning("Модель не настроена, разбор по словарю: %s", error)
+                    report = await run_pipeline(connection, fetcher, None, sources)
+                print(json.dumps(asdict(report), ensure_ascii=False, default=str), flush=True)
                 if not loop:
                     return
                 wakeup = await next_wakeup(connection, sources, datetime.now(UTC))
@@ -112,11 +138,12 @@ def main() -> None:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=["fetch", "normalize", "dedup", "classify", "extract"],
+        choices=["fetch", "normalize", "dedup", "classify", "extract", "run"],
         default="fetch",
     )
     parser.add_argument("--source", help="fetch: обойти один источник вне расписания")
-    parser.add_argument("--loop", action="store_true", help="fetch: обходить по расписанию")
+    parser.add_argument("--loop", action="store_true", help="fetch, run: по расписанию")
+    parser.add_argument("--no-fetch", action="store_true", help="run: без сбора")
     parser.add_argument("--all", action="store_true", help="normalize: пересчитать все записи")
     parser.add_argument(
         "--limit", type=int, default=200, help="classify, extract: сколько публикаций"
@@ -129,7 +156,9 @@ def main() -> None:
     args = parser.parse_args()
     logging.basicConfig(level=get_settings().log_level.upper())
     try:
-        if args.command == "normalize":
+        if args.command == "run":
+            asyncio.run(pipeline(args.loop, args.no_fetch))
+        elif args.command == "normalize":
             asyncio.run(renormalize(args.all))
         elif args.command == "dedup":
             asyncio.run(deduplicate())
