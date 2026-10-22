@@ -34,6 +34,7 @@ from app.rank.diversity import diversify, entry, polarity
 from app.rank.importance import DEFAULT_MIN_IMPORTANCE, importance
 from app.rank.importance import scale as importance_scale
 from app.rank.llm_filter import Completer, verify
+from app.rank.roles import Role, RoleWeights, apply_role, weights_for
 from app.rank.score import Scored, score
 from app.search.service import NEWS_DAYS, load
 
@@ -75,7 +76,12 @@ class Story:
     coverage: int
 
 
-def stories(profile: CompanyProfile, items: Sequence[NewsItem], now: datetime) -> list[Story]:
+def stories(
+    profile: CompanyProfile,
+    items: Sequence[NewsItem],
+    now: datetime,
+    role: RoleWeights | None = None,
+) -> list[Story]:
     """Одно событие — одна карточка: из публикаций сюжета берём ту, что ближе компании, а число
     изданий идёт в масштаб события."""
     groups: defaultdict[str, list[NewsItem]] = defaultdict(list)
@@ -87,6 +93,8 @@ def stories(profile: CompanyProfile, items: Sequence[NewsItem], now: datetime) -
         scored = [
             Story(member, score(profile, member, now, coverage), coverage) for member in members
         ]
+        if role is not None:
+            scored = [Story(s.news, apply_role(s.scored, s.news, role), s.coverage) for s in scored]
         result.append(max(scored, key=lambda story: (story.scored.final, story.news.published_at)))
     return result
 
@@ -155,6 +163,7 @@ async def build_feed(
     min_importance: float = DEFAULT_MIN_IMPORTANCE,
     cache: LLMCache | None = None,
     shared: set[str] | None = None,
+    role: RoleWeights | None = None,
 ) -> Feed:
     since = now - timedelta(days=days)
     fresh = [
@@ -163,7 +172,7 @@ async def build_feed(
         if (item.kind is MaterialKind.BANK_ANALYTICS or item.published_at >= since)
         and matches(item, markers)
     ]
-    found = stories(profile, fresh, now)
+    found = stories(profile, fresh, now, role)
     by_id = {story.news.id: story for story in found}
     filtered = await verify(llm, profile, [(story.news, story.scored) for story in found], cache)
     verified = filtered.model is not None
@@ -194,6 +203,7 @@ async def build_feed(
 
     return Feed(
         company_id=profile.company_id,
+        role=role.id if role else None,
         generated_at=now,
         period_days=days,
         items=[
@@ -245,6 +255,7 @@ async def company_feed(
     unverified: Annotated[
         bool, Query(description="Показать и кандидатов, которых модель не проверила")
     ] = False,
+    role: Annotated[Role | None, Query(description="Должность: ceo, cfo, logistics")] = None,
     min_importance: Annotated[
         float | None,
         Query(ge=0, le=10, description="Порог важности 0–10; по умолчанию FEED_MIN_IMPORTANCE"),
@@ -274,5 +285,6 @@ async def company_feed(
         ),
         cache=LLMCache(connection),
         shared=shared,
+        role=weights_for(role) if role is not None else None,
     )
     return feed.model_copy(update={"warnings": [*warnings, *feed.warnings]})

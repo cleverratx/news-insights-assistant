@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent_decision.schema.json",
+  "$defs": {
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "tool": {
+            "type": "null"
+          },
+          "arguments": {
+            "maxProperties": 0
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "action": {
+            "const": "tool"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "tool": {
+            "type": "string"
+          },
+          "output": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "tool"
+        ]
+      }
+    }
+  ],
+  "description": "Ровно один вызов инструмента или завершение анализа.",
+  "properties": {
+    "action": {
+      "enum": [
+        "tool",
+        "finish"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "reason": {
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "tool": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tool"
+    },
+    "arguments": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Arguments",
+      "type": "object"
+    },
+    "output": {
+      "$ref": "#/$defs/JsonValue",
+      "default": null
+    }
+  },
+  "required": [
+    "action",
+    "reason"
+  ],
+  "title": "Decision",
+  "type": "object"
+}

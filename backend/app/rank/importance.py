@@ -105,6 +105,8 @@ def importance(scored: Scored, kind: MaterialKind, llm: float | None = None) -> 
     sides = touched(scored)
     main = scored.contributions[0].reason if scored.contributions else "совпадений нет"
     relevance_detail = f"Совпадение с признаками компании {scored.relevance * 100:.0f}%: {main}"
+    if scored.role is not None:
+        relevance_detail += ". " + scored.role.detail
     if scored.penalties:
         relevance_detail += ". Штраф: " + "; ".join(scored.penalties)
     breadth = min(BREADTH_MAX, BREADTH_STEP * max(0, len(sides) - 1))

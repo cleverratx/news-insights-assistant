@@ -161,3 +161,11 @@ async def test_feed_endpoint(api: AsyncClient) -> None:
     assert body.warnings[0] == "Аналитика банка не загружена"
     assert (await api.get("/api/companies/U_7/feed", params={"days": 100})).status_code == 422
     assert (await api.get("/api/companies/U_7/feed", params={"markers": "x"})).status_code == 422
+
+
+async def test_feed_accepts_role_and_rejects_unknown(api: AsyncClient) -> None:
+    response = await api.get("/api/companies/U_7/feed?role=cfo")
+    assert response.status_code == 200
+    assert response.json()["role"] == "cfo"
+    assert (await api.get("/api/companies/U_7/feed?role=unknown")).status_code == 422
+    assert (await api.get("/api/companies/U_7/feed")).json()["role"] is None

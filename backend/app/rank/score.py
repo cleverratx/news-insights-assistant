@@ -13,7 +13,7 @@ from datetime import datetime
 from app.contracts.common import Significance
 from app.contracts.news import FactStatus, Horizon, MaterialKind, NewsItem, Topic
 from app.contracts.profile import CompanyProfile
-from app.contracts.rank import FeatureMatch, RankedItem, RankStage, ScoreBreakdown
+from app.contracts.rank import FeatureMatch, RankedItem, RankStage, RoleAdjustment, ScoreBreakdown
 from app.rank.rules import TOPIC_TITLES, Matching, match
 
 RELEVANCE_SHARE = 0.5
@@ -76,6 +76,7 @@ class Scored:
     recency_note: str = ""
     scale_note: str = ""
     penalties: list[str] = field(default_factory=list)
+    role: RoleAdjustment | None = None
 
     @property
     def significance(self) -> Significance:
@@ -83,6 +84,7 @@ class Scored:
 
     def breakdown(self) -> ScoreBreakdown:
         return ScoreBreakdown(
+            role=self.role,
             relevance=self.relevance,
             recency=self.recency,
             scale=self.scale,

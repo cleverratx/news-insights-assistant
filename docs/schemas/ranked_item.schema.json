@@ -78,9 +78,69 @@
       "title": "RankStage",
       "type": "string"
     },
+    "RoleAdjustment": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "multiplier": {
+          "maximum": 2,
+          "minimum": 0.2,
+          "title": "Multiplier",
+          "type": "number"
+        },
+        "company_relevance": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Company Relevance",
+          "type": "number"
+        },
+        "role_relevance": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Role Relevance",
+          "type": "number"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "multiplier",
+        "company_relevance",
+        "role_relevance",
+        "detail"
+      ],
+      "title": "RoleAdjustment",
+      "type": "object"
+    },
     "ScoreBreakdown": {
       "additionalProperties": false,
       "properties": {
+        "role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RoleAdjustment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "lexical": {
           "anyOf": [
             {
