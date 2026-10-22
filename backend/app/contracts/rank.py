@@ -122,3 +122,77 @@ class ImportanceScale(Contract):
     title: Text
     min_score: float = Field(ge=0, le=10, allow_inf_nan=False)
     description: Text
+
+
+LEVEL_POINTS = {-2: -50, -1: -20, 0: 0, 1: 20, 2: 50}
+
+
+class ImpactCriterionId(StrEnum):
+    REVENUE = "revenue"
+    COSTS = "costs"
+    MARKET_ACCESS = "market_access"
+    COST_OF_MONEY = "cost_of_money"
+    REGULATORY = "regulatory"
+
+
+class ImpactColor(StrEnum):
+    RED = "red"
+    ORANGE = "orange"
+    GRAY = "gray"
+    LIGHT_GREEN = "light_green"
+    GREEN = "green"
+
+
+class ImpactCriterion(Contract):
+    """Влияние события на один фиксированный критерий: уровень от −2 до +2 и почему.
+    Плюс — лучше для компании: для регуляторного риска плюс значит, что риск снижается."""
+
+    id: ImpactCriterionId
+    title: Text
+    level: int = Field(ge=-2, le=2, description="−2 существенно хуже … +2 существенно лучше")
+    points: int = Field(ge=-50, le=50, description="Вклад в балл: ±20 — заметно, ±50 — существенно")
+    reason: Text | None = Field(default=None, description="Почему такой уровень; пусто при 0")
+
+
+class ImpactAssessment(Contract):
+    """Оценка влияния события на бизнес компании: балл от −100 до +100, цвет и обоснование.
+    Балл равен сумме вкладов критериев, ограниченной ±100."""
+
+    score: int = Field(ge=-100, le=100)
+    color: ImpactColor
+    title: Text = Field(
+        description="Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность"
+    )
+    criteria: list[ImpactCriterion] = Field(min_length=5, max_length=5)
+    rationale: Text = Field(description="Обоснование балла для карточки")
+    method: Literal["llm", "rules"] = Field(
+        description="llm — оценила модель с учётом профиля, rules — запасная оценка по теме"
+    )
+    confidence: Literal["low", "medium", "high"]
+    model: Text | None = None
+
+    @model_validator(mode="after")
+    def score_from_criteria(self) -> Self:
+        require_unique((criterion.id.value for criterion in self.criteria), "критериев")
+        total = max(-100, min(100, sum(criterion.points for criterion in self.criteria)))
+        if total != self.score:
+            raise ValueError("Балл влияния не равен сумме вкладов критериев")
+        if any(criterion.points != LEVEL_POINTS[criterion.level] for criterion in self.criteria):
+            raise ValueError("Вклад критерия не соответствует уровню")
+        return self
+
+
+class ImpactBand(Contract):
+    """Цветовая зона шкалы влияния для легенды в интерфейсе."""
+
+    color: ImpactColor
+    title: Text
+    min_score: int = Field(ge=-100, le=100)
+    max_score: int = Field(ge=-100, le=100)
+    hex: Text = Field(pattern=r"^#[0-9A-F]{6}$")
+
+
+class ImpactCriterionInfo(Contract):
+    id: ImpactCriterionId
+    title: Text
+    description: Text
