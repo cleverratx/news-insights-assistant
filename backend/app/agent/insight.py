@@ -15,7 +15,7 @@ from app.agent.fallback import confirmed_facts, data_gaps, salvage
 from app.agent.offers import offer_for, prompt_hint
 from app.agent.orchestrator import SYSTEM_PROMPT, Completer, Limits, LLMPlanner, Orchestrator
 from app.agent.tools.builtin import create_tools
-from app.agent.trace import build_trace
+from app.agent.trace import build_trace, ground
 from app.contracts.common import Significance
 from app.contracts.critic import CriticReport
 from app.contracts.feed import FeedItem
@@ -39,6 +39,7 @@ from app.contracts.insight import (
     SourceRef,
     SourceType,
     Statement,
+    Support,
 )
 from app.contracts.news import MaterialKind, NewsItem
 from app.contracts.profile import CompanyProfile
@@ -65,6 +66,8 @@ why_it_matters, риски, возможности и действия — тв�
 связь с признаками компании и конкретными источниками. Данные клиента — origin=client_data.
 Не выдавай мнение СМИ за позицию банка. Наличие документа банка не подтверждает любое мнение.
 Прогноз — не свершившийся факт. Не выдумывай оригинальные цитаты: копируй дословно.
+Для фактов и позиции банка источник — с fragment_id и короткой дословной цитатой абзаца.
+Вывод без подтверждающего фрагмента или признака компании будет показан как предположение.
 Пиши коротко: одна конкретная мысль на утверждение, короткие цитаты, без повторов и воды.
 Не добавляй банковский продукт, если его уместность не следует из данных.
 На раздел достаточно 1–2 утверждений; цитаты короткие (до 180 символов).
@@ -76,6 +79,7 @@ why_it_matters, риски, возможности и действия — тв�
 Нет нужной цифры — сформулируй качественно: сервис сам сообщит пользователю, чего не хватило.
 """
 )
+ASSUMPTION_LABEL = "Предположение модели"
 OBJECTIVE = "Разобрать влияние события на компанию по шести вопросам с проверкой источников"
 
 
@@ -165,7 +169,9 @@ def present(insight: Insight) -> InsightPresentation:
         groups[statement.origin].append(
             LabeledStatement(
                 statement=statement,
-                label=labels[statement.origin],
+                label=ASSUMPTION_LABEL
+                if statement.support is Support.ASSUMPTION
+                else labels[statement.origin],
                 source_ids=statement.source_ids,
             )
         )
@@ -381,6 +387,7 @@ async def generate_with_trace(
                 ],
             ),
         )
+    insight = ground(insight, context)
     warnings = []
     if status is not InsightStatus.READY:
         warnings.append(reason or "Вывод не проверен")

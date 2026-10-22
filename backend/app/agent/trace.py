@@ -6,10 +6,25 @@ from typing import Any
 from pydantic import HttpUrl
 
 from app.agent.context import AnalysisContext
-from app.agent.critic import evidence
+from app.agent.critic import Evidence, evidence
 from app.contracts.generation import GeneratedInsight
-from app.contracts.insight import SourceType
-from app.contracts.trace import AgentTrace, TraceChunk, TraceDocument, TraceStep
+from app.contracts.insight import (
+    Basis,
+    Insight,
+    Origin,
+    SourceRef,
+    SourceType,
+    Statement,
+    Support,
+)
+from app.contracts.trace import (
+    AgentTrace,
+    Section,
+    TraceChunk,
+    TraceClaim,
+    TraceDocument,
+    TraceStep,
+)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS agent_insights (
@@ -27,6 +42,124 @@ INSERT INTO agent_insights (insight_id, run_id, company_id, created_at, result, 
 VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)
 """
 SELECT = "SELECT result, trace FROM agent_insights WHERE insight_id = $1"
+SECTIONS: tuple[Section, ...] = (
+    "what_happened",
+    "why_it_matters",
+    "risks",
+    "opportunities",
+    "actions",
+    "bank_view",
+)
+QUOTE_LIMIT = 300
+
+
+def flat(text: str) -> str:
+    return " ".join(text.split())
+
+
+def locate(
+    chunks: list[tuple[str | None, str]], fragment_id: str | None, quote: str | None
+) -> tuple[str | None, str] | None:
+    wanted = flat(quote) if quote else None
+    matching = [
+        (fragment, text)
+        for fragment, text in chunks
+        if (fragment_id is None or fragment == fragment_id)
+        and (wanted is None or wanted in flat(text))
+    ]
+    if fragment_id is None and wanted is None:
+        return None
+    return next((c for c in matching if c[0] is not None), None) or next(iter(matching), None)
+
+
+def basis_of(
+    statement: Statement,
+    sources: dict[str, SourceRef],
+    actual: dict[str, Evidence],
+    labels: dict[str, str],
+) -> list[Basis]:
+    found = []
+    for source_id in statement.source_ids:
+        source = sources.get(source_id)
+        if source is None:
+            continue
+        if source.type is SourceType.PROFILE_FEATURE:
+            if source.ref_id in labels:
+                found.append(
+                    Basis(
+                        source_id=source_id,
+                        type=source.type,
+                        ref_id=source.ref_id,
+                        quote=labels[source.ref_id],
+                    )
+                )
+            continue
+        known = actual.get(source.ref_id)
+        if known is None or known.type is not source.type:
+            continue
+        chunk = locate(known.chunks, source.fragment_id, source.quote)
+        if chunk is None:
+            continue
+        fragment_id, text = chunk
+        quote = flat(source.quote) if source.quote else flat(text)[:QUOTE_LIMIT].strip()
+        found.append(
+            Basis(
+                source_id=source_id,
+                type=source.type,
+                ref_id=source.ref_id,
+                fragment_id=fragment_id,
+                quote=quote or None,
+            )
+        )
+    return found
+
+
+def support_of(origin: Origin, basis: list[Basis]) -> Support:
+    kinds = {item.type for item in basis}
+    documents = kinds - {SourceType.PROFILE_FEATURE}
+    if origin is Origin.BANK:
+        return Support.SOURCE if SourceType.BANK_ANALYTICS in kinds else Support.ASSUMPTION
+    if origin is Origin.FACT:
+        return Support.SOURCE if documents else Support.ASSUMPTION
+    if origin is Origin.CLIENT_DATA:
+        return Support.COMPANY_DATA if SourceType.PROFILE_FEATURE in kinds else Support.ASSUMPTION
+    if documents:
+        return Support.SOURCE
+    return Support.COMPANY_DATA if kinds else Support.ASSUMPTION
+
+
+def ground(insight: Insight, context: AnalysisContext) -> Insight:
+    """Каждое утверждение получает фрагменты, из которых оно получено. Утверждение без
+    подтверждающего фрагмента или признака помечается как предположение модели."""
+    actual = evidence(context)
+    sources = {source.id: source for source in insight.sources}
+    labels = {feature.id: feature.label for feature in context.profile.features}
+    update: dict[str, Any] = {}
+    for section in SECTIONS:
+        items = []
+        for statement in getattr(insight, section):
+            basis = basis_of(statement, sources, actual, labels)
+            items.append(
+                statement.model_copy(
+                    update={"basis": basis, "support": support_of(statement.origin, basis)}
+                )
+            )
+        update[section] = items
+    return insight.model_copy(update=update)
+
+
+def claims_of(insight: Insight) -> list[TraceClaim]:
+    return [
+        TraceClaim(
+            statement_id=statement.id,
+            section=section,
+            origin=statement.origin,
+            support=statement.support or Support.ASSUMPTION,
+            basis=statement.basis,
+        )
+        for section in SECTIONS
+        for statement in getattr(insight, section)
+    ]
 
 
 def build_trace(
@@ -95,6 +228,7 @@ def build_trace(
         ranking=result.ranking,
         role=result.role,
         feed_snapshot_id=result.feed_snapshot_id,
+        claims=claims_of(result.insight),
     ).model_copy(deep=True)
 
 
@@ -113,6 +247,7 @@ async def save(connection: Any, result: GeneratedInsight, trace: AgentTrace) -> 
         or trace.feed_snapshot_id != result.feed_snapshot_id
         or trace.usage != result.usage
         or trace.execution_status != result.execution_status
+        or trace.claims != claims_of(result.insight)
     ):
         raise ValueError("Инсайт и трасса относятся к разным разборам")
     # Одна вставка: невозможно сохранить только инсайт или только трассу.

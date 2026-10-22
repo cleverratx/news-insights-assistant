@@ -4,7 +4,7 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, model_validator
 
@@ -31,6 +31,9 @@ from app.contracts.search import SearchResult
 from app.llm.guard import guard_context
 from app.llm.models import LLMResult, Message, Task
 
+SECTIONS = ("what_happened", "why_it_matters", "risks", "opportunities", "actions", "bank_view")
+SERVER_FIELDS = frozenset({"basis", "support"})
+
 
 class Draft(BaseModel):
     # Принимает черновик и полный Insight; self_check не служит доказательством.
@@ -51,7 +54,17 @@ class Draft(BaseModel):
     def insight_metadata(cls, data: Any) -> Any:
         if isinstance(data, dict):
             metadata = set(Insight.model_fields) - set(cls.model_fields)
-            return {key: value for key, value in data.items() if key not in metadata}
+            cleaned = {key: value for key, value in data.items() if key not in metadata}
+            for section in SECTIONS:
+                items = cleaned.get(section)
+                if isinstance(items, list):
+                    cleaned[section] = [
+                        {k: v for k, v in item.items() if k not in SERVER_FIELDS}
+                        if isinstance(item, dict)
+                        else item
+                        for item in items
+                    ]
+            return cleaned
         return data
 
     def statements(self) -> list[Statement]:
@@ -273,6 +286,24 @@ def checks(context: AnalysisContext, draft: Draft) -> tuple[list[CheckIssue], di
                     statement.id,
                 )
             )
+    for statement in statements:
+        if statement.origin not in {Origin.FACT, Origin.BANK}:
+            continue
+        pinned = [
+            source_map[s]
+            for s in statement.source_ids
+            if s in source_map
+            and source_map[s].type is not SourceType.PROFILE_FEATURE
+            and (source_map[s].fragment_id or source_map[s].quote)
+        ]
+        if not pinned:
+            problems.append(
+                issue(
+                    CheckProblem.UNSUPPORTED,
+                    "Факт и позиция банка ссылаются на фрагмент: укажи fragment_id или цитату",
+                    statement.id,
+                )
+            )
     for statement in draft.bank_view:
         if statement.origin is not Origin.BANK:
             problems.append(
@@ -316,7 +347,12 @@ statement_id — только из черновика или null. Если ош
 class InsightCritic:
     @staticmethod
     def output_schema() -> dict[str, JsonValue]:
-        return Draft.model_json_schema()
+        schema = Draft.model_json_schema()
+        for definition in schema.get("$defs", {}).values():
+            properties = definition.get("properties", {})
+            for server_field in SERVER_FIELDS:
+                properties.pop(server_field, None)
+        return cast(dict[str, JsonValue], schema)
 
     def __init__(self, llm: Completer | None = None) -> None:
         self.llm = llm

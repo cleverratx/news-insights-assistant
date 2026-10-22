@@ -42,6 +42,22 @@ class SourceRef(Contract):
     quote: Text | None = None
 
 
+class Support(StrEnum):
+    SOURCE = "source"
+    COMPANY_DATA = "company_data"
+    ASSUMPTION = "assumption"
+
+
+class Basis(Contract):
+    """Фрагмент документа или признак компании, из которого получено утверждение."""
+
+    source_id: Id = Field(description="SourceRef.id внутри вывода")
+    type: SourceType
+    ref_id: Id = Field(description="NewsItem.id или ProfileFeature.id")
+    fragment_id: Id | None = Field(default=None, description="Fragment.id или KeyFact.id")
+    quote: Text | None = Field(default=None, description="Дословная выдержка из фрагмента")
+
+
 class Statement(Contract):
     id: Id
     text: Text
@@ -53,6 +69,17 @@ class Statement(Contract):
     )
     source_ids: list[Id] = Field(min_length=1, description="Ссылки на SourceRef.id")
     confidence: Literal["low", "medium", "high"] | None = None
+    basis: list[Basis] = Field(
+        default_factory=list,
+        description="Заполняет сервер: фрагменты документов и признаки, подтверждающие текст",
+    )
+    support: Support | None = Field(
+        default=None,
+        description=(
+            "Заполняет сервер: source — подтверждено фрагментом документа, company_data — "
+            "данными компании, assumption — подтверждения нет, это предположение модели"
+        ),
+    )
 
 
 class Impact(Statement):
@@ -153,6 +180,8 @@ class Insight(Contract):
                     f"Утверждение {statement.id} ссылается на неизвестные источники: "
                     + ", ".join(missing)
                 )
+            if any(b.source_id not in statement.source_ids for b in statement.basis):
+                raise ValueError(f"Основание утверждения {statement.id} не из его источников")
             cited = {sources[ref] for ref in statement.source_ids}
             if not cited & ORIGIN_SOURCES[statement.origin]:
                 raise ValueError(

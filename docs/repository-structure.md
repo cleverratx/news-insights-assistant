@@ -74,5 +74,7 @@
 
 Предложение продукта банка A5-12 — `backend/app/agent/offers.py`: правила уместности, `GeneratedInsight.offer`, проверка продуктов в действиях агента.
 
+Привязка утверждений к фрагментам A5-13 — `ground` и `claims_of` в `backend/app/agent/trace.py`, поля `Statement.basis`/`support`, `AgentTrace.claims`.
+
 Снимки оценок ленты и проверка неизменности контекста — `backend/app/rank/snapshots.py`.
 `frontend/src/App.tsx` подключает ленты, выбор роли, генерацию и чтение трассы.

@@ -48,6 +48,26 @@
           "default": null,
           "title": "Confidence"
         },
+        "basis": {
+          "description": "Заполняет сервер: фрагменты документов и признаки, подтверждающие текст",
+          "items": {
+            "$ref": "#/$defs/Basis"
+          },
+          "title": "Basis",
+          "type": "array"
+        },
+        "support": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Support"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — подтверждения нет, это предположение модели"
+        },
         "kind": {
           "$ref": "#/$defs/ActionKind"
         },
@@ -107,6 +127,65 @@
       ],
       "title": "BankProduct",
       "type": "string"
+    },
+    "Basis": {
+      "additionalProperties": false,
+      "description": "Фрагмент документа или признак компании, из которого получено утверждение.",
+      "properties": {
+        "source_id": {
+          "description": "SourceRef.id внутри вывода",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SourceType"
+        },
+        "ref_id": {
+          "description": "NewsItem.id или ProfileFeature.id",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Ref Id",
+          "type": "string"
+        },
+        "fragment_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fragment.id или KeyFact.id",
+          "title": "Fragment Id"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Дословная выдержка из фрагмента",
+          "title": "Quote"
+        }
+      },
+      "required": [
+        "source_id",
+        "type",
+        "ref_id"
+      ],
+      "title": "Basis",
+      "type": "object"
     },
     "BlockId": {
       "enum": [
@@ -368,6 +447,26 @@
           ],
           "default": null,
           "title": "Confidence"
+        },
+        "basis": {
+          "description": "Заполняет сервер: фрагменты документов и признаки, подтверждающие текст",
+          "items": {
+            "$ref": "#/$defs/Basis"
+          },
+          "title": "Basis",
+          "type": "array"
+        },
+        "support": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Support"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — подтверждения нет, это предположение модели"
         },
         "horizon": {
           "anyOf": [
@@ -1430,6 +1529,26 @@
           ],
           "default": null,
           "title": "Confidence"
+        },
+        "basis": {
+          "description": "Заполняет сервер: фрагменты документов и признаки, подтверждающие текст",
+          "items": {
+            "$ref": "#/$defs/Basis"
+          },
+          "title": "Basis",
+          "type": "array"
+        },
+        "support": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Support"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — подтверждения нет, это предположение модели"
         }
       },
       "required": [
@@ -1440,6 +1559,15 @@
       ],
       "title": "Statement",
       "type": "object"
+    },
+    "Support": {
+      "enum": [
+        "source",
+        "company_data",
+        "assumption"
+      ],
+      "title": "Support",
+      "type": "string"
     }
   },
   "additionalProperties": false,

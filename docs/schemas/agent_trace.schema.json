@@ -14,6 +14,65 @@
       "title": "AllowedModel",
       "type": "string"
     },
+    "Basis": {
+      "additionalProperties": false,
+      "description": "Фрагмент документа или признак компании, из которого получено утверждение.",
+      "properties": {
+        "source_id": {
+          "description": "SourceRef.id внутри вывода",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SourceType"
+        },
+        "ref_id": {
+          "description": "NewsItem.id или ProfileFeature.id",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Ref Id",
+          "type": "string"
+        },
+        "fragment_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fragment.id или KeyFact.id",
+          "title": "Fragment Id"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Дословная выдержка из фрагмента",
+          "title": "Quote"
+        }
+      },
+      "required": [
+        "source_id",
+        "type",
+        "ref_id"
+      ],
+      "title": "Basis",
+      "type": "object"
+    },
     "CheckIssue": {
       "additionalProperties": false,
       "properties": {
@@ -536,6 +595,16 @@
       "title": "Observation",
       "type": "object"
     },
+    "Origin": {
+      "enum": [
+        "fact",
+        "bank",
+        "client_data",
+        "model"
+      ],
+      "title": "Origin",
+      "type": "string"
+    },
     "ProfileFeature": {
       "additionalProperties": false,
       "description": "Признак компании, на который может сослаться вывод.",
@@ -773,6 +842,17 @@
       "title": "ScoreBreakdown",
       "type": "object"
     },
+    "Section": {
+      "enum": [
+        "what_happened",
+        "why_it_matters",
+        "risks",
+        "opportunities",
+        "actions",
+        "bank_view"
+      ],
+      "type": "string"
+    },
     "Significance": {
       "enum": [
         "high",
@@ -870,6 +950,15 @@
       "title": "SourceType",
       "type": "string"
     },
+    "Support": {
+      "enum": [
+        "source",
+        "company_data",
+        "assumption"
+      ],
+      "title": "Support",
+      "type": "string"
+    },
     "ToolError": {
       "additionalProperties": false,
       "properties": {
@@ -931,6 +1020,42 @@
         "text"
       ],
       "title": "TraceChunk",
+      "type": "object"
+    },
+    "TraceClaim": {
+      "additionalProperties": false,
+      "description": "Утверждение итогового вывода и фрагменты, из которых оно получено.",
+      "properties": {
+        "statement_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Statement Id",
+          "type": "string"
+        },
+        "section": {
+          "$ref": "#/$defs/Section"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "support": {
+          "$ref": "#/$defs/Support"
+        },
+        "basis": {
+          "items": {
+            "$ref": "#/$defs/Basis"
+          },
+          "title": "Basis",
+          "type": "array"
+        }
+      },
+      "required": [
+        "statement_id",
+        "section",
+        "origin",
+        "support"
+      ],
+      "title": "TraceClaim",
       "type": "object"
     },
     "TraceDocument": {
@@ -1282,6 +1407,14 @@
     },
     "usage": {
       "$ref": "#/$defs/GenerationUsage"
+    },
+    "claims": {
+      "description": "Связь каждого утверждения с фрагментами документов",
+      "items": {
+        "$ref": "#/$defs/TraceClaim"
+      },
+      "title": "Claims",
+      "type": "array"
     }
   },
   "required": [
