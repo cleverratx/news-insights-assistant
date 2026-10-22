@@ -149,3 +149,17 @@ async def test_presentation_rejects_invalid_block_references(case: str) -> None:
         payload["presentation"]["blocks"][-1]["source_ids"] = ["missing"]
     with pytest.raises(ValidationError):
         GeneratedInsight.model_validate(payload)
+
+
+async def test_default_input_budget_fits_agent_protocol_and_six_section_schema() -> None:
+    from app.core.config import Settings
+
+    db = Database()
+    llm = Replies(finish(db), '{"issues":[]}')
+    await generate(profile(), [db.news, db.bank], db, llm)
+    settings = Settings(_env_file=None)
+    sizes = [
+        len(json.dumps([m.model_dump() for m in messages], ensure_ascii=False).encode())
+        for messages in llm.messages
+    ]
+    assert max(sizes) <= settings.llm_max_input_bytes
