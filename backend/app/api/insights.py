@@ -6,7 +6,7 @@ import asyncpg
 from fastapi import APIRouter, HTTPException, Path
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from app.agent.insight import generate_with_trace
+from app.agent.insight import for_role, generate_with_trace
 from app.agent.insight_cache import cache_input, cached, remember
 from app.agent.tools.builtin import ORIGINALS
 from app.agent.trace import ensure_storage, load, save
@@ -51,7 +51,8 @@ async def generate_insight(
     company_id: CompanyId, body: InsightRequest, connection: Connection, llm: LLM
 ) -> GeneratedInsight:
     """Генерация с критиком и сохранением трассы; может расходовать бюджет LLM. Готовый разбор
-    тех же материалов для того же профиля, роли и акцента выдаётся из кеша (`cache_hit`)."""
+    тех же материалов для того же профиля и акцента выдаётся из кеша (`cache_hit`); для другой
+    должности — тот же разбор со своими оценками и подачей (`role_view`)."""
     profile = await company_profile(company_id, connection)
     materials = []
     for doc_id in body.news_ids:
@@ -93,7 +94,7 @@ async def generate_insight(
         except (OSError, asyncpg.PostgresError):
             raise HTTPException(503, "Снимок ленты недоступен") from None
     hours = get_settings().llm_insight_cache_hours
-    key = cache_input(profile, materials, body.role, body.focus)
+    key = cache_input(profile, materials, body.focus)
     if hours and not body.refresh:
         try:
             hit = await cached(connection, key, timedelta(hours=hours))
@@ -101,7 +102,20 @@ async def generate_insight(
             logger.warning("Кеш инсайтов недоступен: %s", type(error).__name__)
             hit = None
         if hit is not None:
-            return hit[0]
+            saved = hit[0]
+            role = body.role.value if body.role else None
+            if (saved.role, saved.feed_snapshot_id) == (role, body.feed_snapshot_id):
+                return saved
+            return await for_role(
+                saved,
+                profile,
+                materials,
+                llm,
+                connection,
+                role=body.role,
+                ranking=ranking,
+                feed_snapshot_id=body.feed_snapshot_id,
+            )
     result, trace = await generate_with_trace(
         profile,
         materials,

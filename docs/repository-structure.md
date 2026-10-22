@@ -76,5 +76,7 @@
 
 Привязка утверждений к фрагментам A5-13 — `ground` и `claims_of` в `backend/app/agent/trace.py`, поля `Statement.basis`/`support`, `AgentTrace.claims`.
 
+Инсайт под должность A5-14 — `backend/app/agent/roles.py`: акценты по правилам и проверенные формулировки модели в `GeneratedInsight.role_view`, общий разбор для всех ролей.
+
 Снимки оценок ленты и проверка неизменности контекста — `backend/app/rank/snapshots.py`.
 `frontend/src/App.tsx` подключает ленты, выбор роли, генерацию и чтение трассы.
