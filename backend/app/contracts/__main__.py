@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.agent.tools import Decision, ToolResponse
 from app.contracts import CompanyProfile, Insight, NewsItem, RankedItem
 from app.contracts.competitors import Competitors
 from app.contracts.feed import Feed
@@ -18,6 +19,8 @@ from app.contracts.search import SearchResult
 SCHEMA_DIR = Path(__file__).resolve().parents[3] / "docs" / "schemas"
 
 CONTRACTS: dict[str, type[BaseModel]] = {
+    "agent_decision": Decision,
+    "tool_response": ToolResponse,
     "company_profile": CompanyProfile,
     "news_item": NewsItem,
     "ranked_item": RankedItem,

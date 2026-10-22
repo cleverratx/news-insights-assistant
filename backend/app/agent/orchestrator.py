@@ -3,15 +3,33 @@
 import asyncio
 import json
 import logging
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Sequence
 from copy import deepcopy
 from decimal import Decimal
 from time import monotonic
-from typing import Literal, Protocol, Self
+from typing import Literal, Protocol
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
+from app.agent.tools import (
+    Decision as Decision,
+)
+from app.agent.tools import (
+    Observation as Observation,
+)
+from app.agent.tools import (
+    ToolError,
+    ToolProtocolError,
+    ToolResponse,
+    parse_decision,
+)
+from app.agent.tools import (
+    ToolRegistry as ToolRegistry,
+)
+from app.agent.tools import (
+    ToolSpec as ToolSpec,
+)
 from app.contracts.common import Id, Text
 from app.contracts.news import NewsItem
 from app.contracts.profile import CompanyProfile
@@ -20,38 +38,10 @@ from app.llm.models import LLMResult, Message, Task
 logger = logging.getLogger(__name__)
 
 
-class Decision(BaseModel):
-    """Минимальный внутренний шаг; расширенный протокол инструментов — A5-02."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    action: Literal["tool", "finish"]
-    reason: Text
-    tool: Id | None = None
-    arguments: dict[str, JsonValue] = Field(default_factory=dict)
-    output: JsonValue = None
-
-    @model_validator(mode="after")
-    def consistent(self) -> Self:
-        if self.action == "tool" and (self.tool is None or self.output is not None):
-            raise ValueError("Для шага нужен инструмент, без итогового ответа")
-        if self.action == "finish" and (self.tool is not None or self.arguments):
-            raise ValueError("Итог не вызывает инструмент")
-        return self
-
-
-class Observation(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    data: JsonValue = None
-    source_ids: list[Id] = Field(default_factory=list)
-
-
-class Step(BaseModel):
+class Step(ToolResponse):
     model_config = ConfigDict(extra="forbid", frozen=True)
     number: int
     decision: Decision
-    status: Literal["ok", "error", "timeout"]
-    observation: Observation | None = None
-    error: str | None = None
     elapsed_seconds: float
 
 
@@ -70,40 +60,8 @@ class AnalysisContext(BaseModel):
 class Planning(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     decision: Decision
+    attempts: int = Field(default=1, ge=1, le=3)
     cost_rub: Decimal = Field(default=Decimal(0), ge=0, allow_inf_nan=False)
-
-
-class ToolSpec(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    name: Id
-    description: Text
-
-
-Handler = Callable[[AnalysisContext, dict[str, JsonValue]], Awaitable[Observation]]
-
-
-class ToolRegistry:
-    """Только явно зарегистрированные async-инструменты, без eval/динамических импортов."""
-
-    def __init__(self) -> None:
-        self._tools: dict[str, tuple[ToolSpec, Handler]] = {}
-
-    def register(self, name: str, description: str, handler: Handler) -> None:
-        spec = ToolSpec(name=name, description=description)
-        if spec.name in self._tools:
-            raise ValueError("Инструмент уже зарегистрирован")
-        self._tools[spec.name] = (spec, handler)
-
-    def specs(self) -> list[ToolSpec]:
-        return [spec for spec, _ in self._tools.values()]
-
-    def handler(self, name: str) -> Handler:
-        return self._tools[name][1]
-
-    def snapshot(self) -> "ToolRegistry":
-        registry = ToolRegistry()
-        registry._tools = dict(self._tools)
-        return registry
 
 
 class Planner(Protocol):
@@ -125,7 +83,8 @@ SYSTEM_PROMPT = """Ты планировщик анализа бизнес-со�
 
 
 class PlannerResponseError(Exception):
-    def __init__(self, cost_rub: Decimal) -> None:
+    def __init__(self, cost_rub: Decimal, attempts: int = 1) -> None:
+        self.attempts = attempts
         super().__init__("Планировщик не вернул корректный шаг")
         self.cost_rub = cost_rub
 
@@ -133,8 +92,11 @@ class PlannerResponseError(Exception):
 class LLMPlanner:
     """LLM вызывается только через клиент A1-07: тарифы, ретраи и бюджет остаются там."""
 
-    def __init__(self, llm: Completer) -> None:
+    def __init__(self, llm: Completer, max_repairs: int = 1) -> None:
+        if type(max_repairs) is not int or not 0 <= max_repairs <= 2:
+            raise ValueError("Допустимо от 0 до 2 исправлений")
         self.llm = llm
+        self.max_repairs = max_repairs
 
     async def next_step(self, context: AnalysisContext, tools: Sequence[ToolSpec]) -> Planning:
         payload = {
@@ -149,21 +111,48 @@ class LLMPlanner:
                 "remaining_seconds": context.remaining_seconds,
             },
         }
-        result = await self.llm.complete(
-            Task.INTERPRET,
-            [
-                Message(
-                    role="system", content=SYSTEM_PROMPT + json.dumps(Decision.model_json_schema())
-                ),
-                Message(role="user", content=json.dumps(payload, ensure_ascii=False)),
-            ],
-        )
-        # Расход учитывается даже при невалидном JSON, до разбора решения.
-        try:
-            decision = Decision.model_validate_json(result.text)
-        except ValidationError:
-            raise PlannerResponseError(result.cost_rub) from None
-        return Planning(decision=decision, cost_rub=result.cost_rub)
+        messages = [
+            Message(
+                role="system", content=SYSTEM_PROMPT + json.dumps(Decision.model_json_schema())
+            ),
+            Message(role="user", content=json.dumps(payload, ensure_ascii=False)),
+        ]
+        cost = Decimal(0)
+        attempts = min(self.max_repairs + 1, max(1, context.remaining_steps))
+        specs = {tool.name: tool for tool in tools}
+        for attempt in range(1, attempts + 1):
+            try:
+                response = await self.llm.complete(Task.INTERPRET, messages)
+            except asyncio.CancelledError:
+                context.cost_rub += cost
+                raise
+            except Exception:
+                raise PlannerResponseError(cost, attempt) from None
+            cost += response.cost_rub
+            try:
+                decision = parse_decision(response.text)
+                if decision.action == "tool" and decision.tool not in specs:
+                    raise ToolProtocolError(
+                        ToolError(code="unknown_tool", message="Выбери инструмент из реестра")
+                    )
+            except ToolProtocolError as error:
+                if attempt == attempts:
+                    raise PlannerResponseError(cost, attempt) from None
+                messages.append(
+                    Message(
+                        role="user",
+                        content=json.dumps(
+                            {
+                                "correction": "Верни исправленное решение по схеме.",
+                                "error": error.detail.model_dump(mode="json"),
+                            },
+                            ensure_ascii=False,
+                        ),
+                    )
+                )
+                continue
+            return Planning(decision=decision, cost_rub=cost, attempts=attempt)
+        raise PlannerResponseError(cost, attempts)
 
 
 class Limits(BaseModel):
@@ -221,12 +210,14 @@ class Orchestrator:
 
         try:
             async with asyncio.timeout(self.limits.timeout_seconds):
-                for number in range(1, self.limits.max_steps + 1):
-                    context.remaining_steps = self.limits.max_steps - number + 1
+                used_steps = 0
+                while used_steps < self.limits.max_steps:
+                    context.remaining_steps = self.limits.max_steps - used_steps
                     context.remaining_seconds = max(
                         0, self.limits.timeout_seconds - (monotonic() - started)
                     )
                     planner_context = context.model_copy(deep=True)
+                    before_cost = planner_context.cost_rub
                     try:
                         planning = await self.planner.next_step(planner_context, registry.specs())
                         if not isinstance(planning, Planning):
@@ -237,7 +228,13 @@ class Orchestrator:
                     except Exception:
                         # Не логируем сырые тексты модели, ключи и исключения провайдера.
                         return result("planner_error", error="Планировщик не вернул корректный шаг")
+                    finally:
+                        context.cost_rub += max(Decimal(0), planner_context.cost_rub - before_cost)
                     context.cost_rub += planning.cost_rub
+                    used_steps += planning.attempts
+                    number = used_steps
+                    if used_steps > self.limits.max_steps:
+                        return result("step_limit", error="Исчерпан лимит шагов анализа")
                     decision = planning.decision
                     logger.info(
                         "agent_plan run_id=%s step=%s action=%s cost_rub=%s",
@@ -251,27 +248,38 @@ class Orchestrator:
                     step_started = monotonic()
                     observation = None
                     error = None
+                    error_detail = None
                     status: Literal["ok", "error", "timeout"] = "ok"
                     try:
                         handler = registry.handler(decision.tool or "")
                     except KeyError:
                         handler = None
                         error = "Инструмент отсутствует в реестре"
+                        error_detail = ToolError(code="unknown_tool", message=error)
                         status = "error"
                     if handler is not None:
                         try:
                             async with asyncio.timeout(self.limits.tool_timeout_seconds):
                                 observation = await handler(
-                                    context.model_copy(deep=True), deepcopy(decision.arguments)
+                                    context.model_copy(deep=True),
+                                    registry.validate_arguments(
+                                        decision.tool or "", deepcopy(decision.arguments)
+                                    ),
                                 )
-                                if not isinstance(observation, Observation):
-                                    raise TypeError("Инструмент должен вернуть Observation")
-                                observation = observation.model_copy(deep=True)
+                                observation = registry.validate_result(
+                                    decision.tool or "", observation
+                                )
+                        except ToolProtocolError as protocol_error:
+                            observation = None
+                            status, error = "error", protocol_error.detail.message
+                            error_detail = protocol_error.detail
                         except TimeoutError:
                             status, error = "timeout", "Превышено время инструмента"
+                            error_detail = ToolError(code="tool_timeout", message=error)
                         except Exception:
                             observation = None
                             status, error = "error", "Инструмент не выполнил шаг"
+                            error_detail = ToolError(code="tool_error", message=error)
                         except asyncio.CancelledError:
                             context.steps.append(
                                 Step(
@@ -279,6 +287,9 @@ class Orchestrator:
                                     decision=decision,
                                     status="timeout",
                                     error="Выполнение инструмента отменено",
+                                    error_detail=ToolError(
+                                        code="tool_timeout", message="Выполнение отменено"
+                                    ),
                                     elapsed_seconds=monotonic() - step_started,
                                 )
                             )
@@ -289,6 +300,7 @@ class Orchestrator:
                         observation=observation,
                         status=status,
                         error=error,
+                        error_detail=error_detail,
                         elapsed_seconds=monotonic() - step_started,
                     )
                     context.steps.append(step)
