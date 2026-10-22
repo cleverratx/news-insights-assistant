@@ -168,6 +168,82 @@
       "title": "CheckProblem",
       "type": "string"
     },
+    "DataGap": {
+      "additionalProperties": false,
+      "description": "Чего не хватило для вывода и что из-за этого не показано или показано с оговоркой.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/GapKind"
+        },
+        "missing": {
+          "description": "Чего не хватает — словами для пользователя",
+          "minLength": 1,
+          "title": "Missing",
+          "type": "string"
+        },
+        "consequence": {
+          "description": "Что из-за этого не сделано или сделано с оговоркой",
+          "minLength": 1,
+          "title": "Consequence",
+          "type": "string"
+        },
+        "remedy": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Как восполнить пробел",
+          "title": "Remedy"
+        },
+        "blocking": {
+          "description": "Из-за пробела персональный вывод не сформирован",
+          "title": "Blocking",
+          "type": "boolean"
+        },
+        "details": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Details",
+          "type": "array"
+        },
+        "question_keys": {
+          "description": "Вопросы базы знаний компании, закрывающие пробел",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Question Keys",
+          "type": "array"
+        },
+        "news_ids": {
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "News Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "missing",
+        "consequence",
+        "blocking"
+      ],
+      "title": "DataGap",
+      "type": "object"
+    },
     "ExecutionStatus": {
       "enum": [
         "completed",
@@ -177,6 +253,18 @@
         "check_failed",
         "unavailable"
       ],
+      "type": "string"
+    },
+    "GapKind": {
+      "enum": [
+        "model",
+        "verification",
+        "numbers",
+        "bank_view",
+        "source_text",
+        "company_data"
+      ],
+      "title": "GapKind",
       "type": "string"
     },
     "GenerationUsage": {
@@ -1315,6 +1403,14 @@
       ],
       "default": null,
       "title": "Feed Snapshot Id"
+    },
+    "gaps": {
+      "description": "Чего не хватило: честный ответ вместо догадок",
+      "items": {
+        "$ref": "#/$defs/DataGap"
+      },
+      "title": "Gaps",
+      "type": "array"
     },
     "cache_hit": {
       "default": false,

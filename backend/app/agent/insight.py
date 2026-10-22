@@ -11,6 +11,7 @@ from pydantic import JsonValue, ValidationError
 
 from app.agent.context import AnalysisContext
 from app.agent.critic import Draft, InsightCritic
+from app.agent.fallback import confirmed_facts, data_gaps, salvage
 from app.agent.orchestrator import SYSTEM_PROMPT, Completer, Limits, LLMPlanner, Orchestrator
 from app.agent.tools.builtin import create_tools
 from app.agent.trace import build_trace
@@ -70,6 +71,8 @@ why_it_matters, риски, возможности и действия — тв�
 его ref_id копируй из profile.features[].id. company_id копируй из profile.company_id.
 После подходящего поиска и уточнения источника формируй finish. Не перебирай все инструменты.
 Не делай больше двух поисков одной темы: отсутствие подходящих данных тоже результат.
+Цифры — только из источников и признаков компании, дословно, без пересчёта и прогнозов от себя.
+Нет нужной цифры — сформулируй качественно: сервис сам сообщит пользователю, чего не хватило.
 """
 )
 OBJECTIVE = "Разобрать влияние события на компанию по шести вопросам с проверкой источников"
@@ -280,7 +283,12 @@ async def generate_with_trace(
             )
         ],
     )
-    content: dict[str, Any] = {"sources": event_sources(news)}
+    facts, fact_sources = confirmed_facts(news)
+    content: dict[str, Any] = {
+        "sources": [*event_sources(news), *fact_sources],
+        "what_happened": facts,
+    }
+    pruned: list[str] = []
     headline = news[0].title
     status = InsightStatus.INSUFFICIENT_DATA
     if llm is not None:
@@ -293,10 +301,15 @@ async def generate_with_trace(
             critic=GenerationCritic(recording),
         ).run(profile, news, objective)
         context = run.context
-        usage, run_id, execution = recording.usage, run.context.run_id, run.status
-        if run.status == "completed" and run.output is not None:
+        run_id, execution, output = run.context.run_id, run.status, run.output
+        if run.status == "check_failed":
+            rescued = await salvage(run.context, GenerationCritic(recording))
+            if rescued is not None:
+                (output, pruned), execution = rescued, "completed"
+        usage = recording.usage
+        if execution == "completed" and output is not None:
             try:
-                parsed = Draft.model_validate(run.output)
+                parsed = Draft.model_validate(output)
                 content = parsed.model_dump(exclude={"headline", "company_id", "news_ids"})
                 headline = parsed.headline or headline
                 status = InsightStatus.READY
@@ -377,6 +390,14 @@ async def generate_with_trace(
         usage=usage,
         execution_status=execution,
         warnings=warnings,
+        gaps=data_gaps(
+            profile=profile,
+            news=news,
+            insight=insight,
+            execution=execution,
+            reviews=context.critic_reviews,
+            pruned=pruned,
+        ),
         ranking=rankings,
         role=role,
         feed_snapshot_id=feed_snapshot_id,

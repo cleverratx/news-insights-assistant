@@ -1,4 +1,5 @@
 from decimal import Decimal
+from enum import StrEnum
 from typing import Literal, Self
 
 from pydantic import Field, model_validator
@@ -56,6 +57,30 @@ class GenerationUsage(Contract):
     pricing_modes: list[Literal["configured", "public_estimate"]] = Field(default_factory=list)
 
 
+class GapKind(StrEnum):
+    MODEL = "model"
+    VERIFICATION = "verification"
+    NUMBERS = "numbers"
+    BANK_VIEW = "bank_view"
+    SOURCE_TEXT = "source_text"
+    COMPANY_DATA = "company_data"
+
+
+class DataGap(Contract):
+    """Чего не хватило для вывода и что из-за этого не показано или показано с оговоркой."""
+
+    kind: GapKind
+    missing: Text = Field(description="Чего не хватает — словами для пользователя")
+    consequence: Text = Field(description="Что из-за этого не сделано или сделано с оговоркой")
+    remedy: Text | None = Field(default=None, description="Как восполнить пробел")
+    blocking: bool = Field(description="Из-за пробела персональный вывод не сформирован")
+    details: list[Text] = Field(default_factory=list, max_length=10)
+    question_keys: list[Id] = Field(
+        default_factory=list, description="Вопросы базы знаний компании, закрывающие пробел"
+    )
+    news_ids: list[Id] = Field(default_factory=list)
+
+
 class InsightRanking(Contract):
     news_id: Id
     score: ScoreBreakdown
@@ -73,6 +98,9 @@ class GeneratedInsight(Contract):
     ranking: list[InsightRanking] = Field(default_factory=list)
     role: Text | None = None
     feed_snapshot_id: Id | None = None
+    gaps: list[DataGap] = Field(
+        default_factory=list, description="Чего не хватило: честный ответ вместо догадок"
+    )
     cache_hit: bool = Field(
         default=False,
         description="Сохранённый ранее разбор выдан из кеша инсайтов без обращения к LLM",
@@ -90,6 +118,8 @@ class GeneratedInsight(Contract):
             not self.insight.self_check.passed or not self.insight.actions
         ):
             raise ValueError("Готовый инсайт должен пройти проверку и содержать действия")
+        if self.insight.status is InsightStatus.READY and any(g.blocking for g in self.gaps):
+            raise ValueError("У готового инсайта не может быть блокирующих пробелов")
         seen: list[str] = []
         for origin, group in [
             (Origin.FACT, self.presentation.facts),
