@@ -61,3 +61,7 @@
 Контекст агента и память наблюдений A5-04 — `backend/app/agent/context.py`; повторное использование результатов выполняет оркестратор.
 
 Критик A5-05 — `backend/app/agent/critic.py`, контракт отчёта — `backend/app/contracts/critic.py`.
+
+Генерация A5-06/A5-07 — `backend/app/agent/insight.py`, API — `backend/app/api/insights.py`.
+Журнал и хранение разборов A5-08 — `backend/app/agent/trace.py`, контракт —
+`backend/app/contracts/trace.py`; результат и трасса хранятся в таблице `agent_insights`.

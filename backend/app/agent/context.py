@@ -16,6 +16,13 @@ from app.contracts.news import NewsItem
 from app.contracts.profile import CompanyProfile
 
 
+class PlannedStep(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    number: int
+    decision: Decision
+    elapsed_seconds: float
+
+
 class Step(ToolResponse):
     model_config = ConfigDict(extra="forbid", frozen=True)
     number: int
@@ -48,6 +55,7 @@ class AnalysisContext(BaseModel):
     profile: CompanyProfile
     news: list[NewsItem] = Field(min_length=1)
     steps: list[Step] = Field(default_factory=list)
+    plans: list[PlannedStep] = Field(default_factory=list)
     observations: dict[str, ContextObservation] = Field(default_factory=dict)
     critic_reviews: list[CriticReview] = Field(default_factory=list)
     output_schema: dict[str, JsonValue] | None = None

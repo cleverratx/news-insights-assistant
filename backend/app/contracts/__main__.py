@@ -18,6 +18,7 @@ from app.contracts.links import LinkedCompanies
 from app.contracts.news import NewsCard, NewsStory
 from app.contracts.related_feed import RelatedFeed
 from app.contracts.search import SearchResult
+from app.contracts.trace import AgentTrace
 
 SCHEMA_DIR = Path(__file__).resolve().parents[3] / "docs" / "schemas"
 
@@ -31,6 +32,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "ranked_item": RankedItem,
     "insight": Insight,
     "generated_insight": GeneratedInsight,
+    "agent_trace": AgentTrace,
     "search_result": SearchResult,
     "knowledge_base": KnowledgeBase,
     "knowledge_gaps": KnowledgeGaps,

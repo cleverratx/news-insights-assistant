@@ -68,3 +68,7 @@ RankedItem.matched_features ───────┘
 `agent_decision.schema.json` и `tool_response.schema.json` — протокол решений агента и ответов инструментов (A5-02), см. [agent.md](../agent.md).
 
 `insight_draft.schema.json` и `critic_report.schema.json` — черновик анализа и отчёт критика A5-05; правила и ограничения описаны в [agent.md](../agent.md).
+
+`generated_insight.schema.json` — ответ генерации A5-06/A5-07 с отдельными группами
+происхождения утверждений. `agent_trace.schema.json` — сохранённый журнал A5-08:
+план, инструменты, наблюдения, документы, признаки компании и отчёты критика.

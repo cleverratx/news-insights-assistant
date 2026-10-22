@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from time import monotonic
 from typing import Any
 from uuid import uuid4
 
@@ -11,6 +12,7 @@ from app.agent.context import AnalysisContext
 from app.agent.critic import Draft, InsightCritic
 from app.agent.orchestrator import SYSTEM_PROMPT, Completer, Limits, LLMPlanner, Orchestrator
 from app.agent.tools.builtin import create_tools
+from app.agent.trace import build_trace
 from app.contracts.common import Significance
 from app.contracts.critic import CriticReport
 from app.contracts.generation import (
@@ -35,6 +37,7 @@ from app.contracts.insight import (
 )
 from app.contracts.news import MaterialKind, NewsItem
 from app.contracts.profile import CompanyProfile
+from app.contracts.trace import AgentTrace
 from app.llm.models import LLMResult, Message, Task
 from app.rank.score import score
 
@@ -204,7 +207,7 @@ def event_sources(news: Sequence[NewsItem]) -> list[SourceRef]:
     ]
 
 
-async def generate(
+async def generate_with_trace(
     profile: CompanyProfile,
     news: Sequence[NewsItem],
     connection: Any,
@@ -212,14 +215,17 @@ async def generate(
     *,
     focus: str | None = None,
     limits: Limits | None = None,
-) -> GeneratedInsight:
+) -> tuple[GeneratedInsight, AgentTrace]:
+    started = monotonic()
     if not news or len(news) > 3 or len({n.id for n in news}) != len(news):
         raise ValueError("Нужны 1–3 различных материала")
     now = datetime.now(UTC)
     scored = [score(profile, n, now) for n in news]
     best = max(scored, key=lambda s: s.final)
     usage = GenerationUsage()
-    run_id = f"run:{uuid4().hex}"
+    objective = OBJECTIVE + (f". Акцент пользователя: {focus}" if focus else "")
+    context = AnalysisContext(profile=profile, news=list(news), objective=objective, started_at=now)
+    run_id = context.run_id
     execution: ExecutionStatus = "unavailable"
     reason: str | None = "LLM недоступна; проверенный персональный вывод не сформирован"
     check = SelfCheck(
@@ -244,7 +250,8 @@ async def generate(
             create_tools(connection),
             limits,
             critic=GenerationCritic(recording),
-        ).run(profile, news, OBJECTIVE + (f". Акцент пользователя: {focus}" if focus else ""))
+        ).run(profile, news, objective)
+        context = run.context
         usage, run_id, execution = recording.usage, run.context.run_id, run.status
         if run.status == "completed" and run.output is not None:
             try:
@@ -323,10 +330,27 @@ async def generate(
         warnings.append(reason or "Вывод не проверен")
     if status is InsightStatus.READY and not insight.bank_view:
         warnings.append("Позиция банка не найдена; это не означает согласия банка с выводами ИИ")
-    return GeneratedInsight(
+    result = GeneratedInsight(
         insight=insight,
         presentation=present(insight),
         usage=usage,
         execution_status=execution,
         warnings=warnings,
     )
+
+    return result, build_trace(result, context, monotonic() - started)
+
+
+async def generate(
+    profile: CompanyProfile,
+    news: Sequence[NewsItem],
+    connection: Any,
+    llm: Completer | None,
+    *,
+    focus: str | None = None,
+    limits: Limits | None = None,
+) -> GeneratedInsight:
+    result, _ = await generate_with_trace(
+        profile, news, connection, llm, focus=focus, limits=limits
+    )
+    return result
