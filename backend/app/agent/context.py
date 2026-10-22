@@ -11,6 +11,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue
 
 from app.agent.tools import Decision, Observation, ToolResponse
 from app.contracts.common import Id, Text
+from app.contracts.critic import CriticReport
 from app.contracts.news import NewsItem
 from app.contracts.profile import CompanyProfile
 
@@ -33,6 +34,12 @@ class ContextObservation(BaseModel):
     step_number: int = Field(ge=1)
 
 
+class CriticReview(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    draft: JsonValue
+    report: CriticReport
+
+
 class AnalysisContext(BaseModel):
     model_config = ConfigDict(extra="forbid")
     run_id: Id = Field(default_factory=lambda: f"run:{uuid4().hex}")
@@ -42,6 +49,8 @@ class AnalysisContext(BaseModel):
     news: list[NewsItem] = Field(min_length=1)
     steps: list[Step] = Field(default_factory=list)
     observations: dict[str, ContextObservation] = Field(default_factory=dict)
+    critic_reviews: list[CriticReview] = Field(default_factory=list)
+    output_schema: dict[str, JsonValue] | None = None
     result_cache: dict[str, str] = Field(default_factory=dict, repr=False)
     remaining_steps: int = Field(default=0, ge=0)
     remaining_seconds: float = Field(default=0, ge=0, allow_inf_nan=False)
@@ -104,6 +113,8 @@ class AnalysisContext(BaseModel):
             "steps": [step.model_dump(mode="json", exclude={"observation"}) for step in self.steps],
             "observations": observations,
             "known_source_ids": self.known_source_ids(),
+            "critic_reviews": [review.model_dump(mode="json") for review in self.critic_reviews],
+            "output_schema": self.output_schema,
         }
 
 

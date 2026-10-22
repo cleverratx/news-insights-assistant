@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "critic_report.schema.json",
+  "$defs": {
+    "CheckIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "statement_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Statement Id"
+        },
+        "problem": {
+          "$ref": "#/$defs/CheckProblem"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "resolved": {
+          "title": "Resolved",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "problem",
+        "detail",
+        "resolved"
+      ],
+      "title": "CheckIssue",
+      "type": "object"
+    },
+    "CheckProblem": {
+      "enum": [
+        "unsupported",
+        "contradiction",
+        "not_personal",
+        "trivial",
+        "other"
+      ],
+      "title": "CheckProblem",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "semantic_checked": {
+      "title": "Semantic Checked",
+      "type": "boolean"
+    },
+    "issues": {
+      "items": {
+        "$ref": "#/$defs/CheckIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+    },
+    "suggested_tools": {
+      "items": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Suggested Tools",
+      "type": "array"
+    },
+    "cost_rub": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "default": "0",
+      "title": "Cost Rub"
+    },
+    "unavailable": {
+      "default": false,
+      "title": "Unavailable",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "passed",
+    "semantic_checked"
+  ],
+  "title": "CriticReport",
+  "type": "object"
+}
