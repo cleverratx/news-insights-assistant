@@ -1,0 +1,812 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent_trace.schema.json",
+  "$defs": {
+    "AllowedModel": {
+      "enum": [
+        "gemma-4-26b-a4b",
+        "glm-5.3-flash",
+        "qwen3.6-35b-a3b",
+        "deepseek-v4.1-flash",
+        "qwen3-vl-30b-a3b-instruct",
+        "kimi-k2.6"
+      ],
+      "title": "AllowedModel",
+      "type": "string"
+    },
+    "CheckIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "statement_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Statement Id"
+        },
+        "problem": {
+          "$ref": "#/$defs/CheckProblem"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        },
+        "resolved": {
+          "title": "Resolved",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "problem",
+        "detail",
+        "resolved"
+      ],
+      "title": "CheckIssue",
+      "type": "object"
+    },
+    "CheckProblem": {
+      "enum": [
+        "unsupported",
+        "contradiction",
+        "not_personal",
+        "trivial",
+        "other"
+      ],
+      "title": "CheckProblem",
+      "type": "string"
+    },
+    "ContextObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "tool": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Tool",
+          "type": "string"
+        },
+        "arguments": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Arguments",
+          "type": "object"
+        },
+        "observation": {
+          "$ref": "#/$defs/Observation"
+        },
+        "step_number": {
+          "minimum": 1,
+          "title": "Step Number",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "tool",
+        "arguments",
+        "observation",
+        "step_number"
+      ],
+      "title": "ContextObservation",
+      "type": "object"
+    },
+    "CriticReport": {
+      "additionalProperties": false,
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "semantic_checked": {
+          "title": "Semantic Checked",
+          "type": "boolean"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/CheckIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "suggested_tools": {
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Suggested Tools",
+          "type": "array"
+        },
+        "cost_rub": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": "0",
+          "title": "Cost Rub"
+        },
+        "unavailable": {
+          "default": false,
+          "title": "Unavailable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "passed",
+        "semantic_checked"
+      ],
+      "title": "CriticReport",
+      "type": "object"
+    },
+    "ExecutionStatus": {
+      "enum": [
+        "completed",
+        "step_limit",
+        "timeout",
+        "planner_error",
+        "check_failed",
+        "unavailable"
+      ],
+      "type": "string"
+    },
+    "FeatureKind": {
+      "enum": [
+        "industry",
+        "scale",
+        "finance",
+        "product",
+        "region",
+        "foreign_trade",
+        "group",
+        "counterparty",
+        "ownership",
+        "lifecycle",
+        "knowledge",
+        "competitor"
+      ],
+      "title": "FeatureKind",
+      "type": "string"
+    },
+    "GenerationUsage": {
+      "additionalProperties": false,
+      "properties": {
+        "calls": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "prompt_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Prompt Tokens",
+          "type": "integer"
+        },
+        "completion_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Completion Tokens",
+          "type": "integer"
+        },
+        "known_cost_rub": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": "0",
+          "title": "Known Cost Rub"
+        },
+        "models": {
+          "items": {
+            "$ref": "#/$defs/AllowedModel"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "pricing_modes": {
+          "items": {
+            "enum": [
+              "configured",
+              "public_estimate"
+            ],
+            "type": "string"
+          },
+          "title": "Pricing Modes",
+          "type": "array"
+        }
+      },
+      "title": "GenerationUsage",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "Observation": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "$ref": "#/$defs/JsonValue",
+          "default": null
+        },
+        "source_ids": {
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "title": "Observation",
+      "type": "object"
+    },
+    "ProfileFeature": {
+      "additionalProperties": false,
+      "description": "Признак компании, на который может сослаться вывод.",
+      "properties": {
+        "id": {
+          "description": "Идентификатор признака внутри профиля, например feature:loan",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/FeatureKind"
+        },
+        "label": {
+          "description": "Формулировка для человека: «есть кредитные продукты»",
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "source_fields": {
+          "description": "Поля выгрузки, из которых получен признак",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Fields",
+          "type": "array"
+        },
+        "derived": {
+          "default": false,
+          "description": "Признак вычислен (ранг, доля), а не взят из поля как есть",
+          "title": "Derived",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "source_fields"
+      ],
+      "title": "ProfileFeature",
+      "type": "object"
+    },
+    "SourceRef": {
+      "additionalProperties": false,
+      "description": "Первоисточник, на который ссылаются утверждения вывода.",
+      "properties": {
+        "id": {
+          "description": "Локальный идентификатор внутри вывода, например s1",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SourceType"
+        },
+        "ref_id": {
+          "description": "NewsItem.id или ProfileFeature.id",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Ref Id",
+          "type": "string"
+        },
+        "fragment_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fragment.id или KeyFact.id",
+          "title": "Fragment Id"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quote"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "ref_id",
+        "title"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    },
+    "SourceType": {
+      "enum": [
+        "news",
+        "bank_analytics",
+        "profile_feature"
+      ],
+      "title": "SourceType",
+      "type": "string"
+    },
+    "ToolError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "invalid_decision",
+            "unknown_tool",
+            "invalid_arguments",
+            "invalid_result",
+            "tool_error",
+            "tool_timeout"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/ValidationIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "ToolError",
+      "type": "object"
+    },
+    "TraceChunk": {
+      "additionalProperties": false,
+      "properties": {
+        "fragment_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fragment Id"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "TraceChunk",
+      "type": "object"
+    },
+    "TraceDocument": {
+      "additionalProperties": false,
+      "properties": {
+        "ref_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Ref Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SourceType"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "chunks": {
+          "items": {
+            "$ref": "#/$defs/TraceChunk"
+          },
+          "title": "Chunks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "ref_id",
+        "type",
+        "chunks"
+      ],
+      "title": "TraceDocument",
+      "type": "object"
+    },
+    "TraceStep": {
+      "additionalProperties": false,
+      "properties": {
+        "number": {
+          "minimum": 1,
+          "title": "Number",
+          "type": "integer"
+        },
+        "action": {
+          "enum": [
+            "tool",
+            "finish"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "goal": {
+          "minLength": 1,
+          "title": "Goal",
+          "type": "string"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool"
+        },
+        "arguments": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Arguments",
+          "type": "object"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "error",
+            "timeout"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "elapsed_seconds": {
+          "minimum": 0,
+          "title": "Elapsed Seconds",
+          "type": "number"
+        },
+        "planning_seconds": {
+          "minimum": 0,
+          "title": "Planning Seconds",
+          "type": "number"
+        },
+        "check_index": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Check Index"
+        },
+        "observation_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observation Id"
+        },
+        "reused_from": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reused From"
+        },
+        "error_detail": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "number",
+        "action",
+        "goal",
+        "status",
+        "elapsed_seconds",
+        "planning_seconds"
+      ],
+      "title": "TraceStep",
+      "type": "object"
+    },
+    "ValidationIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "title": "Path",
+          "type": "array"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "type"
+      ],
+      "title": "ValidationIssue",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "insight_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Insight Id",
+      "type": "string"
+    },
+    "run_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Run Id",
+      "type": "string"
+    },
+    "company_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Company Id",
+      "type": "string"
+    },
+    "news_ids": {
+      "items": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "title": "News Ids",
+      "type": "array"
+    },
+    "objective": {
+      "minLength": 1,
+      "title": "Objective",
+      "type": "string"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "finished_at": {
+      "format": "date-time",
+      "title": "Finished At",
+      "type": "string"
+    },
+    "execution_status": {
+      "$ref": "#/$defs/ExecutionStatus"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "elapsed_seconds": {
+      "minimum": 0,
+      "title": "Elapsed Seconds",
+      "type": "number"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/TraceStep"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "observations": {
+      "items": {
+        "$ref": "#/$defs/ContextObservation"
+      },
+      "title": "Observations",
+      "type": "array"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/CriticReport"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "documents": {
+      "items": {
+        "$ref": "#/$defs/TraceDocument"
+      },
+      "title": "Documents",
+      "type": "array"
+    },
+    "profile_features": {
+      "items": {
+        "$ref": "#/$defs/ProfileFeature"
+      },
+      "title": "Profile Features",
+      "type": "array"
+    },
+    "used_sources": {
+      "items": {
+        "$ref": "#/$defs/SourceRef"
+      },
+      "title": "Used Sources",
+      "type": "array"
+    },
+    "usage": {
+      "$ref": "#/$defs/GenerationUsage"
+    }
+  },
+  "required": [
+    "insight_id",
+    "run_id",
+    "company_id",
+    "news_ids",
+    "objective",
+    "started_at",
+    "finished_at",
+    "execution_status",
+    "elapsed_seconds",
+    "usage"
+  ],
+  "title": "AgentTrace",
+  "type": "object"
+}

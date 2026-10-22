@@ -12,7 +12,7 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from app.agent.context import AnalysisContext as AnalysisContext
-from app.agent.context import CriticReview
+from app.agent.context import CriticReview, PlannedStep
 from app.agent.context import Step as Step
 from app.agent.critic import Critic, InsightCritic
 from app.agent.tools import (
@@ -220,6 +220,7 @@ class Orchestrator:
                     )
                     planner_context = context.model_copy(deep=True)
                     before_cost = planner_context.cost_rub
+                    planning_started = monotonic()
                     try:
                         planning = await self.planner.next_step(planner_context, registry.specs())
                         if not isinstance(planning, Planning):
@@ -238,6 +239,13 @@ class Orchestrator:
                     if used_steps > self.limits.max_steps:
                         return result("step_limit", error="Исчерпан лимит шагов анализа")
                     decision = planning.decision
+                    context.plans.append(
+                        PlannedStep(
+                            number=number,
+                            decision=decision.model_copy(deep=True),
+                            elapsed_seconds=monotonic() - planning_started,
+                        )
+                    )
                     logger.info(
                         "agent_plan run_id=%s step=%s action=%s cost_rub=%s",
                         context.run_id,
