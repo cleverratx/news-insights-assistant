@@ -135,6 +135,11 @@ async def api(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[AsyncClient]:
     monkeypatch.setattr(feed_api, "load", materials)
     monkeypatch.setattr(feed_api, "shared_images", images)
     monkeypatch.setattr(feed_api, "LLMCache", lambda connection: None)
+
+    async def store_snapshot(connection, feed, company, items):
+        return feed.model_copy(update={"snapshot_id": "feed:test"})
+
+    monkeypatch.setattr(feed_api, "store_snapshot", store_snapshot)
     app = create_app()
 
     async def connection() -> AsyncIterator[Any]:

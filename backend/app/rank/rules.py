@@ -152,6 +152,7 @@ class Matching:
     """Итог правил по паре «компания — новость»: что сработало, штраф и оговорки."""
 
     hits: list[RuleHit] = field(default_factory=list)
+    regional_background: bool = False
     penalty: float = 1.0
     penalties: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -205,6 +206,17 @@ def match(profile: CompanyProfile, news: NewsItem) -> Matching:
     entity_rules(profile, news, classification, add)
     foreign_trade_rules(profile, classification, add)
     scale_rules(profile, news, result, add)
+    if (
+        classification.regions
+        and profile.location.region
+        and "feature:region" in known
+        and not any(hit.rule is Rule.REGION for hit in result.hits)
+    ):
+        if not result.hits:
+            result.regional_background = True
+            add(Rule.REGION, 0.08, "feature:region", "Регион вне известных рынков: фоновая новость")
+        result.penalty *= 0.65
+        result.penalties.append("Регион вне известных рынков компании: коэффициент 0,65")
     return result
 
 
@@ -338,7 +350,24 @@ def region_rules(profile: CompanyProfile, classification: Classification, add: A
         *(member.region for member in (profile.group.members if profile.group else [])),
         *profile.person_regions,
     ]
+    markets = [
+        feature
+        for feature in profile.features
+        if feature.id == "feature:knowledge:markets.regions" and isinstance(feature.value, str)
+    ]
     for region in classification.regions:
+        for market in markets:
+            if any(
+                same_region(place.strip(), region)
+                for place in re.split(r"[,;|\n]", str(market.value))
+            ):
+                add(
+                    Rule.REGION,
+                    REGION_PARTNER,
+                    market.id,
+                    f"Новость о рынке компании из базы знаний: «{region}»",
+                    region,
+                )
         local = [feature for place, feature in home if place and same_region(place, region)]
         for feature in local:
             add(

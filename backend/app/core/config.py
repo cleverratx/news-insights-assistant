@@ -43,8 +43,8 @@ class Settings(BaseSettings):
     llm_request_timeout_seconds: int = Field(default=60, gt=0, le=3600)
     llm_max_retries: int = Field(default=2, ge=0, le=5)
     llm_retry_base_seconds: float = Field(default=0.5, ge=0, le=10, allow_inf_nan=False)
-    llm_max_output_tokens: int = Field(default=1024, gt=0, le=32768)
-    llm_max_input_bytes: int = Field(default=24000, gt=0, le=1000000)
+    llm_max_output_tokens: int = Field(default=8192, gt=0, le=32768)
+    llm_max_input_bytes: int = Field(default=128000, gt=0, le=1000000)
     llm_budget_timezone: str = "UTC"
 
     news_sources_file: str = "app/news/sources.yaml"

@@ -995,6 +995,20 @@
       "title": "Company Id",
       "type": "string"
     },
+    "snapshot_id": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Snapshot Id"
+    },
     "role": {
       "anyOf": [
         {

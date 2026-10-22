@@ -3,7 +3,7 @@ from typing import Literal, Self
 
 from pydantic import Field, model_validator
 
-from app.contracts.common import Contract, Id, Text
+from app.contracts.common import Contract, Id, Significance, Text
 from app.contracts.insight import (
     Action,
     Impact,
@@ -13,6 +13,7 @@ from app.contracts.insight import (
     SourceRef,
     Statement,
 )
+from app.contracts.rank import ImpactAssessment, Importance, ScoreBreakdown
 from app.llm.models import AllowedModel
 
 type BlockId = Literal["event", "relevance", "consequences", "actions", "bank", "basis"]
@@ -55,15 +56,32 @@ class GenerationUsage(Contract):
     pricing_modes: list[Literal["configured", "public_estimate"]] = Field(default_factory=list)
 
 
+class InsightRanking(Contract):
+    news_id: Id
+    score: ScoreBreakdown
+    significance: Significance
+    importance: Importance
+    impact: ImpactAssessment
+
+
 class GeneratedInsight(Contract):
     insight: Insight
     presentation: InsightPresentation
     usage: GenerationUsage
     execution_status: ExecutionStatus
     warnings: list[Text] = Field(default_factory=list)
+    ranking: list[InsightRanking] = Field(default_factory=list)
+    role: Text | None = None
+    feed_snapshot_id: Id | None = None
 
     @model_validator(mode="after")
     def separated(self) -> Self:
+        if self.ranking:
+            ids = [r.news_id for r in self.ranking]
+            if len(set(ids)) != len(ids) or set(ids) != set(self.insight.news_ids):
+                raise ValueError("Оценки должны соответствовать выбранным материалам")
+            if any((r.score.role.id if r.score.role else None) != self.role for r in self.ranking):
+                raise ValueError("Оценки относятся к другой должности")
         if self.insight.status is InsightStatus.READY and (
             not self.insight.self_check.passed or not self.insight.actions
         ):
@@ -103,4 +121,16 @@ class GeneratedInsight(Contract):
             "basis",
         }:
             raise ValueError("Нужны шесть различных блоков")
+        expected_blocks = {
+            "event": [s.id for s in self.insight.what_happened],
+            "relevance": [s.id for s in self.insight.why_it_matters],
+            "consequences": [s.id for s in [*self.insight.risks, *self.insight.opportunities]],
+            "actions": [s.id for s in self.insight.actions],
+            "bank": [s.id for s in self.insight.bank_view],
+            "basis": [],
+        }
+        for block in self.presentation.blocks:
+            sources = [s.id for s in self.insight.sources] if block.id == "basis" else []
+            if block.statement_ids != expected_blocks[block.id] or block.source_ids != sources:
+                raise ValueError("Блок представления не соответствует разделу инсайта")
         return self

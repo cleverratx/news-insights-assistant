@@ -1,5 +1,6 @@
 """A5-06/A5-07: генерация проверенного инсайта и явное разделение происхождения выводов."""
 
+import json
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from time import monotonic
@@ -15,6 +16,7 @@ from app.agent.tools.builtin import create_tools
 from app.agent.trace import build_trace
 from app.contracts.common import Significance
 from app.contracts.critic import CriticReport
+from app.contracts.feed import FeedItem
 from app.contracts.generation import (
     BlockId,
     ExecutionStatus,
@@ -22,6 +24,7 @@ from app.contracts.generation import (
     GenerationUsage,
     InsightBlock,
     InsightPresentation,
+    InsightRanking,
     LabeledStatement,
 )
 from app.contracts.insight import (
@@ -37,9 +40,13 @@ from app.contracts.insight import (
 )
 from app.contracts.news import MaterialKind, NewsItem
 from app.contracts.profile import CompanyProfile
+from app.contracts.rank import ImportanceLevel
 from app.contracts.trace import AgentTrace
 from app.llm.models import LLMResult, Message, Task
+from app.rank.importance import importance
+from app.rank.roles import Role, apply_role, weights_for
 from app.rank.score import score
+from app.rank.sentiment import rules_impact
 
 INSTRUCTION = (
     SYSTEM_PROMPT
@@ -58,6 +65,11 @@ why_it_matters, риски, возможности и действия — тв�
 Прогноз — не свершившийся факт. Не выдумывай оригинальные цитаты: копируй дословно.
 Пиши коротко: одна конкретная мысль на утверждение, короткие цитаты, без повторов и воды.
 Не добавляй банковский продукт, если его уместность не следует из данных.
+На раздел достаточно 1–2 утверждений; цитаты короткие (до 180 символов).
+В каждом why_it_matters обязателен source_id локального источника type=profile_feature;
+его ref_id копируй из profile.features[].id. company_id копируй из profile.company_id.
+После подходящего поиска и уточнения источника формируй finish. Не перебирай все инструменты.
+Не делай больше двух поисков одной темы: отсутствие подходящих данных тоже результат.
 """
 )
 OBJECTIVE = "Разобрать влияние события на компанию по шести вопросам с проверкой источников"
@@ -215,15 +227,44 @@ async def generate_with_trace(
     *,
     focus: str | None = None,
     limits: Limits | None = None,
+    role: Role | None = None,
+    ranking: Sequence[FeedItem] | None = None,
+    feed_snapshot_id: str | None = None,
 ) -> tuple[GeneratedInsight, AgentTrace]:
     started = monotonic()
     if not news or len(news) > 3 or len({n.id for n in news}) != len(news):
         raise ValueError("Нужны 1–3 различных материала")
     now = datetime.now(UTC)
     scored = [score(profile, n, now) for n in news]
-    best = max(scored, key=lambda s: s.final)
+    if role is not None:
+        scored = [apply_role(s, n, weights_for(role)) for s, n in zip(scored, news, strict=True)]
+    levels = {
+        ImportanceLevel.CRITICAL: Significance.HIGH,
+        ImportanceLevel.IMPORTANT: Significance.HIGH,
+        ImportanceLevel.INFO: Significance.MEDIUM,
+        ImportanceLevel.BACKGROUND: Significance.LOW,
+    }
+    rankings = []
+    for n, s in zip(news, scored, strict=True):
+        card = next((c for c in ranking or [] if c.news_id == n.id), None)
+        weight = card.importance if card else importance(s, n.kind)
+        rankings.append(
+            InsightRanking(
+                news_id=n.id,
+                score=card.score if card else s.breakdown(),
+                importance=weight,
+                significance=card.significance if card else levels[weight.level],
+                impact=card.impact if card else rules_impact(n, profile),
+            )
+        )
+    best = max(rankings, key=lambda r: r.importance.score)
     usage = GenerationUsage()
     objective = OBJECTIVE + (f". Акцент пользователя: {focus}" if focus else "")
+    if role is not None:
+        objective += f". Должность: {weights_for(role).title} ({role.value})"
+    objective += ". Контекст ранжирования (оценки, а не подтверждённые факты): " + json.dumps(
+        [r.model_dump(mode="json") for r in rankings], ensure_ascii=False
+    )
     context = AnalysisContext(profile=profile, news=list(news), objective=objective, started_at=now)
     run_id = context.run_id
     execution: ExecutionStatus = "unavailable"
@@ -248,7 +289,7 @@ async def generate_with_trace(
         run = await Orchestrator(
             planner,
             create_tools(connection),
-            limits,
+            limits or Limits(timeout_seconds=180),
             critic=GenerationCritic(recording),
         ).run(profile, news, objective)
         context = run.context
@@ -289,7 +330,7 @@ async def generate_with_trace(
         "news_ids": [n.id for n in news],
         "run_id": run_id,
         "created_at": now,
-        "relevance": best.final,
+        "relevance": best.score.final,
         "models": usage.models,
     }
     try:
@@ -336,6 +377,9 @@ async def generate_with_trace(
         usage=usage,
         execution_status=execution,
         warnings=warnings,
+        ranking=rankings,
+        role=role,
+        feed_snapshot_id=feed_snapshot_id,
     )
 
     return result, build_trace(result, context, monotonic() - started)
@@ -349,8 +393,19 @@ async def generate(
     *,
     focus: str | None = None,
     limits: Limits | None = None,
+    role: Role | None = None,
+    ranking: Sequence[FeedItem] | None = None,
+    feed_snapshot_id: str | None = None,
 ) -> GeneratedInsight:
     result, _ = await generate_with_trace(
-        profile, news, connection, llm, focus=focus, limits=limits
+        profile,
+        news,
+        connection,
+        llm,
+        focus=focus,
+        limits=limits,
+        role=role,
+        ranking=ranking,
+        feed_snapshot_id=feed_snapshot_id,
     )
     return result

@@ -77,6 +77,7 @@ class Scored:
     scale_note: str = ""
     penalties: list[str] = field(default_factory=list)
     role: RoleAdjustment | None = None
+    regional_background: bool = False
 
     @property
     def significance(self) -> Significance:
@@ -192,4 +193,5 @@ def score(
         recency_note=fresh_note,
         scale_note=size_note,
         penalties=matching.penalties,
+        regional_background=matching.regional_background,
     )

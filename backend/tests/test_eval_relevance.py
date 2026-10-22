@@ -88,11 +88,15 @@ async def test_json_cache_round_trip(evaluation: ModuleType, tmp_path: Path) -> 
     assert await again.get("rank_filter", "v2", "prompt") is None
 
 
-async def test_model_verdicts_replay_without_key(evaluation: ModuleType) -> None:
+async def test_historical_verdicts_are_not_reused_after_regional_ranking_changes(
+    evaluation: ModuleType,
+) -> None:
     path = evaluation.EVAL_DIR / "snapshot_llm.json"
     snapshot = evaluation.load_snapshot(path)
     assert snapshot.methods["llm"] > snapshot.methods["rules"]
     cache = evaluation.JsonCache(evaluation.verdicts_path(path))
     report = await evaluation.score(snapshot, evaluation.read_labels(), None, cache)
-    assert "проверено моделью 11 из 11" in report
-    assert "Не размечены" not in report
+    # Региональные коэффициенты меняют вход планировщика: старые ответы не являются
+    # оценкой нового промпта. До обновления разметки отчёт честно показывает пробелы.
+    assert "проверено моделью 0 из 15" in report
+    assert "Не размечены" in report

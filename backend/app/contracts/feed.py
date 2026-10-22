@@ -80,6 +80,7 @@ class Feed(Contract):
 
     schema_version: Literal["1.0"] = SCHEMA_VERSION
     company_id: Id
+    snapshot_id: Id | None = None
     role: Text | None = Field(default=None, description="Должность; null — общая лента")
     generated_at: AwareDatetime
     period_days: int = Field(ge=1)
