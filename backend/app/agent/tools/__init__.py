@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, m
 from app.contracts.common import Id, Text
 
 if TYPE_CHECKING:
-    from app.agent.orchestrator import AnalysisContext
+    from app.agent.context import AnalysisContext
 
 
 class Decision(BaseModel):
@@ -70,6 +70,7 @@ class ToolSpec(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     name: Id
     description: Text
+    cacheable: bool = False
     arguments_schema: dict[str, JsonValue] = Field(default_factory=dict)
     result_schema: dict[str, JsonValue] = Field(default_factory=dict)
 
@@ -96,6 +97,7 @@ class ToolRegistry:
         *,
         arguments_model: type[BaseModel] | None = None,
         result_model: type[BaseModel] | None = None,
+        cacheable: bool = False,
     ) -> None:
         for model in (arguments_model, result_model):
             if model is not None and model.model_config.get("extra") != "forbid":
@@ -103,6 +105,7 @@ class ToolRegistry:
         spec = ToolSpec(
             name=name,
             description=description,
+            cacheable=cacheable,
             arguments_schema=arguments_model.model_json_schema()
             if arguments_model
             else {"type": "object"},
@@ -112,6 +115,9 @@ class ToolRegistry:
             raise ValueError("Инструмент уже зарегистрирован")
         self._tools[spec.name] = (spec, handler)
         self._schemas[spec.name] = (arguments_model, result_model)
+
+    def is_cacheable(self, name: str) -> bool:
+        return self._tools[name][0].cacheable
 
     def specs(self) -> list[ToolSpec]:
         return [spec.model_copy(deep=True) for spec, _ in self._tools.values()]

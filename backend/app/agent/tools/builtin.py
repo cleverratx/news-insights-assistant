@@ -1,12 +1,12 @@
 """A5-03: инструменты агента поверх профиля, поиска, связей и сохранённых оригиналов."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any, Literal
 
 import asyncpg
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, HttpUrl, JsonValue
 
-from app.agent.orchestrator import AnalysisContext
+from app.agent.context import AnalysisContext
 from app.agent.tools import Handler, Observation, ToolRegistry
 from app.contracts.common import Contract, Id, Text
 from app.contracts.links import LinkedCompanies
@@ -135,7 +135,7 @@ def create_tools(connection: Any) -> ToolRegistry:
 
     async def news(context: AnalysisContext, arguments: dict[str, JsonValue]) -> Observation:
         args = NewsSearchArguments.model_validate(arguments)
-        now = datetime.now(UTC)
+        now = context.started_at
         result = await search(
             connection,
             args.query,
@@ -153,7 +153,11 @@ def create_tools(connection: Any) -> ToolRegistry:
     async def bank(context: AnalysisContext, arguments: dict[str, JsonValue]) -> Observation:
         args = SearchArguments.model_validate(arguments)
         result = await search(
-            connection, args.query, kinds=[MaterialKind.BANK_ANALYTICS], limit=args.limit
+            connection,
+            args.query,
+            kinds=[MaterialKind.BANK_ANALYTICS],
+            limit=args.limit,
+            now=context.started_at,
         )
         return Observation(
             data=result.model_dump(mode="json"),
@@ -255,6 +259,11 @@ def create_tools(connection: Any) -> ToolRegistry:
     ]
     for name, description, handler, args_model, result_model in definitions:
         registry.register(
-            name, description, handler, arguments_model=args_model, result_model=result_model
+            name,
+            description,
+            handler,
+            arguments_model=args_model,
+            result_model=result_model,
+            cacheable=True,
         )
     return registry
