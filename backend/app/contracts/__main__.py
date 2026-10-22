@@ -16,6 +16,7 @@ from app.contracts.generation import GeneratedInsight
 from app.contracts.knowledge import KnowledgeBase, KnowledgeGaps
 from app.contracts.links import LinkedCompanies
 from app.contracts.news import NewsCard, NewsStory
+from app.contracts.news_links import NewsLinks, NewsThreads
 from app.contracts.related_feed import RelatedFeed
 from app.contracts.search import SearchResult
 from app.contracts.trace import AgentTrace
@@ -42,6 +43,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "news_card": NewsCard,
     "feed": Feed,
     "related_feed": RelatedFeed,
+    "news_threads": NewsThreads,
+    "news_links": NewsLinks,
 }
 
 

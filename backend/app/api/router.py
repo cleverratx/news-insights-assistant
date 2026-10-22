@@ -8,6 +8,7 @@ from app.api.insights import router as insights_router
 from app.api.knowledge import router as knowledge_router
 from app.api.links import router as links_router
 from app.api.llm import router as llm_router
+from app.api.news_links import router as news_links_router
 from app.api.related_feed import router as related_feed_router
 
 router = APIRouter()
@@ -22,3 +23,4 @@ router.include_router(related_feed_router)
 
 router.include_router(insights_router)
 router.include_router(llm_router)
+router.include_router(news_links_router)

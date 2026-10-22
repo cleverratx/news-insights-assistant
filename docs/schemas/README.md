@@ -65,6 +65,8 @@ RankedItem.matched_features ───────┘
 
 `related_feed.schema.json` — отдельный поток событий о конкурентах и контрагентах (A4-12), с основаниями совпадений и публикациями сюжета.
 
+`news_threads.schema.json` и `news_links.schema.json` — связи между новостями (A5-16): сюжеты по общим сущностям и теме, пометки «Продолжение», «Усиливает», «Противоречит» с объяснением.
+
 `agent_decision.schema.json` и `tool_response.schema.json` — протокол решений агента и ответов инструментов (A5-02), см. [agent.md](../agent.md).
 
 `insight_draft.schema.json` и `critic_report.schema.json` — черновик анализа и отчёт критика A5-05; правила и ограничения описаны в [agent.md](../agent.md).
