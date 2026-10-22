@@ -4,7 +4,7 @@ from typing import Literal, Self
 
 from pydantic import Field, model_validator
 
-from app.contracts.common import Contract, Id, Significance, Text
+from app.contracts.common import BankProduct, Contract, Id, Significance, Text
 from app.contracts.insight import (
     Action,
     Impact,
@@ -81,6 +81,29 @@ class DataGap(Contract):
     news_ids: list[Id] = Field(default_factory=list)
 
 
+class OfferAction(StrEnum):
+    CONTACT_MANAGER = "contact_manager"
+    APPLICATION = "application"
+    CALLBACK = "callback"
+
+
+class ProductOffer(Contract):
+    """Продукт банка, уместный после этого события именно для этой компании."""
+
+    product: BankProduct
+    title: Text
+    why: Text = Field(description="Связь события, вывода и признаков компании с продуктом")
+    benefit: Text = Field(description="Что продукт даёт в этой ситуации")
+    statement_ids: list[Id] = Field(
+        min_length=1, description="Риски или возможности инсайта, на которые отвечает продукт"
+    )
+    feature_ids: list[Id] = Field(min_length=1, description="Признаки компании-основания")
+    already_client: bool = Field(description="Продукт уже подключён: речь о пересмотре условий")
+    next_actions: list[OfferAction] = Field(min_length=1)
+    label: Text = "Предложение Альфа-Банка"
+    disclaimer: Text
+
+
 class InsightRanking(Contract):
     news_id: Id
     score: ScoreBreakdown
@@ -101,6 +124,9 @@ class GeneratedInsight(Contract):
     gaps: list[DataGap] = Field(
         default_factory=list, description="Чего не хватило: честный ответ вместо догадок"
     )
+    offer: ProductOffer | None = Field(
+        default=None, description="Не больше одного продукта и только при обоснованной связи"
+    )
     cache_hit: bool = Field(
         default=False,
         description="Сохранённый ранее разбор выдан из кеша инсайтов без обращения к LLM",
@@ -120,6 +146,12 @@ class GeneratedInsight(Contract):
             raise ValueError("Готовый инсайт должен пройти проверку и содержать действия")
         if self.insight.status is InsightStatus.READY and any(g.blocking for g in self.gaps):
             raise ValueError("У готового инсайта не может быть блокирующих пробелов")
+        if self.offer is not None:
+            impacts = {s.id for s in [*self.insight.risks, *self.insight.opportunities]}
+            if self.insight.status is not InsightStatus.READY:
+                raise ValueError("Продукт предлагается только в готовом инсайте")
+            if not set(self.offer.statement_ids) <= impacts:
+                raise ValueError("Предложение должно опираться на риски или возможности инсайта")
         seen: list[str] = []
         for origin, group in [
             (Origin.FACT, self.presentation.facts),
