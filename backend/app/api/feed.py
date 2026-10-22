@@ -21,12 +21,13 @@ from fastapi import APIRouter, Depends, Query
 from app.api.companies import CompanyId, Connection, company_profile
 from app.cache.store import LLMCache
 from app.contracts.common import Significance
-from app.contracts.feed import Feed, FeedEvent, FeedFeature, FeedItem, FeedRejection
+from app.contracts.feed import Feed, FeedEvent, FeedFeature, FeedItem, FeedRejection, Polarity
 from app.contracts.news import Marker, MaterialKind, NewsItem
 from app.contracts.profile import CompanyProfile
 from app.contracts.rank import (
     Geography,
     GeoScope,
+    ImpactAssessment,
     Importance,
     ImportanceLevel,
     RankedItem,
@@ -37,13 +38,15 @@ from app.llm.client import open_llm_client
 from app.llm.errors import LLMConfigurationError
 from app.news.cards import card, shared_images
 from app.news.markers import markers_of, matches, title
-from app.rank.diversity import diversify, entry, polarity
+from app.rank.diversity import diversify, entry
 from app.rank.importance import DEFAULT_MIN_IMPORTANCE, importance
 from app.rank.importance import scale as importance_scale
 from app.rank.llm_filter import Completer, verify
 from app.rank.regions import locate, presence
 from app.rank.roles import Role, RoleWeights, apply_role, weights_for
 from app.rank.score import Scored, score
+from app.rank.sentiment import assess, criteria_info
+from app.rank.sentiment import scale as impact_scale
 from app.search.service import NEWS_DAYS, load
 
 DEFAULT_DAYS = 7
@@ -51,6 +54,7 @@ DEFAULT_LIMIT = 20
 MAX_LIMIT = 50
 MAX_REASONS = 2
 OTHER_EVENT = "Прочее"
+IMPACT_SIGN = 15
 SIGNIFICANCE = {
     ImportanceLevel.CRITICAL: Significance.HIGH,
     ImportanceLevel.IMPORTANT: Significance.HIGH,
@@ -114,10 +118,17 @@ def explanation(ranked: RankedItem) -> str:
     return "; ".join(reasons) or "Совпадений с признаками компании нет"
 
 
+def impact_polarity(impact: ImpactAssessment) -> Polarity:
+    if impact.score <= -IMPACT_SIGN:
+        return Polarity.RISK
+    return Polarity.OPPORTUNITY if impact.score >= IMPACT_SIGN else Polarity.NEUTRAL
+
+
 def feed_item(
     ranked: RankedItem,
     story: Story,
     weight: Importance,
+    impact: ImpactAssessment,
     place: Geography,
     labels: dict[str, str],
     shared: set[str],
@@ -139,11 +150,12 @@ def feed_item(
             topics=classification.topics if classification else [],
             sentiment=classification.sentiment if classification else None,
             horizon=classification.horizon if classification else None,
-            polarity=polarity(news),
+            polarity=impact_polarity(impact),
         ),
         stage=ranked.stage,
         significance=SIGNIFICANCE[weight.level],
         importance=weight,
+        impact=impact,
         geography=place,
         score=ranked.score,
         explanation=explanation(ranked),
@@ -231,10 +243,15 @@ async def build_feed(
             f"Материалов о регионах и странах, где у компании ничего нет: {demoted}. "
             "Они опущены в конец ленты"
         )
+    assessed = await assess(
+        llm, profile, [(by_id[ranked.news_id].news, explanation(ranked)) for ranked in shown], cache
+    )
     labels = {feature.id: feature.label for feature in profile.features}
     warnings = list(filtered.warnings)
     if filtered.error:
         warnings.append(f"Проверка моделью не удалась: {filtered.error}")
+    if assessed.error:
+        warnings.append(f"Оценка влияния моделью не удалась, оценка по правилам: {assessed.error}")
 
     return Feed(
         company_id=profile.company_id,
@@ -246,6 +263,7 @@ async def build_feed(
                 ranked.model_copy(update={"rank": rank}),
                 by_id[ranked.news_id],
                 weights[ranked.news_id],
+                assessed.impacts[ranked.news_id],
                 geography[ranked.news_id],
                 labels,
                 shared or set(),
@@ -260,6 +278,8 @@ async def build_feed(
         hidden_below_threshold=len(allowed) - len(visible),
         demoted_foreign=demoted,
         importance_scale=importance_scale(),
+        impact_scale=impact_scale(),
+        impact_criteria=criteria_info(),
         rejected=[
             FeedRejection(
                 news_id=rejection.news_id,

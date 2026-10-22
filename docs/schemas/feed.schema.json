@@ -64,7 +64,7 @@
             }
           ],
           "default": null,
-          "description": "Риск или возможность по тональности события для бизнеса"
+          "description": "Риск или возможность для компании: по оценке влияния"
         }
       },
       "required": [
@@ -209,6 +209,10 @@
           "$ref": "#/$defs/Geography",
           "description": "Где событие относительно компании; other_region — опущено в конец ленты"
         },
+        "impact": {
+          "$ref": "#/$defs/ImpactAssessment",
+          "description": "Влияние на бизнес от −100 до +100: цвет, критерии и обоснование"
+        },
         "score": {
           "$ref": "#/$defs/ScoreBreakdown"
         },
@@ -237,6 +241,7 @@
         "significance",
         "importance",
         "geography",
+        "impact",
         "score",
         "explanation"
       ],
@@ -372,6 +377,222 @@
       ],
       "title": "Horizon",
       "type": "string"
+    },
+    "ImpactAssessment": {
+      "additionalProperties": false,
+      "description": "Оценка влияния события на бизнес компании: балл от −100 до +100, цвет и обоснование.\nБалл равен сумме вкладов критериев, ограниченной ±100.",
+      "properties": {
+        "score": {
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Score",
+          "type": "integer"
+        },
+        "color": {
+          "$ref": "#/$defs/ImpactColor"
+        },
+        "title": {
+          "description": "Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность",
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "criteria": {
+          "items": {
+            "$ref": "#/$defs/ImpactCriterion"
+          },
+          "maxItems": 5,
+          "minItems": 5,
+          "title": "Criteria",
+          "type": "array"
+        },
+        "rationale": {
+          "description": "Обоснование балла для карточки",
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "method": {
+          "description": "llm — оценила модель с учётом профиля, rules — запасная оценка по теме",
+          "enum": [
+            "llm",
+            "rules"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        }
+      },
+      "required": [
+        "score",
+        "color",
+        "title",
+        "criteria",
+        "rationale",
+        "method",
+        "confidence"
+      ],
+      "title": "ImpactAssessment",
+      "type": "object"
+    },
+    "ImpactBand": {
+      "additionalProperties": false,
+      "description": "Цветовая зона шкалы влияния для легенды в интерфейсе.",
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/ImpactColor"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "min_score": {
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Min Score",
+          "type": "integer"
+        },
+        "max_score": {
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Max Score",
+          "type": "integer"
+        },
+        "hex": {
+          "minLength": 1,
+          "pattern": "^#[0-9A-F]{6}$",
+          "title": "Hex",
+          "type": "string"
+        }
+      },
+      "required": [
+        "color",
+        "title",
+        "min_score",
+        "max_score",
+        "hex"
+      ],
+      "title": "ImpactBand",
+      "type": "object"
+    },
+    "ImpactColor": {
+      "enum": [
+        "red",
+        "orange",
+        "gray",
+        "light_green",
+        "green"
+      ],
+      "title": "ImpactColor",
+      "type": "string"
+    },
+    "ImpactCriterion": {
+      "additionalProperties": false,
+      "description": "Влияние события на один фиксированный критерий: уровень от −2 до +2 и почему.\nПлюс — лучше для компании: для регуляторного риска плюс значит, что риск снижается.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ImpactCriterionId"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "level": {
+          "description": "−2 существенно хуже … +2 существенно лучше",
+          "maximum": 2,
+          "minimum": -2,
+          "title": "Level",
+          "type": "integer"
+        },
+        "points": {
+          "description": "Вклад в балл: ±20 — заметно, ±50 — существенно",
+          "maximum": 50,
+          "minimum": -50,
+          "title": "Points",
+          "type": "integer"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Почему такой уровень; пусто при 0",
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "level",
+        "points"
+      ],
+      "title": "ImpactCriterion",
+      "type": "object"
+    },
+    "ImpactCriterionId": {
+      "enum": [
+        "revenue",
+        "costs",
+        "market_access",
+        "cost_of_money",
+        "regulatory"
+      ],
+      "title": "ImpactCriterionId",
+      "type": "string"
+    },
+    "ImpactCriterionInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ImpactCriterionId"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description"
+      ],
+      "title": "ImpactCriterionInfo",
+      "type": "object"
     },
     "Importance": {
       "additionalProperties": false,
@@ -957,6 +1178,22 @@
         "$ref": "#/$defs/ImportanceScale"
       },
       "title": "Importance Scale",
+      "type": "array"
+    },
+    "impact_scale": {
+      "description": "Цветовые зоны шкалы влияния",
+      "items": {
+        "$ref": "#/$defs/ImpactBand"
+      },
+      "title": "Impact Scale",
+      "type": "array"
+    },
+    "impact_criteria": {
+      "description": "Критерии оценки влияния и что они значат",
+      "items": {
+        "$ref": "#/$defs/ImpactCriterionInfo"
+      },
+      "title": "Impact Criteria",
       "type": "array"
     },
     "rejected": {

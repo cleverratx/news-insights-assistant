@@ -7,6 +7,9 @@ from app.contracts.common import SCHEMA_VERSION, Contract, Id, Score, Significan
 from app.contracts.news import Horizon, Marker, MaterialKind, NewsCard, Topic
 from app.contracts.rank import (
     Geography,
+    ImpactAssessment,
+    ImpactBand,
+    ImpactCriterionInfo,
     Importance,
     ImportanceScale,
     RankStage,
@@ -37,7 +40,7 @@ class FeedEvent(Contract):
     sentiment: Literal["positive", "negative", "neutral", "mixed"] | None = None
     horizon: Horizon | None = None
     polarity: Polarity | None = Field(
-        default=None, description="Риск или возможность по тональности события для бизнеса"
+        default=None, description="Риск или возможность для компании: по оценке влияния"
     )
 
 
@@ -61,6 +64,9 @@ class FeedItem(Contract):
     importance: Importance = Field(description="Балл 0–10, уровень и вклад каждого фактора")
     geography: Geography = Field(
         description="Где событие относительно компании; other_region — опущено в конец ленты"
+    )
+    impact: ImpactAssessment = Field(
+        description="Влияние на бизнес от −100 до +100: цвет, критерии и обоснование"
     )
     score: ScoreBreakdown
     explanation: Text = Field(description="Почему эта новость для вас: аргумент модели или правил")
@@ -93,6 +99,12 @@ class Feed(Contract):
     )
     importance_scale: list[ImportanceScale] = Field(
         default_factory=list, description="Уровни важности и их критерии для пользователя"
+    )
+    impact_scale: list[ImpactBand] = Field(
+        default_factory=list, description="Цветовые зоны шкалы влияния"
+    )
+    impact_criteria: list[ImpactCriterionInfo] = Field(
+        default_factory=list, description="Критерии оценки влияния и что они значат"
     )
     rejected: list[FeedRejection] = Field(
         default_factory=list, description="Отклонено моделью, с аргументом"

@@ -12,6 +12,7 @@ from app.contracts import CompanyProfile, Insight, NewsItem, RankedItem
 from app.contracts.competitors import Competitors
 from app.contracts.critic import CriticReport
 from app.contracts.feed import Feed
+from app.contracts.generation import GeneratedInsight
 from app.contracts.knowledge import KnowledgeBase, KnowledgeGaps
 from app.contracts.links import LinkedCompanies
 from app.contracts.news import NewsCard, NewsStory
@@ -29,6 +30,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "news_item": NewsItem,
     "ranked_item": RankedItem,
     "insight": Insight,
+    "generated_insight": GeneratedInsight,
     "search_result": SearchResult,
     "knowledge_base": KnowledgeBase,
     "knowledge_gaps": KnowledgeGaps,
