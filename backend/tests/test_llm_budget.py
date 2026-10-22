@@ -8,7 +8,7 @@ import pytest
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from app.llm.budget import MAX_ACCOUNTING_UNITS, RedisBudget, Reservation
+from app.llm.budget import MAX_ACCOUNTING_UNITS, RedisBudget, Reservation, Spending
 from app.llm.errors import BudgetExceededError, BudgetUnavailableError
 
 
@@ -167,3 +167,22 @@ async def test_missing_reservation_does_not_create_ledger(
     with pytest.raises(BudgetUnavailableError):
         await budget.settle(Reservation("2026-10-20", "missing", 100), 40)
     assert not await redis.exists(f"{budget.namespace}:2026-10-20")
+
+
+async def test_settled_spending_is_counted_by_label_once(ledger: tuple[RedisBudget, Redis]) -> None:
+    budget, _ = ledger
+    first = await budget.reserve("2026-10-22", 100, 500, "interpret:glm-5.3-flash")
+    second = await budget.reserve("2026-10-22", 100, 500, "interpret:glm-5.3-flash")
+    third = await budget.reserve("2026-10-22", 50, 500, "classify:deepseek-v4.1-flash")
+    await budget.settle(first, 40)
+    await budget.settle(first, 40)
+    await budget.settle(second, 0)
+    await budget.settle(third, 7)
+    usage = await budget.usage("2026-10-22")
+    assert (usage.spent, usage.reserved, usage.blocked) == (47, 0, False)
+    assert usage.by_label == {
+        "classify:deepseek-v4.1-flash": Spending(1, 7),
+        "interpret:glm-5.3-flash": Spending(2, 40),
+    }
+    assert await budget.spent("2026-10-22") == 47
+    assert (await budget.usage("2026-10-23")).by_label == {}

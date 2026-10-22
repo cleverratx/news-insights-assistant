@@ -12,10 +12,9 @@ from zoneinfo import ZoneInfo
 import httpx
 import structlog
 from pydantic import ValidationError
-from redis.asyncio import Redis
 
 from app.core.config import Settings, get_settings
-from app.llm.budget import Budget, RedisBudget
+from app.llm.budget import UNITS_PER_RUBLE, Budget
 from app.llm.catalog import PROVIDER_MODELS
 from app.llm.errors import (
     BudgetExceededError,
@@ -34,10 +33,15 @@ from app.llm.models import (
     cost_units,
 )
 from app.llm.pricing import estimated_model
+from app.llm.spend import record
+from app.llm.usage import open_budget
 
 logger = structlog.get_logger(__name__)
 FAST_TASKS = frozenset({Task.CLASSIFY, Task.EXTRACT, Task.SUMMARIZE})
-UNITS_PER_RUBLE = 1_000_000
+
+
+def price(model: ModelConfig) -> Decimal:
+    return model.input_rub_per_million + model.output_rub_per_million
 
 
 class LLMClient:
@@ -61,12 +65,22 @@ class LLMClient:
             raise LLMConfigurationError("Укажите адрес API и ключ LLM в окружении")
         self.endpoint = str(url).rstrip("/") + "/chat/completions"
 
-    def select_model(self, task: Task) -> tuple[AllowedModel, ModelConfig]:
+    def select_model(self, task: Task, economy: bool = False) -> tuple[AllowedModel, ModelConfig]:
         if not isinstance(task, Task):
             raise LLMConfigurationError("Неизвестный тип задачи LLM")
-        name = self.settings.llm_model_fast if task in FAST_TASKS else self.settings.llm_model_smart
+        fast = self.settings.llm_model_fast
+        default = fast if task in FAST_TASKS else self.settings.llm_model_smart
+        name = self.settings.llm_routes.get(task, default)
         if name is None:
             raise LLMConfigurationError("Для задачи не настроены разрешённая модель и тарифы")
+        chosen = name, self.model_config(name)
+        if economy and task not in FAST_TASKS and fast is not None and fast != name:
+            cheaper = fast, self.model_config(fast)
+            if price(cheaper[1]) < price(chosen[1]):
+                return cheaper
+        return chosen
+
+    def model_config(self, name: AllowedModel) -> ModelConfig:
         model = self.settings.llm_models.get(name)
         if model is None and self.settings.llm_pricing_mode == "public_estimate":
             model = estimated_model(
@@ -82,16 +96,36 @@ class LLMClient:
             or model.max_input_tokens != expected.max_input_tokens
         ):
             raise LLMConfigurationError("ID или лимит модели не соответствует каталогу провайдера")
-        return name, model
+        return model
+
+    def budget_day(self) -> str:
+        return datetime.now(ZoneInfo(self.settings.llm_budget_timezone)).date().isoformat()
+
+    def daily_limit(self) -> int:
+        return int(self.settings.llm_daily_budget_rub * UNITS_PER_RUBLE)
+
+    def task_limit(self, task: Task) -> int:
+        limit = self.daily_limit()
+        if task in FAST_TASKS:
+            return max(1, int(limit * self.settings.llm_bulk_budget_share))
+        return limit
+
+    async def economy(self, task: Task, day: str) -> bool:
+        share = self.settings.llm_economy_share
+        if task in FAST_TASKS or share >= 1:
+            return False
+        return await self.budget.spent(day) >= self.daily_limit() * share
 
     async def complete(self, task: Task, messages: Sequence[Message]) -> LLMResult:
-        name, model = self.select_model(task)
+        self.select_model(task)
         if not messages:
             raise LLMConfigurationError("Список сообщений LLM пуст")
         payload = [message.model_dump() for message in messages]
         input_bytes = len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
         if input_bytes > self.settings.llm_max_input_bytes:
             raise LLMConfigurationError("Превышен лимит размера входа LLM")
+        economy = await self.economy(task, self.budget_day())
+        name, model = self.select_model(task, economy)
         reservation = cost_units(
             Usage(
                 prompt_tokens=model.max_input_tokens,
@@ -101,7 +135,7 @@ class LLMClient:
         )
         for attempt in range(self.settings.llm_max_retries + 1):
             try:
-                return await self._attempt(name, model, payload, reservation)
+                return await self._attempt(task, name, model, payload, reservation, economy)
             except LLMProviderError as error:
                 if not error.retryable or attempt == self.settings.llm_max_retries:
                     raise
@@ -112,14 +146,16 @@ class LLMClient:
 
     async def _attempt(
         self,
+        task: Task,
         name: AllowedModel,
         model: ModelConfig,
         messages: list[dict[str, object]],
         amount: int,
+        economy: bool,
     ) -> LLMResult:
-        day = datetime.now(ZoneInfo(self.settings.llm_budget_timezone)).date().isoformat()
-        limit = int(self.settings.llm_daily_budget_rub * UNITS_PER_RUBLE)
-        reservation = await self.budget.reserve(day, amount, limit)
+        day = self.budget_day()
+        label = f"{task.value}:{name.value}"
+        reservation = await self.budget.reserve(day, amount, self.task_limit(task), label)
         charge = amount
         usage: Usage | None = None
         status = "неопределённый расход"
@@ -186,9 +222,12 @@ class LLMClient:
             )
         finally:
             await asyncio.shield(self.budget.settle(reservation, charge))
+            record(name.value, charge)
             logger.info(
                 "Учтена попытка обращения к LLM",
+                task=task.value,
                 model=name.value,
+                economy=economy,
                 request_id=reservation.token,
                 budget_day=day,
                 input_tokens=usage.prompt_tokens if usage else None,
@@ -227,10 +266,5 @@ class LLMClient:
 @asynccontextmanager
 async def open_llm_client(settings: Settings | None = None) -> AsyncIterator[LLMClient]:
     config = settings or get_settings()
-    async with (
-        Redis.from_url(
-            config.redis_url.get_secret_value(), socket_connect_timeout=5, socket_timeout=5
-        ) as redis,
-        httpx.AsyncClient() as http,
-    ):
-        yield LLMClient(config, http, RedisBudget(redis))
+    async with open_budget(config) as budget, httpx.AsyncClient() as http:
+        yield LLMClient(config, http, budget)

@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.llm.models import AllowedModel, ModelConfig
+from app.llm.models import AllowedModel, ModelConfig, Task
 
 
 class Settings(BaseSettings):
@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     llm_max_output_tokens: int = Field(default=8192, gt=0, le=32768)
     llm_max_input_bytes: int = Field(default=128000, gt=0, le=1000000)
     llm_budget_timezone: str = "UTC"
+    llm_routes: dict[Task, AllowedModel] = Field(default_factory=dict)
+    llm_bulk_budget_share: Decimal = Field(default=Decimal("0.6"), gt=0, le=1, allow_inf_nan=False)
+    llm_economy_share: Decimal = Field(default=Decimal("0.8"), gt=0, le=1, allow_inf_nan=False)
+    llm_insight_cache_hours: int = Field(default=24, ge=0, le=720)
 
     news_sources_file: str = "app/news/sources.yaml"
     news_fetch_interval_minutes: int = Field(default=30, gt=0)
