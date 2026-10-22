@@ -1,3 +1,5 @@
+import logging
+from datetime import timedelta
 from typing import Annotated, Self
 
 import asyncpg
@@ -5,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Path
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from app.agent.insight import generate_with_trace
+from app.agent.insight_cache import cache_input, cached, remember
 from app.agent.tools.builtin import ORIGINALS
 from app.agent.trace import ensure_storage, load, save
 from app.api.companies import CompanyId, Connection, company_profile
@@ -13,9 +16,11 @@ from app.contracts.common import Id, require_unique
 from app.contracts.generation import GeneratedInsight
 from app.contracts.news import NewsItem
 from app.contracts.trace import AgentTrace
+from app.core.config import get_settings
 from app.rank.roles import Role
 from app.rank.snapshots import restore
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["insights"])
 InsightId = Annotated[str, Path(min_length=1, max_length=200)]
 
@@ -26,6 +31,7 @@ class InsightRequest(BaseModel):
     role: Role | None = None
     feed_snapshot_id: Id | None = None
     focus: str | None = Field(default=None, min_length=1, max_length=600, pattern=r"\S")
+    refresh: bool = Field(default=False, description="Пересобрать разбор, не беря его из кеша")
 
     @model_validator(mode="after")
     def unique(self) -> Self:
@@ -44,7 +50,8 @@ class InsightRequest(BaseModel):
 async def generate_insight(
     company_id: CompanyId, body: InsightRequest, connection: Connection, llm: LLM
 ) -> GeneratedInsight:
-    """Генерация с критиком и сохранением трассы; может расходовать бюджет LLM."""
+    """Генерация с критиком и сохранением трассы; может расходовать бюджет LLM. Готовый разбор
+    тех же материалов для того же профиля, роли и акцента выдаётся из кеша (`cache_hit`)."""
     profile = await company_profile(company_id, connection)
     materials = []
     for doc_id in body.news_ids:
@@ -85,6 +92,16 @@ async def generate_insight(
             raise HTTPException(409, str(error)) from None
         except (OSError, asyncpg.PostgresError):
             raise HTTPException(503, "Снимок ленты недоступен") from None
+    hours = get_settings().llm_insight_cache_hours
+    key = cache_input(profile, materials, body.role, body.focus)
+    if hours and not body.refresh:
+        try:
+            hit = await cached(connection, key, timedelta(hours=hours))
+        except (OSError, asyncpg.PostgresError, ValueError, TypeError, KeyError) as error:
+            logger.warning("Кеш инсайтов недоступен: %s", type(error).__name__)
+            hit = None
+        if hit is not None:
+            return hit[0]
     result, trace = await generate_with_trace(
         profile,
         materials,
@@ -99,6 +116,11 @@ async def generate_insight(
         await save(connection, result, trace)
     except (OSError, asyncpg.PostgresError):
         raise HTTPException(503, "Не удалось сохранить разбор и трассу") from None
+    if hours:
+        try:
+            await remember(connection, key, result)
+        except (OSError, asyncpg.PostgresError) as error:
+            logger.warning("Инсайт не попал в кеш: %s", type(error).__name__)
     return result
 
 

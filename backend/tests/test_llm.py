@@ -10,7 +10,7 @@ import pytest
 from pydantic import SecretStr, ValidationError
 
 from app.core.config import Settings
-from app.llm.budget import Reservation
+from app.llm.budget import DayUsage, Reservation
 from app.llm.client import LLMClient
 from app.llm.errors import (
     BudgetExceededError,
@@ -23,20 +23,31 @@ from app.llm.models import AllowedModel, LLMResult, Message, ModelConfig, Task, 
 
 
 class RecordingBudget:
-    def __init__(self, allowed: bool = True) -> None:
+    def __init__(self, allowed: bool = True, spent: int = 0) -> None:
         self.allowed = allowed
+        self.spent_units = spent
         self.reservations: list[Reservation] = []
+        self.limits: list[int] = []
         self.charges: list[int] = []
+        self.spent_reads = 0
 
-    async def reserve(self, day: str, amount: int, limit: int) -> Reservation:
+    async def reserve(self, day: str, amount: int, limit: int, label: str = "") -> Reservation:
+        self.limits.append(limit)
         if not self.allowed or amount > limit:
             raise BudgetExceededError("Бюджет исчерпан")
-        reservation = Reservation(day, str(len(self.reservations)), amount)
+        reservation = Reservation(day, str(len(self.reservations)), amount, label)
         self.reservations.append(reservation)
         return reservation
 
     async def settle(self, reservation: Reservation, actual: int) -> None:
         self.charges.append(actual)
+
+    async def spent(self, day: str) -> int:
+        self.spent_reads += 1
+        return self.spent_units
+
+    async def usage(self, day: str) -> DayUsage:
+        return DayUsage(day, self.spent_units, 0, False)
 
 
 @pytest.fixture
@@ -262,7 +273,7 @@ async def test_cancellation_keeps_worst_case_charge(settings: Settings) -> None:
 
 async def test_budget_outage_prevents_request(settings: Settings) -> None:
     class UnavailableBudget(RecordingBudget):
-        async def reserve(self, day: str, amount: int, limit: int) -> Reservation:
+        async def reserve(self, day: str, amount: int, limit: int, label: str = "") -> Reservation:
             raise BudgetUnavailableError("Redis недоступен")
 
     with pytest.raises(BudgetUnavailableError):

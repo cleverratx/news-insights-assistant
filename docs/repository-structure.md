@@ -66,5 +66,7 @@
 Журнал и хранение разборов A5-08 — `backend/app/agent/trace.py`, контракт —
 `backend/app/contracts/trace.py`; результат и трасса хранятся в таблице `agent_insights`.
 
+Управление стоимостью A5-09: маршруты, квоты и экономный режим — `backend/app/llm/client.py`, суточные счётчики — `backend/app/llm/budget.py` и `usage.py`, расход на запрос — `backend/app/llm/spend.py`, кеш инсайтов — `backend/app/agent/insight_cache.py`.
+
 Снимки оценок ленты и проверка неизменности контекста — `backend/app/rank/snapshots.py`.
 `frontend/src/App.tsx` подключает ленты, выбор роли, генерацию и чтение трассы.

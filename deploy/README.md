@@ -70,6 +70,10 @@ nginx получает только адрес API; браузер исполь�
 | `LLM_MAX_RETRIES`, `LLM_RETRY_BASE_SECONDS` | число повторов и начальная задержка backoff |
 | `LLM_MAX_OUTPUT_TOKENS`, `LLM_MAX_INPUT_BYTES` | лимит генерации и размера сообщений |
 | `LLM_BUDGET_TIMEZONE` | по умолчанию `UTC`: сброс суток в 03:00 МСК согласно инструкции организаторов |
+| `LLM_ROUTES` | JSON: модель для отдельной задачи (`classify`, `extract`, `summarize`, `rerank`, `interpret`, `research`) поверх `LLM_MODEL_FAST`/`LLM_MODEL_SMART` |
+| `LLM_BULK_BUDGET_SHARE` | доля дневного бюджета для массовых задач `classify`/`extract`/`summarize`, по умолчанию 0,6: остаток гарантированно остаётся для инсайтов |
+| `LLM_ECONOMY_SHARE` | доля потраченного бюджета, после которой сложные задачи идут в более дешёвую `LLM_MODEL_FAST`; 1 — выключено |
+| `LLM_INSIGHT_CACHE_HOURS` | сколько часов готовый инсайт выдаётся из кеша без вызова LLM; 0 — кеш выключен |
 | `NEWS_SOURCES_FILE` | список источников новостей; относительный путь — от каталога `backend` |
 | `NEWS_FETCH_INTERVAL_MINUTES`, `NEWS_USER_AGENT` | интервал обхода источника, если в списке он не задан, и User-Agent парсера |
 | `FEED_MIN_IMPORTANCE` | порог важности 0–10: карточки ниже него в ленте скрыты, по умолчанию 3,5 — граница уровня «Фон»; запрос может переопределить его параметром `min_importance` |

@@ -73,6 +73,10 @@ class GeneratedInsight(Contract):
     ranking: list[InsightRanking] = Field(default_factory=list)
     role: Text | None = None
     feed_snapshot_id: Id | None = None
+    cache_hit: bool = Field(
+        default=False,
+        description="Сохранённый ранее разбор выдан из кеша инсайтов без обращения к LLM",
+    )
 
     @model_validator(mode="after")
     def separated(self) -> Self:

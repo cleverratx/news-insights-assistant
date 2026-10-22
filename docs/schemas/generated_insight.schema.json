@@ -1315,6 +1315,12 @@
       ],
       "default": null,
       "title": "Feed Snapshot Id"
+    },
+    "cache_hit": {
+      "default": false,
+      "description": "Сохранённый ранее разбор выдан из кеша инсайтов без обращения к LLM",
+      "title": "Cache Hit",
+      "type": "boolean"
     }
   },
   "required": [
