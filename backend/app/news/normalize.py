@@ -28,6 +28,7 @@ from selectolax.parser import HTMLParser, Node
 
 from app.contracts.news import Channel, Dedup, Fragment, MaterialKind, NewsItem
 from app.contracts.news import Source as SourceRef
+from app.llm.guard import scan
 from app.news.cards import as_url, pick_image
 from app.news.fetch import Source
 from app.news.issues import Issue, failure, paywalled, repair
@@ -333,6 +334,12 @@ def quality(raw: RawRecord, origin: TextOrigin, text: str) -> list[Issue]:
         )
     elif raw.html and origin in ("summary", "title"):
         issues.append(Issue("empty_page", f"на странице не найден текст, взят {origin} из ленты"))
+    threats = scan(f"{raw.title or ''}\n{raw.summary or ''}\n{text}")
+    if threats:
+        found = ", ".join(sorted(set(threats)))
+        issues.append(
+            Issue("injection", f"признаки команд для модели ({found}); в промпт идёт через фильтр")
+        )
     return issues
 
 

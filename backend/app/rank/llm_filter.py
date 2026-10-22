@@ -29,6 +29,7 @@ from app.contracts.news import NewsItem
 from app.contracts.profile import CompanyProfile
 from app.contracts.rank import FeatureMatch, RankedItem, RankStage
 from app.llm.errors import LLMError
+from app.llm.guard import clean
 from app.llm.models import LLMResult, Message, Task
 from app.rank.score import Scored, significance
 
@@ -121,10 +122,12 @@ def cache_version() -> str:
 
 def company_context(profile: CompanyProfile) -> str:
     features = "\n".join(
-        f"- {feature.id}: {feature.label}" for feature in profile.features[:MAX_FEATURES]
+        f"- {feature.id}: {clean(feature.label, profile.company_id)}"
+        for feature in profile.features[:MAX_FEATURES]
     )
     exposures = "\n".join(
-        f"- {exposure.topic.value} ({exposure.direction.value}): {exposure.reason}"
+        f"- {exposure.topic.value} ({exposure.direction.value}): "
+        f"{clean(exposure.reason, profile.company_id)}"
         for exposure in profile.exposures[:MAX_EXPOSURES]
     )
     return (
@@ -134,12 +137,12 @@ def company_context(profile: CompanyProfile) -> str:
 
 
 def news_block(key: str, news: NewsItem, scored: Scored) -> str:
-    body = (news.summary or news.text)[:MAX_NEWS_CHARS]
+    body = clean((news.summary or news.text)[:MAX_NEWS_CHARS], news.id)
     reasons = "; ".join(found.reason for found in scored.contributions[:MAX_REASONS])
     return (
-        f"[{key}] {news.title}\nИсточник: {news.source.name}, "
+        f"[{key}] {clean(news.title, news.id)}\nИсточник: {clean(news.source.name, news.id)}, "
         f"{news.published_at.date().isoformat()}\n{body}\n"
-        f"Почему отобрана правилами: {reasons or 'нет совпадений'}"
+        f"Почему отобрана правилами: {clean(reasons, news.id) or 'нет совпадений'}"
     )
 
 

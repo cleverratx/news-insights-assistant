@@ -11,7 +11,9 @@ from typing import Any, Literal
 
 from selectolax.parser import HTMLParser
 
-IssueKind = Literal["encoding_fixed", "encoding", "empty_page", "paywall", "no_date", "error"]
+IssueKind = Literal[
+    "encoding_fixed", "encoding", "empty_page", "paywall", "no_date", "injection", "error"
+]
 MAX_ERRORS = 3
 CHARSET = re.compile(rb"""<meta[^>]+charset=["']?([\w-]+)""", re.IGNORECASE)
 HEADER_CHARSET = re.compile(r"charset=([\w-]+)", re.IGNORECASE)
