@@ -29,6 +29,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from app.cache.store import LLMCache, schema_text, version_of
 from app.contracts.news import FactStatus, KeyFact, NewsItem
 from app.llm.errors import LLMError
+from app.llm.guard import clean
 from app.llm.models import Message, Task
 from app.news.classify import Completer, parse_json_object
 from app.news.dedup import ensure_schema as ensure_dedup
@@ -123,13 +124,13 @@ def news_prompt(item: NewsItem) -> str:
     for fragment in item.fragments[:MAX_FRAGMENTS]:
         if size + len(fragment.text) > MAX_INPUT_CHARS:
             break
-        lines.append(f"[{fragment.id}] {fragment.text}")
+        lines.append(f"[{fragment.id}] {clean(fragment.text, item.id)}")
         size += len(fragment.text)
-    body = "\n".join(lines) or f"[p1] {item.text[:MAX_INPUT_CHARS]}"
+    body = "\n".join(lines) or f"[p1] {clean(item.text[:MAX_INPUT_CHARS], item.id)}"
     date = item.published_at.date().isoformat()
     return (
-        f"<<<НОВОСТЬ\nИсточник: {item.source.name}\nДата: {date}\n"
-        f"Заголовок: {item.title}\n\n{body}\nНОВОСТЬ>>>"
+        f"<<<НОВОСТЬ\nИсточник: {clean(item.source.name, item.id)}\nДата: {date}\n"
+        f"Заголовок: {clean(item.title, item.id)}\n\n{body}\nНОВОСТЬ>>>"
     )
 
 

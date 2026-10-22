@@ -25,6 +25,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from app.cache.store import LLMCache, schema_text, version_of
 from app.contracts.news import Classification, Horizon, NewsItem, Topic
 from app.llm.errors import LLMError
+from app.llm.guard import clean
 from app.llm.models import LLMResult, Message, Task
 from app.news.dedup import ensure_schema as ensure_dedup
 from app.news.issues import ensure_schema as ensure_issues
@@ -157,11 +158,11 @@ def system_prompt() -> str:
 
 
 def news_prompt(item: NewsItem) -> str:
-    text = item.text[:MAX_INPUT_CHARS]
+    text = clean(item.text[:MAX_INPUT_CHARS], item.id)
     date = item.published_at.date().isoformat()
     return (
-        f"<<<НОВОСТЬ\nИсточник: {item.source.name}\nДата: {date}\n"
-        f"Заголовок: {item.title}\n\n{text}\nНОВОСТЬ>>>"
+        f"<<<НОВОСТЬ\nИсточник: {clean(item.source.name, item.id)}\nДата: {date}\n"
+        f"Заголовок: {clean(item.title, item.id)}\n\n{text}\nНОВОСТЬ>>>"
     )
 
 

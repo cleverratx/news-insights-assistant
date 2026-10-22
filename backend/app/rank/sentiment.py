@@ -38,6 +38,7 @@ from app.contracts.rank import (
     ImpactCriterionInfo,
 )
 from app.llm.errors import LLMError
+from app.llm.guard import clean
 from app.llm.models import LLMResult, Message, Task
 from app.rank.llm_filter import company_context
 from app.rank.rules import TOPIC_TITLES
@@ -253,10 +254,10 @@ def rules_impact(news: NewsItem, profile: CompanyProfile) -> ImpactAssessment:
 
 
 def card_block(key: str, news: NewsItem, why: str) -> str:
-    body = (news.summary or news.text)[:MAX_NEWS_CHARS]
+    body = clean((news.summary or news.text)[:MAX_NEWS_CHARS], news.id)
     return (
-        f"[{key}] {news.title}\nИсточник: {news.source.name}, "
-        f"{news.published_at.date().isoformat()}\n{body}\nПочему отобрана: {why}"
+        f"[{key}] {clean(news.title, news.id)}\nИсточник: {clean(news.source.name, news.id)}, "
+        f"{news.published_at.date().isoformat()}\n{body}\nПочему отобрана: {clean(why, news.id)}"
     )
 
 

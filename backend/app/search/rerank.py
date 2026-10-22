@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from app.cache.store import LLMCache, schema_text, version_of
 from app.contracts.search import SearchHit
 from app.llm.errors import LLMError
+from app.llm.guard import clean
 from app.llm.models import LLMResult, Message, Task
 from app.search.engine import Candidate, best_sentence, bm25_hits, hit, tokens, verbatim
 
@@ -62,10 +63,12 @@ class Answer(BaseModel):
 
 def prompt(query: str, candidates: Sequence[Candidate]) -> str:
     blocks = [
-        f"[c{index}] {candidate.passage.item.title}\n{candidate.passage.text[:MAX_PASSAGE]}"
+        f"[c{index}] {clean(candidate.passage.item.title, candidate.passage.item.id)}\n"
+        f"{clean(candidate.passage.text[:MAX_PASSAGE], candidate.passage.item.id)}"
         for index, candidate in enumerate(candidates, start=1)
     ]
-    return f"Запрос: {query}\n\n<<<ФРАГМЕНТЫ\n" + "\n\n".join(blocks) + "\nФРАГМЕНТЫ>>>"
+    question = clean(query, "запрос")
+    return f"Запрос: {question}\n\n<<<ФРАГМЕНТЫ\n" + "\n\n".join(blocks) + "\nФРАГМЕНТЫ>>>"
 
 
 def parse(text: str) -> Answer:
