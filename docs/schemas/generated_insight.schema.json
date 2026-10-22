@@ -247,6 +247,88 @@
       "title": "CheckProblem",
       "type": "string"
     },
+    "CompanyMention": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "relationship": {
+          "enum": [
+            "competitor",
+            "counterparty"
+          ],
+          "title": "Relationship",
+          "type": "string"
+        },
+        "origins": {
+          "items": {
+            "$ref": "#/$defs/LinkOrigin"
+          },
+          "title": "Origins",
+          "type": "array"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CounterpartyRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "method": {
+          "enum": [
+            "entity",
+            "text"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "evidence": {
+          "description": "Название сущности или фрагмент исходного текста",
+          "minLength": 1,
+          "title": "Evidence",
+          "type": "string"
+        },
+        "news_id": {
+          "description": "Публикация, в которой найдено упоминание",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "relationship",
+        "method",
+        "evidence",
+        "news_id"
+      ],
+      "title": "CompanyMention",
+      "type": "object"
+    },
+    "CounterpartyRole": {
+      "enum": [
+        "buyer",
+        "supplier",
+        "carrier"
+      ],
+      "title": "CounterpartyRole",
+      "type": "string"
+    },
     "DataGap": {
       "additionalProperties": false,
       "description": "Чего не хватило для вывода и что из-за этого не показано или показано с оговоркой.",
@@ -1083,6 +1165,16 @@
       "title": "LabeledStatement",
       "type": "object"
     },
+    "LinkOrigin": {
+      "enum": [
+        "payments",
+        "group",
+        "shared_person",
+        "client"
+      ],
+      "title": "LinkOrigin",
+      "type": "string"
+    },
     "OfferAction": {
       "enum": [
         "contact_manager",
@@ -1185,6 +1277,55 @@
         "disclaimer"
       ],
       "title": "ProductOffer",
+      "type": "object"
+    },
+    "RelatedFrame": {
+      "additionalProperties": false,
+      "description": "Событие у конкурента или контрагента: выжимка новости и «что это значит для нас».",
+      "properties": {
+        "company": {
+          "$ref": "#/$defs/CompanyMention"
+        },
+        "relation_feature_id": {
+          "description": "Признак профиля со связью клиента и компании",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Relation Feature Id",
+          "type": "string"
+        },
+        "relation": {
+          "description": "Кем компания приходится клиенту и на чём это основано",
+          "minLength": 1,
+          "title": "Relation",
+          "type": "string"
+        },
+        "digest": {
+          "description": "Выжимка: что произошло у компании",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Digest",
+          "type": "array"
+        },
+        "meaning": {
+          "description": "Что это значит для нас: важность, последствия, действия",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Meaning",
+          "type": "array"
+        }
+      },
+      "required": [
+        "company",
+        "relation_feature_id",
+        "relation"
+      ],
+      "title": "RelatedFrame",
       "type": "object"
     },
     "RoleAdjustment": {
@@ -1777,6 +1918,18 @@
       },
       "title": "Gaps",
       "type": "array"
+    },
+    "related": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RelatedFrame"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Разбор события у конкурента или контрагента"
     },
     "role_view": {
       "anyOf": [

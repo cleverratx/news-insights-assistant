@@ -8,10 +8,13 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 
 from app.agent.insight import for_role, generate_with_trace
 from app.agent.insight_cache import cache_input, cached, remember
+from app.agent.related import focus_for, relation_for, with_relation
 from app.agent.tools.builtin import ORIGINALS
 from app.agent.trace import ensure_storage, load, save
 from app.api.companies import CompanyId, Connection, company_profile
+from app.api.competitors import company_competitors
 from app.api.feed import LLM
+from app.api.links import company_links
 from app.contracts.common import Id, require_unique
 from app.contracts.generation import GeneratedInsight
 from app.contracts.news import NewsItem
@@ -32,6 +35,13 @@ class InsightRequest(BaseModel):
     feed_snapshot_id: Id | None = None
     focus: str | None = Field(default=None, min_length=1, max_length=600, pattern=r"\S")
     refresh: bool = Field(default=False, description="Пересобрать разбор, не беря его из кеша")
+    related_company_id: Id | None = Field(
+        default=None,
+        description=(
+            "Конкурент или контрагент из ленты связей: выжимка события у него и "
+            "«что это значит для нас»"
+        ),
+    )
 
     @model_validator(mode="after")
     def unique(self) -> Self:
@@ -44,6 +54,7 @@ class InsightRequest(BaseModel):
     response_model=GeneratedInsight,
     responses={
         404: {"description": "Компания или материал не найдены"},
+        422: {"description": "Связанная компания не найдена или не упоминается в материалах"},
         503: {"description": "Хранилище недоступно или содержит некорректные данные"},
     },
 )
@@ -93,8 +104,23 @@ async def generate_insight(
             raise HTTPException(409, str(error)) from None
         except (OSError, asyncpg.PostgresError):
             raise HTTPException(503, "Снимок ленты недоступен") from None
+    relation = None
+    focus = body.focus
+    if body.related_company_id:
+        relation = relation_for(
+            body.related_company_id,
+            materials,
+            await company_competitors(connection, company_id),
+            await company_links(connection, company_id),
+        )
+        if relation is None:
+            raise HTTPException(
+                422, "Компании нет среди конкурентов и контрагентов или её нет в материалах"
+            )
+        profile = with_relation(profile, relation)
+        focus = focus_for(relation, body.focus)
     hours = get_settings().llm_insight_cache_hours
-    key = cache_input(profile, materials, body.focus)
+    key = cache_input(profile, materials, focus)
     if hours and not body.refresh:
         try:
             hit = await cached(connection, key, timedelta(hours=hours))
@@ -121,10 +147,11 @@ async def generate_insight(
         materials,
         connection,
         llm,
-        focus=body.focus,
+        focus=focus,
         role=body.role,
         ranking=ranking,
         feed_snapshot_id=body.feed_snapshot_id,
+        relation=relation,
     )
     try:
         await save(connection, result, trace)

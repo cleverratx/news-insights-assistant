@@ -14,6 +14,7 @@ from app.agent.critic import Draft, InsightCritic
 from app.agent.fallback import confirmed_facts, data_gaps, salvage
 from app.agent.offers import offer_for, prompt_hint
 from app.agent.orchestrator import SYSTEM_PROMPT, Completer, Limits, LLMPlanner, Orchestrator
+from app.agent.related import Relation
 from app.agent.roles import role_view
 from app.agent.tools.builtin import create_tools
 from app.agent.trace import build_trace, ground
@@ -29,6 +30,7 @@ from app.contracts.generation import (
     InsightPresentation,
     InsightRanking,
     LabeledStatement,
+    RelatedFrame,
 )
 from app.contracts.insight import (
     CheckIssue,
@@ -158,7 +160,7 @@ class InsightPlanner(LLMPlanner):
         return payload
 
 
-def present(insight: Insight) -> InsightPresentation:
+def present(insight: Insight, relation: Relation | None = None) -> InsightPresentation:
     groups: dict[Origin, list[LabeledStatement]] = {origin: [] for origin in Origin}
     labels = {
         Origin.FACT: "Факт по источнику",
@@ -179,8 +181,16 @@ def present(insight: Insight) -> InsightPresentation:
     bank_empty = "Подходящая позиция банка не найдена; вывод ИИ не подменяет её"
     blocks = []
     sections: list[tuple[BlockId, str, Sequence[Statement]]] = [
-        ("event", "Что произошло", insight.what_happened),
-        ("relevance", "Почему важно компании", insight.why_it_matters),
+        (
+            "event",
+            f"Что произошло у {relation.mention.name}" if relation else "Что произошло",
+            insight.what_happened,
+        ),
+        (
+            "relevance",
+            "Что это значит для нас" if relation else "Почему важно компании",
+            insight.why_it_matters,
+        ),
         ("consequences", "Риски и возможности", [*insight.risks, *insight.opportunities]),
         ("actions", "Что предпринять", insight.actions),
         ("bank", "Позиция Альфа-Банка", insight.bank_view),
@@ -212,6 +222,26 @@ def present(insight: Insight) -> InsightPresentation:
         client_context=groups[Origin.CLIENT_DATA],
         blocks=blocks,
         originals=insight.sources,
+    )
+
+
+def framed(insight: Insight, relation: Relation | None) -> RelatedFrame | None:
+    if relation is None:
+        return None
+    return RelatedFrame(
+        company=relation.mention,
+        relation_feature_id=relation.feature.id,
+        relation=relation.feature.label,
+        digest=[s.id for s in insight.what_happened],
+        meaning=[
+            s.id
+            for s in [
+                *insight.why_it_matters,
+                *insight.risks,
+                *insight.opportunities,
+                *insight.actions,
+            ]
+        ],
     )
 
 
@@ -319,6 +349,7 @@ async def generate_with_trace(
     role: Role | None = None,
     ranking: Sequence[FeedItem] | None = None,
     feed_snapshot_id: str | None = None,
+    relation: Relation | None = None,
 ) -> tuple[GeneratedInsight, AgentTrace]:
     started = monotonic()
     if not news or len(news) > 3 or len({n.id for n in news}) != len(news):
@@ -456,7 +487,8 @@ async def generate_with_trace(
         warnings.append("Позиция банка не найдена; это не означает согласия банка с выводами ИИ")
     result = GeneratedInsight(
         insight=insight,
-        presentation=present(insight),
+        presentation=present(insight, relation),
+        related=framed(insight, relation),
         usage=usage,
         execution_status=execution,
         warnings=warnings,
@@ -489,6 +521,7 @@ async def generate(
     role: Role | None = None,
     ranking: Sequence[FeedItem] | None = None,
     feed_snapshot_id: str | None = None,
+    relation: Relation | None = None,
 ) -> GeneratedInsight:
     result, _ = await generate_with_trace(
         profile,
@@ -500,5 +533,6 @@ async def generate(
         role=role,
         ranking=ranking,
         feed_snapshot_id=feed_snapshot_id,
+        relation=relation,
     )
     return result

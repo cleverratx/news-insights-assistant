@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, m
 from app.agent.context import AnalysisContext
 from app.agent.fallback import number_issues, pool
 from app.agent.offers import product_issues
+from app.agent.related import relation_ids
 from app.agent.tools.builtin import SourceExcerpt
 from app.contracts.common import Id, Text
 from app.contracts.critic import CriticReport
@@ -275,6 +276,22 @@ def checks(context: AnalysisContext, draft: Draft) -> tuple[list[CheckIssue], di
                     CheckProblem.NOT_PERSONAL,
                     "Важность не опирается на признак компании",
                     statement.id,
+                )
+            )
+    relations = relation_ids(context.profile)
+    if relations and draft.why_it_matters:
+        relation_refs = {
+            source_map[s].ref_id
+            for statement in draft.why_it_matters
+            for s in statement.source_ids
+            if s in source_map
+        }
+        if not relation_refs & relations:
+            problems.append(
+                issue(
+                    CheckProblem.NOT_PERSONAL,
+                    "«Что это значит для нас» должно опираться на связь с компанией из новости: "
+                    f"сошлись на признак {sorted(relations)[0]}",
                 )
             )
     for statement in draft.what_happened:

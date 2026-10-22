@@ -15,6 +15,7 @@ from app.contracts.insight import (
     Statement,
 )
 from app.contracts.rank import ImpactAssessment, Importance, ScoreBreakdown
+from app.contracts.related_feed import CompanyMention
 from app.llm.models import AllowedModel
 
 type BlockId = Literal["event", "relevance", "consequences", "actions", "bank", "basis"]
@@ -132,6 +133,18 @@ class RoleView(Contract):
     )
 
 
+class RelatedFrame(Contract):
+    """Событие у конкурента или контрагента: выжимка новости и «что это значит для нас»."""
+
+    company: CompanyMention
+    relation_feature_id: Id = Field(description="Признак профиля со связью клиента и компании")
+    relation: Text = Field(description="Кем компания приходится клиенту и на чём это основано")
+    digest: list[Id] = Field(default_factory=list, description="Выжимка: что произошло у компании")
+    meaning: list[Id] = Field(
+        default_factory=list, description="Что это значит для нас: важность, последствия, действия"
+    )
+
+
 class InsightRanking(Contract):
     news_id: Id
     score: ScoreBreakdown
@@ -151,6 +164,9 @@ class GeneratedInsight(Contract):
     feed_snapshot_id: Id | None = None
     gaps: list[DataGap] = Field(
         default_factory=list, description="Чего не хватило: честный ответ вместо догадок"
+    )
+    related: RelatedFrame | None = Field(
+        default=None, description="Разбор события у конкурента или контрагента"
     )
     role_view: RoleView | None = Field(
         default=None, description="Акценты и формулировки под должность поверх общей фактуры"
@@ -177,6 +193,21 @@ class GeneratedInsight(Contract):
             raise ValueError("Готовый инсайт должен пройти проверку и содержать действия")
         if self.insight.status is InsightStatus.READY and any(g.blocking for g in self.gaps):
             raise ValueError("У готового инсайта не может быть блокирующих пробелов")
+        if self.related is not None:
+            insight = self.insight
+            meaning = {
+                s.id
+                for s in [
+                    *insight.why_it_matters,
+                    *insight.risks,
+                    *insight.opportunities,
+                    *insight.actions,
+                ]
+            }
+            if not set(self.related.digest) <= {s.id for s in insight.what_happened}:
+                raise ValueError("Выжимка состоит из утверждений «что произошло»")
+            if not set(self.related.meaning) <= meaning:
+                raise ValueError("«Что это значит для нас» — важность, последствия и действия")
         if self.role_view is not None:
             view = self.role_view
             if self.insight.status is not InsightStatus.READY or view.role != self.role:
