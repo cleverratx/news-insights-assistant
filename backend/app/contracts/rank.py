@@ -29,7 +29,17 @@ class FeatureMatch(Contract):
     )
 
 
+class RoleAdjustment(Contract):
+    id: Id
+    title: Text
+    multiplier: float = Field(ge=0.2, le=2, allow_inf_nan=False)
+    company_relevance: Score
+    role_relevance: Score
+    detail: Text
+
+
 class ScoreBreakdown(Contract):
+    role: RoleAdjustment | None = None
     lexical: float | None = Field(default=None, ge=0, allow_inf_nan=False, description="Сырой BM25")
     lexical_norm: Score | None = None
     llm: Score | None = Field(default=None, description="Оценка переранжирования моделью")
