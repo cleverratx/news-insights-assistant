@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, m
 
 from app.agent.context import AnalysisContext
 from app.agent.fallback import number_issues, pool
+from app.agent.offers import product_issues
 from app.agent.tools.builtin import SourceExcerpt
 from app.contracts.common import Id, Text
 from app.contracts.critic import CriticReport
@@ -296,6 +297,7 @@ def checks(context: AnalysisContext, draft: Draft) -> tuple[list[CheckIssue], di
         ]
     )
     problems.extend(number_issues(statements, numbers))
+    problems.extend(product_issues(draft.actions, context.profile, context.news))
     return problems, excerpts
 
 

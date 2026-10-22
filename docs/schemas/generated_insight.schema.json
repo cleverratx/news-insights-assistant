@@ -984,6 +984,15 @@
       "title": "LabeledStatement",
       "type": "object"
     },
+    "OfferAction": {
+      "enum": [
+        "contact_manager",
+        "application",
+        "callback"
+      ],
+      "title": "OfferAction",
+      "type": "string"
+    },
     "Origin": {
       "enum": [
         "fact",
@@ -993,6 +1002,91 @@
       ],
       "title": "Origin",
       "type": "string"
+    },
+    "ProductOffer": {
+      "additionalProperties": false,
+      "description": "Продукт банка, уместный после этого события именно для этой компании.",
+      "properties": {
+        "product": {
+          "$ref": "#/$defs/BankProduct"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "why": {
+          "description": "Связь события, вывода и признаков компании с продуктом",
+          "minLength": 1,
+          "title": "Why",
+          "type": "string"
+        },
+        "benefit": {
+          "description": "Что продукт даёт в этой ситуации",
+          "minLength": 1,
+          "title": "Benefit",
+          "type": "string"
+        },
+        "statement_ids": {
+          "description": "Риски или возможности инсайта, на которые отвечает продукт",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Statement Ids",
+          "type": "array"
+        },
+        "feature_ids": {
+          "description": "Признаки компании-основания",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Feature Ids",
+          "type": "array"
+        },
+        "already_client": {
+          "description": "Продукт уже подключён: речь о пересмотре условий",
+          "title": "Already Client",
+          "type": "boolean"
+        },
+        "next_actions": {
+          "items": {
+            "$ref": "#/$defs/OfferAction"
+          },
+          "minItems": 1,
+          "title": "Next Actions",
+          "type": "array"
+        },
+        "label": {
+          "default": "Предложение Альфа-Банка",
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "disclaimer": {
+          "minLength": 1,
+          "title": "Disclaimer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "product",
+        "title",
+        "why",
+        "benefit",
+        "statement_ids",
+        "feature_ids",
+        "already_client",
+        "next_actions",
+        "disclaimer"
+      ],
+      "title": "ProductOffer",
+      "type": "object"
     },
     "RoleAdjustment": {
       "additionalProperties": false,
@@ -1411,6 +1505,18 @@
       },
       "title": "Gaps",
       "type": "array"
+    },
+    "offer": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProductOffer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Не больше одного продукта и только при обоснованной связи"
     },
     "cache_hit": {
       "default": false,

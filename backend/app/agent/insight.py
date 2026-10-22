@@ -12,6 +12,7 @@ from pydantic import JsonValue, ValidationError
 from app.agent.context import AnalysisContext
 from app.agent.critic import Draft, InsightCritic
 from app.agent.fallback import confirmed_facts, data_gaps, salvage
+from app.agent.offers import offer_for, prompt_hint
 from app.agent.orchestrator import SYSTEM_PROMPT, Completer, Limits, LLMPlanner, Orchestrator
 from app.agent.tools.builtin import create_tools
 from app.agent.trace import build_trace
@@ -265,6 +266,7 @@ async def generate_with_trace(
     objective = OBJECTIVE + (f". Акцент пользователя: {focus}" if focus else "")
     if role is not None:
         objective += f". Должность: {weights_for(role).title} ({role.value})"
+    objective += ". " + prompt_hint(profile, news)
     objective += ". Контекст ранжирования (оценки, а не подтверждённые факты): " + json.dumps(
         [r.model_dump(mode="json") for r in rankings], ensure_ascii=False
     )
@@ -398,6 +400,7 @@ async def generate_with_trace(
             reviews=context.critic_reviews,
             pruned=pruned,
         ),
+        offer=offer_for(insight, profile, news),
         ranking=rankings,
         role=role,
         feed_snapshot_id=feed_snapshot_id,
