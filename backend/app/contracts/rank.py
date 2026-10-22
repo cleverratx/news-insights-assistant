@@ -122,3 +122,28 @@ class ImportanceScale(Contract):
     title: Text
     min_score: float = Field(ge=0, le=10, allow_inf_nan=False)
     description: Text
+
+
+class GeoScope(StrEnum):
+    HOME = "home"
+    PRESENCE = "presence"
+    NATIONAL = "national"
+    OTHER_REGION = "other_region"
+
+
+class GeoPlace(Contract):
+    """Место присутствия компании, с которым совпала новость."""
+
+    name: Text
+    source: Literal["home", "counterparty", "group", "related", "person", "market", "trade"]
+    feature_id: Id | None = Field(default=None, description="Признак профиля, откуда место")
+
+
+class Geography(Contract):
+    """Где происходит событие относительно компании. other_region — региональное событие там, где у
+    компании ничего нет: такая карточка в ленте опускается вниз, но не скрывается."""
+
+    scope: GeoScope
+    places: list[Text] = Field(default_factory=list, description="Регионы и страны из новости")
+    matched: list[GeoPlace] = Field(default_factory=list)
+    detail: Text

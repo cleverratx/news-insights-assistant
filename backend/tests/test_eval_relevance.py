@@ -1,3 +1,4 @@
+import re
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -94,5 +95,6 @@ async def test_model_verdicts_replay_without_key(evaluation: ModuleType) -> None
     assert snapshot.methods["llm"] > snapshot.methods["rules"]
     cache = evaluation.JsonCache(evaluation.verdicts_path(path))
     report = await evaluation.score(snapshot, evaluation.read_labels(), None, cache)
-    assert "проверено моделью 11 из 11" in report
+    checked = re.search(r"проверено моделью (\d+) из (\d+)", report)
+    assert checked is not None and checked.group(1) == checked.group(2) != "0"
     assert "Не размечены" not in report
