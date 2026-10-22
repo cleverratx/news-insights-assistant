@@ -11,6 +11,7 @@ from app.agent.tools import Decision, ToolResponse
 from app.contracts import CompanyProfile, Insight, NewsItem, RankedItem
 from app.contracts.competitors import Competitors
 from app.contracts.critic import CriticReport
+from app.contracts.digest import Digest
 from app.contracts.feed import Feed
 from app.contracts.generation import GeneratedInsight
 from app.contracts.knowledge import KnowledgeBase, KnowledgeGaps
@@ -45,6 +46,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "related_feed": RelatedFeed,
     "news_threads": NewsThreads,
     "news_links": NewsLinks,
+    "digest": Digest,
 }
 
 

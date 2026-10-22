@@ -1,0 +1,655 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "digest.schema.json",
+  "$defs": {
+    "AllowedModel": {
+      "enum": [
+        "gemma-4-26b-a4b",
+        "glm-5.3-flash",
+        "qwen3.6-35b-a3b",
+        "deepseek-v4.1-flash",
+        "qwen3-vl-30b-a3b-instruct",
+        "kimi-k2.6"
+      ],
+      "title": "AllowedModel",
+      "type": "string"
+    },
+    "DataGap": {
+      "additionalProperties": false,
+      "description": "Чего не хватило для вывода и что из-за этого не показано или показано с оговоркой.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/GapKind"
+        },
+        "missing": {
+          "description": "Чего не хватает — словами для пользователя",
+          "minLength": 1,
+          "title": "Missing",
+          "type": "string"
+        },
+        "consequence": {
+          "description": "Что из-за этого не сделано или сделано с оговоркой",
+          "minLength": 1,
+          "title": "Consequence",
+          "type": "string"
+        },
+        "remedy": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Как восполнить пробел",
+          "title": "Remedy"
+        },
+        "blocking": {
+          "description": "Из-за пробела персональный вывод не сформирован",
+          "title": "Blocking",
+          "type": "boolean"
+        },
+        "details": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Details",
+          "type": "array"
+        },
+        "question_keys": {
+          "description": "Вопросы базы знаний компании, закрывающие пробел",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Question Keys",
+          "type": "array"
+        },
+        "news_ids": {
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "News Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "missing",
+        "consequence",
+        "blocking"
+      ],
+      "title": "DataGap",
+      "type": "object"
+    },
+    "DigestPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin",
+          "description": "fact — из материала, bank — аналитика банка, model — вывод ИИ по материалам"
+        },
+        "news_ids": {
+          "description": "Материалы-основания",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "News Ids",
+          "type": "array"
+        },
+        "feature_ids": {
+          "description": "Признаки компании",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Feature Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "origin"
+      ],
+      "title": "DigestPoint",
+      "type": "object"
+    },
+    "DigestStep": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "cached",
+            "skipped",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "status",
+        "detail"
+      ],
+      "title": "DigestStep",
+      "type": "object"
+    },
+    "GapKind": {
+      "enum": [
+        "model",
+        "verification",
+        "numbers",
+        "bank_view",
+        "source_text",
+        "company_data"
+      ],
+      "title": "GapKind",
+      "type": "string"
+    },
+    "GenerationUsage": {
+      "additionalProperties": false,
+      "properties": {
+        "calls": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "prompt_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Prompt Tokens",
+          "type": "integer"
+        },
+        "completion_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Completion Tokens",
+          "type": "integer"
+        },
+        "known_cost_rub": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": "0",
+          "title": "Known Cost Rub"
+        },
+        "models": {
+          "items": {
+            "$ref": "#/$defs/AllowedModel"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "pricing_modes": {
+          "items": {
+            "enum": [
+              "configured",
+              "public_estimate"
+            ],
+            "type": "string"
+          },
+          "title": "Pricing Modes",
+          "type": "array"
+        }
+      },
+      "title": "GenerationUsage",
+      "type": "object"
+    },
+    "LinkKind": {
+      "enum": [
+        "continuation",
+        "reinforces",
+        "contradicts"
+      ],
+      "title": "LinkKind",
+      "type": "string"
+    },
+    "NewsCard": {
+      "additionalProperties": false,
+      "description": "Карточка оригинала: издание, дата, ссылка на статью и картинка, если она есть.",
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "news_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "source": {
+          "description": "Издание",
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "published_at": {
+          "format": "date-time",
+          "title": "Published At",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Статья в первоисточнике",
+          "title": "Url"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Картинка статьи; null — показывать placeholder",
+          "title": "Image"
+        },
+        "placeholder": {
+          "$ref": "#/$defs/Placeholder"
+        }
+      },
+      "required": [
+        "news_id",
+        "title",
+        "source",
+        "published_at",
+        "placeholder"
+      ],
+      "title": "NewsCard",
+      "type": "object"
+    },
+    "NewsLink": {
+      "additionalProperties": false,
+      "description": "Связь более новой публикации с более ранней.",
+      "properties": {
+        "news_id": {
+          "description": "Более новая публикация",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        },
+        "linked_id": {
+          "description": "Более ранняя публикация, с которой она связана",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Linked Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/LinkKind",
+          "description": "continuation — развитие сюжета о тех же участниках; reinforces — другое событие той же направленности по той же теме; contradicts — та же тема и участники, но противоположная оценка"
+        },
+        "label": {
+          "description": "«Продолжение», «Усиливает» или «Противоречит»",
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "explanation": {
+          "description": "Коротко: что общего и в чём связь",
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "shared": {
+          "description": "Общие участники, отрасли, регионы",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Shared",
+          "type": "array"
+        },
+        "shared_keys": {
+          "description": "Ключи общих сущностей A3-11",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Shared Keys",
+          "type": "array"
+        },
+        "topics": {
+          "description": "Общие темы",
+          "items": {
+            "$ref": "#/$defs/Topic"
+          },
+          "minItems": 1,
+          "title": "Topics",
+          "type": "array"
+        },
+        "strength": {
+          "description": "Сумма весов общих сущностей",
+          "minimum": 0,
+          "title": "Strength",
+          "type": "number"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "method": {
+          "const": "entities",
+          "default": "entities",
+          "description": "Связь построена по общим сущностям и теме, без LLM",
+          "title": "Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "news_id",
+        "linked_id",
+        "kind",
+        "label",
+        "explanation",
+        "shared",
+        "shared_keys",
+        "topics",
+        "strength",
+        "confidence"
+      ],
+      "title": "NewsLink",
+      "type": "object"
+    },
+    "Origin": {
+      "enum": [
+        "fact",
+        "bank",
+        "client_data",
+        "model"
+      ],
+      "title": "Origin",
+      "type": "string"
+    },
+    "Placeholder": {
+      "additionalProperties": false,
+      "description": "Чем заполнить место картинки, если её нет: карточка не должна менять вёрстку.",
+      "properties": {
+        "initials": {
+          "description": "Буквы издания: «РГ», «И»",
+          "minLength": 1,
+          "title": "Initials",
+          "type": "string"
+        },
+        "domain": {
+          "description": "Домен статьи: vedomosti.ru",
+          "minLength": 1,
+          "title": "Domain",
+          "type": "string"
+        },
+        "color": {
+          "description": "Цвет фона, постоянный у издания",
+          "minLength": 1,
+          "pattern": "^#[0-9A-F]{6}$",
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "initials",
+        "domain",
+        "color"
+      ],
+      "title": "Placeholder",
+      "type": "object"
+    },
+    "Topic": {
+      "enum": [
+        "key_rate",
+        "inflation",
+        "fx",
+        "commodities",
+        "trade",
+        "logistics",
+        "sanctions",
+        "regulation",
+        "taxes",
+        "labor",
+        "consumption",
+        "debt_market",
+        "macro",
+        "industry",
+        "regional",
+        "company",
+        "other"
+      ],
+      "title": "Topic",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "company_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Company Id",
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "period_days": {
+      "maximum": 14,
+      "minimum": 1,
+      "title": "Period Days",
+      "type": "integer"
+    },
+    "role": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Должность; null — общая лента",
+      "title": "Role"
+    },
+    "focus": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Акцент, заданный пользователем",
+      "title": "Focus"
+    },
+    "method": {
+      "enum": [
+        "llm",
+        "rules"
+      ],
+      "title": "Method",
+      "type": "string"
+    },
+    "headline": {
+      "minLength": 1,
+      "title": "Headline",
+      "type": "string"
+    },
+    "events": {
+      "description": "Что произошло",
+      "items": {
+        "$ref": "#/$defs/DigestPoint"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "interplay": {
+      "description": "Как события влияют друг на друга",
+      "items": {
+        "$ref": "#/$defs/DigestPoint"
+      },
+      "title": "Interplay",
+      "type": "array"
+    },
+    "competitors": {
+      "description": "Конкуренты и контрагенты",
+      "items": {
+        "$ref": "#/$defs/DigestPoint"
+      },
+      "title": "Competitors",
+      "type": "array"
+    },
+    "think_about": {
+      "description": "О чём подумать",
+      "items": {
+        "$ref": "#/$defs/DigestPoint"
+      },
+      "title": "Think About",
+      "type": "array"
+    },
+    "conclusions": {
+      "description": "Выводы",
+      "items": {
+        "$ref": "#/$defs/DigestPoint"
+      },
+      "title": "Conclusions",
+      "type": "array"
+    },
+    "links": {
+      "description": "Связи между событиями",
+      "items": {
+        "$ref": "#/$defs/NewsLink"
+      },
+      "title": "Links",
+      "type": "array"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/NewsCard"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "steps": {
+      "description": "Как собрана сводка",
+      "items": {
+        "$ref": "#/$defs/DigestStep"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "gaps": {
+      "items": {
+        "$ref": "#/$defs/DataGap"
+      },
+      "title": "Gaps",
+      "type": "array"
+    },
+    "usage": {
+      "$ref": "#/$defs/GenerationUsage"
+    },
+    "cache_hit": {
+      "default": false,
+      "title": "Cache Hit",
+      "type": "boolean"
+    },
+    "disclaimer": {
+      "minLength": 1,
+      "title": "Disclaimer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_id",
+    "generated_at",
+    "period_days",
+    "method",
+    "headline",
+    "usage",
+    "disclaimer"
+  ],
+  "title": "Digest",
+  "type": "object"
+}

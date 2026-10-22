@@ -82,5 +82,7 @@
 
 Связи между новостями A5-16 — `backend/app/agent/threads.py`, API — `backend/app/api/news_links.py` (`/api/news/threads`, `/api/news/{id}/links`).
 
+Сводка за период A5-17 — `backend/app/agent/digest.py`, API — `backend/app/api/digest.py` (`POST /api/companies/{id}/digest`).
+
 Снимки оценок ленты и проверка неизменности контекста — `backend/app/rank/snapshots.py`.
 `frontend/src/App.tsx` подключает ленты, выбор роли, генерацию и чтение трассы.
