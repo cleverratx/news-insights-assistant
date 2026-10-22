@@ -9,6 +9,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, model_validator
 
 from app.agent.context import AnalysisContext
+from app.agent.fallback import number_issues, pool
 from app.agent.tools.builtin import SourceExcerpt
 from app.contracts.common import Id, Text
 from app.contracts.critic import CriticReport
@@ -285,6 +286,16 @@ def checks(context: AnalysisContext, draft: Draft) -> tuple[list[CheckIssue], di
             problems.append(
                 issue(CheckProblem.OTHER, "Продукт не согласован с типом действия", action.id)
             )
+    numbers = pool(
+        [
+            *(text for found in actual.values() for _, text in found.chunks),
+            *(news.title for news in context.news),
+            *(f"{news.published_at:%d.%m.%Y}" for news in context.news),
+            f"{context.started_at:%d.%m.%Y}",
+            context.profile.model_dump_json(),
+        ]
+    )
+    problems.extend(number_issues(statements, numbers))
     return problems, excerpts
 
 

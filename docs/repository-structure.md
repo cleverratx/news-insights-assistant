@@ -70,5 +70,7 @@
 
 Защита от инъекций A5-10 — `backend/app/llm/guard.py`, тесты с вредоносным материалом — `backend/tests/test_prompt_injection.py`.
 
+Поведение при нехватке данных A5-11 — `backend/app/agent/fallback.py`: проверка цифр по источникам, пробелы `GeneratedInsight.gaps`, проверенные факты без модели.
+
 Снимки оценок ленты и проверка неизменности контекста — `backend/app/rank/snapshots.py`.
 `frontend/src/App.tsx` подключает ленты, выбор роли, генерацию и чтение трассы.
