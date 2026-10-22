@@ -17,7 +17,7 @@
 import json
 import logging
 import re
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Literal, Protocol
@@ -250,9 +250,12 @@ async def verify(
     cache: LLMCache | None = None,
     limit: int = MAX_CANDIDATES,
     run_id: str | None = None,
+    demoted: Collection[str] = (),
 ) -> Filtered:
+    """demoted — новости о местах, где у компании ничего нет (A4-10): они идут после
+    остальных и не занимают места модели, пока есть что проверять."""
     result = Filtered()
-    ordered = sorted(candidates, key=lambda pair: pair[1].final, reverse=True)
+    ordered = sorted(candidates, key=lambda pair: (pair[0].id in demoted, -pair[1].final))
     kept = []
     for news, scored in ordered:
         if scored.final < MIN_RULE_SCORE:

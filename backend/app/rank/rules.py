@@ -24,6 +24,7 @@ from app.contracts.profile import CompanyProfile, SizeCategory
 from app.contracts.rank import FeatureMatch
 from app.profile.okved import SEGMENTS, normalize_code
 from app.profile.products import PAYMENT_HUBS, UNFRIENDLY, country_title
+from app.rank.regions import country, presence, same_region
 from app.search.engine import tokens
 
 
@@ -50,6 +51,7 @@ GROUP_SEGMENT = 0.4
 SHARED_PERSON_SEGMENT = 0.2
 REGION_HOME = 0.45
 REGION_PARTNER = 0.25
+REGION_MARKET = 0.35
 PRODUCT = 0.35
 EXPOSURE = 0.3
 ENTITY = 0.6
@@ -79,22 +81,6 @@ TOPIC_TITLES = {
 }
 SPECIFIC_TOPICS = frozenset({Topic.INDUSTRY, Topic.REGIONAL, Topic.COMPANY})
 GENERIC_STEMS = frozenset({"отрас", "рынок", "рынка", "рынке", "компа", "секто", "прочи"})
-REGION_NOISE = frozenset(
-    {"обл", "облас", "край", "респу", "респ", "автон", "округ", "ао", "г", "город", "федер"}
-)
-COUNTRY_ALIASES = {
-    "СОЕДИНЕННЫЕ ШТАТЫ": "США",
-    "СОЕДИНЕННЫЕ ШТАТЫ АМЕРИКИ": "США",
-    "СОЕДИНЕННОЕ КОРОЛЕВСТВО": "ВЕЛИКОБРИТАНИЯ",
-    "БРИТАНИЯ": "ВЕЛИКОБРИТАНИЯ",
-    "ОБЪЕДИНЕННЫЕ АРАБСКИЕ ЭМИРАТЫ": "ОАЭ",
-    "КНР": "КИТАЙ",
-    "РЕСПУБЛИКА КОРЕЯ": "ЮЖНАЯ КОРЕЯ",
-    "КОРЕЯ": "ЮЖНАЯ КОРЕЯ",
-    "БЕЛОРУССИЯ": "БЕЛАРУСЬ",
-    "КЫРГЫЗСТАН": "КИРГИЗИЯ",
-    "ТУРЕЦКАЯ РЕСПУБЛИКА": "ТУРЦИЯ",
-}
 PRODUCT_TOPICS: dict[BankProduct, tuple[frozenset[Topic], str]] = {
     BankProduct.LOAN: (
         frozenset({Topic.KEY_RATE, Topic.DEBT_MARKET}),
@@ -316,41 +302,36 @@ def counterparty_rules(profile: CompanyProfile, classification: Classification, 
             )
 
 
-def region_key(name: str) -> frozenset[str]:
-    words = re.findall(r"[а-яёa-z]+", name.lower().replace("ё", "е"))
-    return frozenset(word[:5] for word in words if len(word) >= 2 and word[:5] not in REGION_NOISE)
-
-
-def same_region(left: str, right: str) -> bool:
-    a, b = region_key(left), region_key(right)
-    return bool(a and b) and (a <= b or b <= a)
-
-
 def region_rules(profile: CompanyProfile, classification: Classification, add: Add) -> None:
+    """Регион новости и места присутствия компании (A4-10): регистрация, рынки со слов
+    клиента, контрагенты, группа, связанные компании и лица."""
     if not classification.regions:
         return
-    home = [
-        (profile.location.region, "feature:region"),
-        (profile.location.city, "feature:city"),
-    ]
-    partners = [
-        *(item.region for item in profile.counterparties),
-        *(member.region for member in (profile.group.members if profile.group else [])),
-        *profile.person_regions,
-    ]
+    places = [place for place in presence(profile) if place.source != "trade"]
     for region in classification.regions:
-        local = [feature for place, feature in home if place and same_region(place, region)]
-        for feature in local:
+        local = [p for p in places if p.source == "home" and same_region(p.name, region)]
+        for place in local:
             add(
                 Rule.REGION,
                 REGION_HOME,
-                feature,
+                place.feature_id or "feature:region",
                 f"Новость о регионе «{region}», где зарегистрирована компания",
                 region,
             )
         if local:
             continue
-        if any(place and same_region(place, region) for place in partners):
+        markets = [p for p in places if p.source == "market" and same_region(p.name, region)]
+        for place in markets:
+            add(
+                Rule.REGION,
+                REGION_MARKET,
+                place.feature_id or "feature:geography",
+                f"Новость о регионе «{region}», где у компании рынок сбыта, со слов клиента",
+                region,
+            )
+        if markets:
+            continue
+        if any(p.source != "home" and same_region(p.name, region) for p in places):
             add(
                 Rule.REGION,
                 REGION_PARTNER,
@@ -404,11 +385,6 @@ def entity_rules(
                         f"Новость о компании «{keyword}» из вашего окружения: {exposure.reason}",
                         keyword,
                     )
-
-
-def country(name: str) -> str:
-    upper = " ".join(name.upper().replace("Ё", "Е").split())
-    return COUNTRY_ALIASES.get(upper, upper)
 
 
 def foreign_trade_rules(profile: CompanyProfile, classification: Classification, add: Add) -> None:

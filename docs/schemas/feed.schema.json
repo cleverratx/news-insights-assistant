@@ -205,6 +205,10 @@
           "$ref": "#/$defs/Importance",
           "description": "Балл 0–10, уровень и вклад каждого фактора"
         },
+        "geography": {
+          "$ref": "#/$defs/Geography",
+          "description": "Где событие относительно компании; other_region — опущено в конец ленты"
+        },
         "impact": {
           "$ref": "#/$defs/ImpactAssessment",
           "description": "Влияние на бизнес от −100 до +100: цвет, критерии и обоснование"
@@ -236,6 +240,7 @@
         "stage",
         "significance",
         "importance",
+        "geography",
         "impact",
         "score",
         "explanation"
@@ -270,6 +275,97 @@
         "reason"
       ],
       "title": "FeedRejection",
+      "type": "object"
+    },
+    "GeoPlace": {
+      "additionalProperties": false,
+      "description": "Место присутствия компании, с которым совпала новость.",
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "home",
+            "counterparty",
+            "group",
+            "related",
+            "person",
+            "market",
+            "trade"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "feature_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Признак профиля, откуда место",
+          "title": "Feature Id"
+        }
+      },
+      "required": [
+        "name",
+        "source"
+      ],
+      "title": "GeoPlace",
+      "type": "object"
+    },
+    "GeoScope": {
+      "enum": [
+        "home",
+        "presence",
+        "national",
+        "other_region"
+      ],
+      "title": "GeoScope",
+      "type": "string"
+    },
+    "Geography": {
+      "additionalProperties": false,
+      "description": "Где происходит событие относительно компании. other_region — региональное событие там, где у\nкомпании ничего нет: такая карточка в ленте опускается вниз, но не скрывается.",
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/GeoScope"
+        },
+        "places": {
+          "description": "Регионы и страны из новости",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Places",
+          "type": "array"
+        },
+        "matched": {
+          "items": {
+            "$ref": "#/$defs/GeoPlace"
+          },
+          "title": "Matched",
+          "type": "array"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scope",
+        "detail"
+      ],
+      "title": "Geography",
       "type": "object"
     },
     "Horizon": {
@@ -1067,6 +1163,13 @@
       "description": "Скрыто: важность ниже порога",
       "minimum": 0,
       "title": "Hidden Below Threshold",
+      "type": "integer"
+    },
+    "demoted_foreign": {
+      "default": 0,
+      "description": "Опущено в конец: события там, где у компании ничего нет",
+      "minimum": 0,
+      "title": "Demoted Foreign",
       "type": "integer"
     },
     "importance_scale": {

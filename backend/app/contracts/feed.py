@@ -6,6 +6,7 @@ from pydantic import AwareDatetime, Field
 from app.contracts.common import SCHEMA_VERSION, Contract, Id, Score, Significance, Text
 from app.contracts.news import Horizon, Marker, MaterialKind, NewsCard, Topic
 from app.contracts.rank import (
+    Geography,
     ImpactAssessment,
     ImpactBand,
     ImpactCriterionInfo,
@@ -61,6 +62,9 @@ class FeedItem(Contract):
     stage: RankStage = Field(description="reranked — релевантность подтвердила модель")
     significance: Significance = Field(description="Из уровня важности: критично и важно — high")
     importance: Importance = Field(description="Балл 0–10, уровень и вклад каждого фактора")
+    geography: Geography = Field(
+        description="Где событие относительно компании; other_region — опущено в конец ленты"
+    )
     impact: ImpactAssessment = Field(
         description="Влияние на бизнес от −100 до +100: цвет, критерии и обоснование"
     )
@@ -90,6 +94,9 @@ class Feed(Contract):
     dropped_by_rules: int = Field(ge=0, description="Отсеяно правилами: не совпали с компанией")
     min_importance: float = Field(ge=0, le=10, description="Порог отсечения по баллу важности")
     hidden_below_threshold: int = Field(ge=0, description="Скрыто: важность ниже порога")
+    demoted_foreign: int = Field(
+        default=0, ge=0, description="Опущено в конец: события там, где у компании ничего нет"
+    )
     importance_scale: list[ImportanceScale] = Field(
         default_factory=list, description="Уровни важности и их критерии для пользователя"
     )

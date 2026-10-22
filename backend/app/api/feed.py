@@ -25,6 +25,8 @@ from app.contracts.feed import Feed, FeedEvent, FeedFeature, FeedItem, FeedRejec
 from app.contracts.news import Marker, MaterialKind, NewsItem
 from app.contracts.profile import CompanyProfile
 from app.contracts.rank import (
+    Geography,
+    GeoScope,
     ImpactAssessment,
     Importance,
     ImportanceLevel,
@@ -40,6 +42,7 @@ from app.rank.diversity import diversify, entry
 from app.rank.importance import DEFAULT_MIN_IMPORTANCE, importance
 from app.rank.importance import scale as importance_scale
 from app.rank.llm_filter import Completer, verify
+from app.rank.regions import locate, presence
 from app.rank.roles import Role, RoleWeights, apply_role, weights_for
 from app.rank.score import Scored, score
 from app.rank.sentiment import assess, criteria_info
@@ -126,6 +129,7 @@ def feed_item(
     story: Story,
     weight: Importance,
     impact: ImpactAssessment,
+    place: Geography,
     labels: dict[str, str],
     shared: set[str],
 ) -> FeedItem:
@@ -152,6 +156,7 @@ def feed_item(
         significance=SIGNIFICANCE[weight.level],
         importance=weight,
         impact=impact,
+        geography=place,
         score=ranked.score,
         explanation=explanation(ranked),
         features=[
@@ -191,7 +196,12 @@ async def build_feed(
     ]
     found = stories(profile, fresh, now, role)
     by_id = {story.news.id: story for story in found}
-    filtered = await verify(llm, profile, [(story.news, story.scored) for story in found], cache)
+    places = presence(profile)
+    geography = {story.news.id: locate(story.news, profile, places) for story in found}
+    far = {news_id for news_id, place in geography.items() if place.scope is GeoScope.OTHER_REGION}
+    filtered = await verify(
+        llm, profile, [(story.news, story.scored) for story in found], cache, demoted=far
+    )
     verified = filtered.model is not None
     allowed = [
         ranked
@@ -206,13 +216,33 @@ async def build_feed(
     }
     visible = {
         ranked.news_id: ranked
-        for ranked in sorted(allowed, key=lambda ranked: -weights[ranked.news_id].score)
+        for ranked in sorted(
+            allowed, key=lambda ranked: (ranked.news_id in far, -weights[ranked.news_id].score)
+        )
         if weights[ranked.news_id].score >= min_importance
     }
-    diverse = diversify(
-        [entry(by_id[news_id].news, weights[news_id].score / 10) for news_id in visible]
+    near = diversify(
+        [
+            entry(by_id[news_id].news, weights[news_id].score / 10)
+            for news_id in visible
+            if news_id not in far
+        ]
     )
-    shown = [visible[news_id] for news_id in diverse.order][:limit]
+    away = diversify(
+        [
+            entry(by_id[news_id].news, weights[news_id].score / 10)
+            for news_id in visible
+            if news_id in far
+        ]
+    )
+    shown = [visible[news_id] for news_id in [*near.order, *away.order]][:limit]
+    demoted = sum(news_id in far for news_id in visible)
+    notes = [*near.notes, *away.notes]
+    if demoted:
+        notes.append(
+            f"Материалов о регионах и странах, где у компании ничего нет: {demoted}. "
+            "Они опущены в конец ленты"
+        )
     assessed = await assess(
         llm, profile, [(by_id[ranked.news_id].news, explanation(ranked)) for ranked in shown], cache
     )
@@ -234,6 +264,7 @@ async def build_feed(
                 by_id[ranked.news_id],
                 weights[ranked.news_id],
                 assessed.impacts[ranked.news_id],
+                geography[ranked.news_id],
                 labels,
                 shared or set(),
             )
@@ -245,6 +276,7 @@ async def build_feed(
         dropped_by_rules=sum(1 for rejection in filtered.rejected if rejection.by == "rules"),
         min_importance=min_importance,
         hidden_below_threshold=len(allowed) - len(visible),
+        demoted_foreign=demoted,
         importance_scale=importance_scale(),
         impact_scale=impact_scale(),
         impact_criteria=criteria_info(),
@@ -257,7 +289,7 @@ async def build_feed(
             for rejection in filtered.rejected
             if rejection.by == "model"
         ],
-        adjustments=diverse.notes,
+        adjustments=notes,
         warnings=warnings,
     )
 
