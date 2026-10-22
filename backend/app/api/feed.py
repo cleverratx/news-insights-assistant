@@ -16,7 +16,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 import asyncpg
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.companies import CompanyId, Connection, company_profile
 from app.cache.store import LLMCache
@@ -44,6 +44,7 @@ from app.rank.roles import Role, RoleWeights, apply_role, weights_for
 from app.rank.score import Scored, score
 from app.rank.sentiment import assess, criteria_info
 from app.rank.sentiment import scale as impact_scale
+from app.rank.snapshots import store as store_snapshot
 from app.search.service import NEWS_DAYS, load
 
 DEFAULT_DAYS = 7
@@ -196,7 +197,10 @@ async def build_feed(
     allowed = [
         ranked
         for ranked in filtered.items
-        if unverified or not verified or ranked.stage is RankStage.RERANKED
+        if unverified
+        or not verified
+        or ranked.stage is RankStage.RERANKED
+        or by_id[ranked.news_id].scored.regional_background
     ]
     weights = {
         ranked.news_id: importance(
@@ -218,6 +222,8 @@ async def build_feed(
     )
     labels = {feature.id: feature.label for feature in profile.features}
     warnings = list(filtered.warnings)
+    if any(by_id[ranked.news_id].scored.regional_background for ranked in shown):
+        warnings.append("Региональный фон показан без подтверждённой связи с бизнесом компании")
     if filtered.error:
         warnings.append(f"Проверка моделью не удалась: {filtered.error}")
     if assessed.error:
@@ -312,4 +318,8 @@ async def company_feed(
         shared=shared,
         role=weights_for(role) if role is not None else None,
     )
-    return feed.model_copy(update={"warnings": [*warnings, *feed.warnings]})
+    feed = feed.model_copy(update={"warnings": [*warnings, *feed.warnings]})
+    try:
+        return await store_snapshot(connection, feed, profile, items)
+    except (OSError, asyncpg.PostgresError):
+        raise HTTPException(503, "Не удалось сохранить контекст ленты") from None

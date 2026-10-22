@@ -13,6 +13,8 @@ from app.contracts.common import Id, require_unique
 from app.contracts.generation import GeneratedInsight
 from app.contracts.news import NewsItem
 from app.contracts.trace import AgentTrace
+from app.rank.roles import Role
+from app.rank.snapshots import restore
 
 router = APIRouter(tags=["insights"])
 InsightId = Annotated[str, Path(min_length=1, max_length=200)]
@@ -21,6 +23,8 @@ InsightId = Annotated[str, Path(min_length=1, max_length=200)]
 class InsightRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     news_ids: list[Id] = Field(min_length=1, max_length=3)
+    role: Role | None = None
+    feed_snapshot_id: Id | None = None
     focus: str | None = Field(default=None, min_length=1, max_length=600, pattern=r"\S")
 
     @model_validator(mode="after")
@@ -71,7 +75,26 @@ async def generate_insight(
         await ensure_storage(connection)
     except (OSError, asyncpg.PostgresError):
         raise HTTPException(503, "Хранилище разборов недоступно") from None
-    result, trace = await generate_with_trace(profile, materials, connection, llm, focus=body.focus)
+    ranking = None
+    if body.feed_snapshot_id:
+        try:
+            ranking = await restore(
+                connection, body.feed_snapshot_id, profile, materials, body.role
+            )
+        except ValueError as error:
+            raise HTTPException(409, str(error)) from None
+        except (OSError, asyncpg.PostgresError):
+            raise HTTPException(503, "Снимок ленты недоступен") from None
+    result, trace = await generate_with_trace(
+        profile,
+        materials,
+        connection,
+        llm,
+        focus=body.focus,
+        role=body.role,
+        ranking=ranking,
+        feed_snapshot_id=body.feed_snapshot_id,
+    )
     try:
         await save(connection, result, trace)
     except (OSError, asyncpg.PostgresError):

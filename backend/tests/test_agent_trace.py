@@ -257,4 +257,80 @@ async def test_failed_tool_and_corrected_finish_remain_in_trace() -> None:
     assert trace.steps[0].error_detail.code == "tool_error"
     assert [s.check_index for s in trace.steps[1:]] == [0, 1]
     assert [report.passed for report in trace.checks] == [False, True]
+    assert [s.status for s in trace.steps[1:]] == ["error", "ok"]
     assert "Выдуманный черновик" not in trace.model_dump_json()
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("quote", "Цитата, которой не было"),
+        ("fragment_id", "несуществующий-фрагмент"),
+        ("type", "bank_analytics"),
+    ],
+)
+async def test_trace_rejects_source_not_supported_by_snapshot(field: str, value: str) -> None:
+    db = Store()
+    _, trace = await generate_with_trace(profile(), [db.news], db, None)
+    payload = trace.model_dump(mode="json")
+    payload["used_sources"][0][field] = value
+    with pytest.raises(ValidationError):
+        AgentTrace.model_validate(payload)
+
+
+async def test_timed_out_critic_is_not_reported_as_success() -> None:
+    import asyncio
+
+    class SlowCritic(Replies):
+        async def complete(self, task, messages):
+            if self.messages:
+                await asyncio.sleep(1)
+            return await super().complete(task, messages)
+
+    db = Store()
+    result, trace = await generate_with_trace(
+        profile(),
+        [db.news, db.bank],
+        db,
+        SlowCritic(finish(db), '{"issues":[]}'),
+        limits=Limits(timeout_seconds=0.05),
+    )
+    assert result.execution_status == "timeout"
+    assert trace.steps[-1].action == "finish"
+    assert trace.steps[-1].status == "timeout"
+    assert trace.steps[-1].check_index is None
+
+
+async def test_api_generation_runs_tools_critic_and_persists_their_evidence(client) -> None:
+    http, db = client
+    actions = [
+        ("get_profile", {}),
+        ("search_bank_analytics", {"query": "ставка"}),
+        ("get_original", {"doc_id": db.bank.id, "fragment_id": db.bank.fragments[1].id}),
+        ("calculate_exposure", {"direction": "incoming", "partner_ids": ["U_2"]}),
+    ]
+    replies = Replies(
+        *[
+            Decision(
+                action="tool", reason="Уточнить основания", tool=name, arguments=args
+            ).model_dump_json()
+            for name, args in actions
+        ],
+        finish(db),
+        '{"issues":[]}',
+    )
+    http._transport.app.dependency_overrides[get_llm] = lambda: replies
+    response = await http.post(
+        "/api/companies/U_1/insights",
+        json={"news_ids": [db.news.id, db.bank.id]},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["insight"]["status"] == "ready"
+    trace = (await http.get(f"/api/insights/{payload['insight']['id']}/trace")).json()
+    assert [s["tool"] for s in trace["steps"][:-1]] == [name for name, _ in actions]
+    assert all(s["status"] == "ok" for s in trace["steps"])
+    assert len(trace["observations"]) == 4
+    assert trace["checks"][-1]["passed"]
+    assert trace["used_sources"] == payload["insight"]["sources"]
+    assert len(replies.messages) == 6

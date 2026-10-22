@@ -53,6 +53,11 @@ def build_trace(
         if plan.decision.action == "finish" and review_index < len(context.critic_reviews):
             check_index = review_index
             review_index += 1
+        status = step.status if step else "ok"
+        if step is None and check_index is not None:
+            status = "ok" if context.critic_reviews[check_index].report.passed else "error"
+        elif step is None and result.execution_status == "timeout":
+            status = "timeout"
         steps.append(
             TraceStep(
                 number=plan.number,
@@ -60,7 +65,7 @@ def build_trace(
                 goal=plan.decision.reason,
                 tool=plan.decision.tool,
                 arguments=plan.decision.arguments,
-                status=step.status if step else "ok",
+                status=status,
                 elapsed_seconds=step.elapsed_seconds if step else 0,
                 planning_seconds=plan.elapsed_seconds,
                 check_index=check_index,
@@ -87,6 +92,9 @@ def build_trace(
         profile_features=context.profile.features,
         used_sources=result.insight.sources,
         usage=result.usage,
+        ranking=result.ranking,
+        role=result.role,
+        feed_snapshot_id=result.feed_snapshot_id,
     ).model_copy(deep=True)
 
 
@@ -100,6 +108,9 @@ async def save(connection: Any, result: GeneratedInsight, trace: AgentTrace) -> 
         != (result.insight.id, result.insight.run_id, result.insight.company_id)
         or trace.news_ids != result.insight.news_ids
         or trace.used_sources != result.insight.sources
+        or trace.ranking != result.ranking
+        or trace.role != result.role
+        or trace.feed_snapshot_id != result.feed_snapshot_id
         or trace.usage != result.usage
         or trace.execution_status != result.execution_status
     ):
@@ -128,6 +139,9 @@ async def load(connection: Any, insight_id: str) -> tuple[GeneratedInsight, Agen
         != (result.insight.id, result.insight.run_id, result.insight.company_id)
         or trace.news_ids != result.insight.news_ids
         or trace.used_sources != result.insight.sources
+        or trace.ranking != result.ranking
+        or trace.role != result.role
+        or trace.feed_snapshot_id != result.feed_snapshot_id
         or trace.usage != result.usage
         or trace.execution_status != result.execution_status
     ):

@@ -254,14 +254,17 @@ async def verify(
     result = Filtered()
     ordered = sorted(candidates, key=lambda pair: pair[1].final, reverse=True)
     kept = []
+    background = []
     for news, scored in ordered:
-        if scored.final < MIN_RULE_SCORE:
+        if scored.regional_background:
+            background.append(scored.ranked(1, run_id))
+        elif scored.final < MIN_RULE_SCORE:
             reason = scored.factors[0] if scored.relevance == 0 else "Балл правил ниже порога"
             result.rejected.append(Rejection(news.id, reason, "rules", scored.final))
         else:
             kept.append((news, scored))
     shortlist, rest = kept[:limit], kept[limit:]
-    unverified = [scored.ranked(1, run_id) for _, scored in rest]
+    unverified = [*background, *[scored.ranked(1, run_id) for _, scored in rest]]
     if not shortlist:
         result.items = renumber(unverified)
         return result
@@ -272,7 +275,7 @@ async def verify(
         result.error = str(error).splitlines()[0]
         judged = None
     if judged is None:
-        result.items = renumber([scored.ranked(1, run_id) for _, scored in kept])
+        result.items = renumber([*[scored.ranked(1, run_id) for _, scored in kept], *background])
         result.warnings.append("Модель не проверила кандидатов: порядок по правилам")
         return result
     result.model, result.cost_rub = judged.model, judged.cost_rub

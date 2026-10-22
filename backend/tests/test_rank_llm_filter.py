@@ -130,7 +130,8 @@ async def test_without_model_feed_keeps_rule_order() -> None:
     pairs = [candidate("Нефть", segments=["oil_gas"]), candidate("Москва", regions=["Москва"])]
     for llm in (None, FakeLLM(BudgetExceededError("Бюджет исчерпан")), FakeLLM("нет", "нет")):
         result = await verify(llm, profile(), pairs)
-        assert [found.stage for found in result.items] == [RankStage.CANDIDATE]
+        assert [found.stage for found in result.items] == [RankStage.CANDIDATE, RankStage.CANDIDATE]
+        assert result.items[-1].news_id == pairs[-1][0].id  # Региональный фон остаётся внизу.
         assert result.items[0].news_id == "news:Нефть"
         assert "порядок по правилам" in result.warnings[0]
     assert result.error is not None and "не прошёл проверку" in result.error

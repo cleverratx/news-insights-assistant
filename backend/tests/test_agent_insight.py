@@ -134,3 +134,18 @@ def test_insight_route_is_registered_in_openapi() -> None:
     assert operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/GeneratedInsight"
     )
+
+
+@pytest.mark.parametrize("case", ["wrong_section", "unknown_statement", "unknown_source"])
+async def test_presentation_rejects_invalid_block_references(case: str) -> None:
+    db = Database()
+    result = await generate(profile(), [db.news, db.bank], db, Replies(finish(db), '{"issues":[]}'))
+    payload = result.model_dump(mode="json")
+    if case == "wrong_section":
+        payload["presentation"]["blocks"][0]["statement_ids"] = ["why"]
+    elif case == "unknown_statement":
+        payload["presentation"]["blocks"][0]["statement_ids"] = ["missing"]
+    else:
+        payload["presentation"]["blocks"][-1]["source_ids"] = ["missing"]
+    with pytest.raises(ValidationError):
+        GeneratedInsight.model_validate(payload)

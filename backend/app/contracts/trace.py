@@ -8,7 +8,7 @@ from app.agent.context import ContextObservation
 from app.agent.tools import ToolError
 from app.contracts.common import SCHEMA_VERSION, Contract, Id, Text, require_unique
 from app.contracts.critic import CriticReport
-from app.contracts.generation import ExecutionStatus, GenerationUsage
+from app.contracts.generation import ExecutionStatus, GenerationUsage, InsightRanking
 from app.contracts.insight import SourceRef, SourceType
 from app.contracts.profile import ProfileFeature
 
@@ -58,6 +58,9 @@ class AgentTrace(Contract):
     documents: list[TraceDocument] = Field(default_factory=list)
     profile_features: list[ProfileFeature] = Field(default_factory=list)
     used_sources: list[SourceRef] = Field(default_factory=list)
+    ranking: list[InsightRanking] = Field(default_factory=list)
+    role: Text | None = None
+    feed_snapshot_id: Id | None = None
     usage: GenerationUsage
 
     @model_validator(mode="after")
@@ -77,9 +80,27 @@ class AgentTrace(Contract):
             if ref is not None
         ):
             raise ValueError("Шаг ссылается на неизвестное наблюдение")
-        available = {d.ref_id for d in self.documents} | {f.id for f in self.profile_features}
-        if any(s.ref_id not in available for s in self.used_sources):
-            raise ValueError("Основание вывода отсутствует в снимке")
+        documents = {d.ref_id: d for d in self.documents}
+        features = {f.id: f for f in self.profile_features}
+        for source in self.used_sources:
+            if source.type is SourceType.PROFILE_FEATURE:
+                if source.ref_id not in features:
+                    raise ValueError("Признак вывода отсутствует в снимке")
+                continue
+            document = documents.get(source.ref_id)
+            if document is None or document.type is not source.type:
+                raise ValueError("Тип или документ основания не соответствует снимку")
+            chunks = [
+                c
+                for c in document.chunks
+                if source.fragment_id is None or c.fragment_id == source.fragment_id
+            ]
+            if not chunks:
+                raise ValueError("Фрагмент основания отсутствует в снимке")
+            if source.quote is not None and not any(
+                " ".join(source.quote.split()) in " ".join(chunk.text.split()) for chunk in chunks
+            ):
+                raise ValueError("Цитата основания не подтверждается снимком")
         if self.finished_at < self.started_at:
             raise ValueError("Время завершения раньше начала")
         return self

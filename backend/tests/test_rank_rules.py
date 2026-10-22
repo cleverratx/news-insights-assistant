@@ -181,7 +181,9 @@ def test_home_region_beats_partner_region() -> None:
     assert by_rule(remote, Rule.REGION) == ["feature:geography"]
     assert remote.score < REGION_HOME
     nowhere = match(profile(), item(regions=["Приморский край"]))
-    assert nowhere.hits == []
+    assert by_rule(nowhere, Rule.REGION) == ["feature:region"]
+    assert 0 < nowhere.score < remote.score
+    assert nowhere.penalties
 
 
 def test_products_need_topic_and_feature() -> None:

@@ -65,3 +65,6 @@
 Генерация A5-06/A5-07 — `backend/app/agent/insight.py`, API — `backend/app/api/insights.py`.
 Журнал и хранение разборов A5-08 — `backend/app/agent/trace.py`, контракт —
 `backend/app/contracts/trace.py`; результат и трасса хранятся в таблице `agent_insights`.
+
+Снимки оценок ленты и проверка неизменности контекста — `backend/app/rank/snapshots.py`.
+`frontend/src/App.tsx` подключает ленты, выбор роли, генерацию и чтение трассы.

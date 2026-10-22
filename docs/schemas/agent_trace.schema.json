@@ -242,6 +242,279 @@
       "title": "GenerationUsage",
       "type": "object"
     },
+    "ImpactAssessment": {
+      "additionalProperties": false,
+      "description": "Оценка влияния события на бизнес компании: балл от −100 до +100, цвет и обоснование.\nБалл равен сумме вкладов критериев, ограниченной ±100.",
+      "properties": {
+        "score": {
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Score",
+          "type": "integer"
+        },
+        "color": {
+          "$ref": "#/$defs/ImpactColor"
+        },
+        "title": {
+          "description": "Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность",
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "criteria": {
+          "items": {
+            "$ref": "#/$defs/ImpactCriterion"
+          },
+          "maxItems": 5,
+          "minItems": 5,
+          "title": "Criteria",
+          "type": "array"
+        },
+        "rationale": {
+          "description": "Обоснование балла для карточки",
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "method": {
+          "description": "llm — оценила модель с учётом профиля, rules — запасная оценка по теме",
+          "enum": [
+            "llm",
+            "rules"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        }
+      },
+      "required": [
+        "score",
+        "color",
+        "title",
+        "criteria",
+        "rationale",
+        "method",
+        "confidence"
+      ],
+      "title": "ImpactAssessment",
+      "type": "object"
+    },
+    "ImpactColor": {
+      "enum": [
+        "red",
+        "orange",
+        "gray",
+        "light_green",
+        "green"
+      ],
+      "title": "ImpactColor",
+      "type": "string"
+    },
+    "ImpactCriterion": {
+      "additionalProperties": false,
+      "description": "Влияние события на один фиксированный критерий: уровень от −2 до +2 и почему.\nПлюс — лучше для компании: для регуляторного риска плюс значит, что риск снижается.",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ImpactCriterionId"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "level": {
+          "description": "−2 существенно хуже … +2 существенно лучше",
+          "maximum": 2,
+          "minimum": -2,
+          "title": "Level",
+          "type": "integer"
+        },
+        "points": {
+          "description": "Вклад в балл: ±20 — заметно, ±50 — существенно",
+          "maximum": 50,
+          "minimum": -50,
+          "title": "Points",
+          "type": "integer"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Почему такой уровень; пусто при 0",
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "level",
+        "points"
+      ],
+      "title": "ImpactCriterion",
+      "type": "object"
+    },
+    "ImpactCriterionId": {
+      "enum": [
+        "revenue",
+        "costs",
+        "market_access",
+        "cost_of_money",
+        "regulatory"
+      ],
+      "title": "ImpactCriterionId",
+      "type": "string"
+    },
+    "Importance": {
+      "additionalProperties": false,
+      "description": "Степень важности материала для компании: 0–10, уровень и вклад каждого фактора.\nСумма points всех факторов равна score.",
+      "properties": {
+        "score": {
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "level": {
+          "$ref": "#/$defs/ImportanceLevel"
+        },
+        "title": {
+          "description": "Критично, Важно, К сведению, Фон",
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "factors": {
+          "items": {
+            "$ref": "#/$defs/ImportanceFactor"
+          },
+          "minItems": 1,
+          "title": "Factors",
+          "type": "array"
+        }
+      },
+      "required": [
+        "score",
+        "level",
+        "title",
+        "factors"
+      ],
+      "title": "Importance",
+      "type": "object"
+    },
+    "ImportanceFactor": {
+      "additionalProperties": false,
+      "description": "Слагаемое балла важности: сколько баллов дал фактор и почему.",
+      "properties": {
+        "id": {
+          "description": "relevance, breadth, scale, recency, model, bank",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "points": {
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Points",
+          "type": "number"
+        },
+        "max_points": {
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "title": "Max Points",
+          "type": "number"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "points",
+        "max_points",
+        "detail"
+      ],
+      "title": "ImportanceFactor",
+      "type": "object"
+    },
+    "ImportanceLevel": {
+      "enum": [
+        "critical",
+        "important",
+        "info",
+        "background"
+      ],
+      "title": "ImportanceLevel",
+      "type": "string"
+    },
+    "InsightRanking": {
+      "additionalProperties": false,
+      "properties": {
+        "news_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        },
+        "score": {
+          "$ref": "#/$defs/ScoreBreakdown"
+        },
+        "significance": {
+          "$ref": "#/$defs/Significance"
+        },
+        "importance": {
+          "$ref": "#/$defs/Importance"
+        },
+        "impact": {
+          "$ref": "#/$defs/ImpactAssessment"
+        }
+      },
+      "required": [
+        "news_id",
+        "score",
+        "significance",
+        "importance",
+        "impact"
+      ],
+      "title": "InsightRanking",
+      "type": "object"
+    },
     "JsonValue": {},
     "Observation": {
       "additionalProperties": false,
@@ -326,6 +599,188 @@
       ],
       "title": "ProfileFeature",
       "type": "object"
+    },
+    "RoleAdjustment": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "multiplier": {
+          "maximum": 2,
+          "minimum": 0.2,
+          "title": "Multiplier",
+          "type": "number"
+        },
+        "company_relevance": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Company Relevance",
+          "type": "number"
+        },
+        "role_relevance": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Role Relevance",
+          "type": "number"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "multiplier",
+        "company_relevance",
+        "role_relevance",
+        "detail"
+      ],
+      "title": "RoleAdjustment",
+      "type": "object"
+    },
+    "ScoreBreakdown": {
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RoleAdjustment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "lexical": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сырой BM25",
+          "title": "Lexical"
+        },
+        "lexical_norm": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lexical Norm"
+        },
+        "llm": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Оценка переранжирования моделью",
+          "title": "Llm"
+        },
+        "relevance": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Совпадение с признаками компании по правилам отбора",
+          "title": "Relevance"
+        },
+        "recency": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Свежесть: 1 — только что, 0,5 — полураспад",
+          "title": "Recency"
+        },
+        "scale": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Масштаб события: тема, охват изданий, подтверждённые цифры",
+          "title": "Scale"
+        },
+        "final": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Final",
+          "type": "number"
+        },
+        "factors": {
+          "description": "Пояснения к баллу для интерфейса: свежесть, масштаб, штрафы",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Factors",
+          "type": "array"
+        }
+      },
+      "required": [
+        "final"
+      ],
+      "title": "ScoreBreakdown",
+      "type": "object"
+    },
+    "Significance": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Significance",
+      "type": "string"
     },
     "SourceRef": {
       "additionalProperties": false,
@@ -790,6 +1245,40 @@
       },
       "title": "Used Sources",
       "type": "array"
+    },
+    "ranking": {
+      "items": {
+        "$ref": "#/$defs/InsightRanking"
+      },
+      "title": "Ranking",
+      "type": "array"
+    },
+    "role": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Role"
+    },
+    "feed_snapshot_id": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Feed Snapshot Id"
     },
     "usage": {
       "$ref": "#/$defs/GenerationUsage"
