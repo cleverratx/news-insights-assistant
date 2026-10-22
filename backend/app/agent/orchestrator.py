@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from copy import deepcopy
 from decimal import Decimal
 from time import monotonic
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
@@ -81,15 +81,21 @@ class PlannerResponseError(Exception):
 class LLMPlanner:
     """LLM вызывается только через клиент A1-07: тарифы, ретраи и бюджет остаются там."""
 
-    def __init__(self, llm: Completer, max_repairs: int = 1) -> None:
+    def __init__(
+        self, llm: Completer, max_repairs: int = 1, *, system_prompt: str = SYSTEM_PROMPT
+    ) -> None:
         if type(max_repairs) is not int or not 0 <= max_repairs <= 2:
             raise ValueError("Допустимо от 0 до 2 исправлений")
         self.llm = llm
         self.max_repairs = max_repairs
+        self.system_prompt = system_prompt
+
+    def context_data(self, context: AnalysisContext) -> dict[str, Any]:
+        return context.planner_data()
 
     async def next_step(self, context: AnalysisContext, tools: Sequence[ToolSpec]) -> Planning:
         payload = {
-            **context.planner_data(),
+            **self.context_data(context),
             "tools": [
                 {
                     **tool.model_dump(mode="json", exclude={"result_schema"}),
@@ -104,7 +110,7 @@ class LLMPlanner:
         }
         messages = [
             Message(
-                role="system", content=SYSTEM_PROMPT + json.dumps(Decision.model_json_schema())
+                role="system", content=self.system_prompt + json.dumps(Decision.model_json_schema())
             ),
             Message(role="user", content=json.dumps(payload, ensure_ascii=False)),
         ]
