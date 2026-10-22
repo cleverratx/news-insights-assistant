@@ -76,3 +76,23 @@ async def test_reference_labels_match_snapshot(evaluation: ModuleType) -> None:
     assert all(company in companies and news in known for company, news in labels)
     report = await evaluation.score(snapshot, labels)
     assert "| **Среднее** |" in report
+
+
+async def test_json_cache_round_trip(evaluation: ModuleType, tmp_path: Path) -> None:
+    cache = evaluation.JsonCache(tmp_path / "v.verdicts.json")
+    assert await cache.get("rank_filter", "v1", "prompt") is None
+    await cache.put("rank_filter", "v1", "prompt", {"verdicts": []}, "glm-5.3-flash", "0.1")
+    again = evaluation.JsonCache(tmp_path / "v.verdicts.json")
+    found = await again.get("rank_filter", "v1", "prompt")
+    assert found.result == {"verdicts": []} and found.model == "glm-5.3-flash"
+    assert await again.get("rank_filter", "v2", "prompt") is None
+
+
+async def test_model_verdicts_replay_without_key(evaluation: ModuleType) -> None:
+    path = evaluation.EVAL_DIR / "snapshot_llm.json"
+    snapshot = evaluation.load_snapshot(path)
+    assert snapshot.methods["llm"] > snapshot.methods["rules"]
+    cache = evaluation.JsonCache(evaluation.verdicts_path(path))
+    report = await evaluation.score(snapshot, evaluation.read_labels(), None, cache)
+    assert "проверено моделью 11 из 11" in report
+    assert "Не размечены" not in report

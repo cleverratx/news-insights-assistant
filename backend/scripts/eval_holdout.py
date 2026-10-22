@@ -41,7 +41,6 @@ LABELS = HOLDOUT_DIR / "labels.csv"
 REPORT = reference.ROOT / "eval" / "holdout.md"
 LIMIT = 20
 TOLERANCE = 0.02
-CHECKS = re.compile(r"(<!-- checks:start -->\n).*?(<!-- checks:end -->)", re.DOTALL)
 KEYS = re.compile(r"^\[(n\d+)\]", re.MULTILINE)
 
 
@@ -274,42 +273,34 @@ def checks_table(snapshot: reference.Snapshot, outcomes: Sequence[Outcome], newe
     return "\n".join(lines)
 
 
-def write_block(pattern: re.Pattern[str], table: str, path: Path = REPORT) -> None:
-    text = path.read_text(encoding="utf-8")
-    if not pattern.search(text):
-        raise SystemExit(f"В {path} нет блока для таблицы")
-    path.write_text(
-        pattern.sub(lambda found: found.group(1) + table + "\n" + found.group(2), text),
-        encoding="utf-8",
-        newline="\n",
-    )
-
-
-async def checks(write: bool) -> int:
-    snapshot = reference.load_snapshot(SNAPSHOT)
+async def checks(write: bool, path: Path = SNAPSHOT, block: str = "checks") -> int:
+    snapshot = reference.load_snapshot(path)
     outcomes = await run_checks(snapshot)
-    newer = sum(item.published_at > reference_now() for item in snapshot.materials)
+    newer = sum(item.published_at > reference_now(path) for item in snapshot.materials)
     table = checks_table(snapshot, outcomes, newer)
     print(table)
     if write:
-        write_block(CHECKS, table)
+        reference.write_report(table, REPORT, block)
     return sum(len(outcome.violations) for outcome in outcomes)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Прогон ленты на новостях вне разметки")
     parser.add_argument("command", choices=["freeze", "checks", "pool", "score"])
+    parser.add_argument("--snapshot", type=Path, default=SNAPSHOT)
+    parser.add_argument("--llm", action="store_true", help="score: проверка кандидатов моделью")
     parser.add_argument("--write", action="store_true", help="обновить таблицу в отчёте")
+    parser.add_argument("--block", help="имя блока в отчёте, по умолчанию checks или results")
     args = parser.parse_args(argv)
     if args.command == "freeze":
         asyncio.run(freeze())
     elif args.command == "checks":
-        if asyncio.run(checks(args.write)):
+        if asyncio.run(checks(args.write, args.snapshot, args.block or "checks")):
             raise SystemExit(1)
     elif args.command == "pool":
         asyncio.run(
             reference.pool(
-                reference.load_snapshot(SNAPSHOT),
+                reference.load_snapshot(args.snapshot),
                 LABELS,
                 system_top=reference.K,
                 baseline_top=reference.K,
@@ -317,11 +308,18 @@ def main(argv: Sequence[str] | None = None) -> None:
             )
         )
     else:
-        snapshot = reference.load_snapshot(SNAPSHOT)
-        table = asyncio.run(reference.score(snapshot, reference.read_labels(LABELS)))
+        snapshot = reference.load_snapshot(args.snapshot)
+        labels = reference.read_labels(LABELS)
+        table = asyncio.run(
+            reference.with_model(
+                args.llm,
+                args.snapshot,
+                lambda llm, cache: reference.score(snapshot, labels, llm, cache),
+            )
+        )
         print(table)
         if args.write:
-            reference.write_report(table, REPORT)
+            reference.write_report(table, REPORT, args.block or reference.RESULTS)
 
 
 if __name__ == "__main__":
