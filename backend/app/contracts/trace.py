@@ -9,7 +9,7 @@ from app.agent.tools import ToolError
 from app.contracts.common import SCHEMA_VERSION, Contract, Id, Text, require_unique
 from app.contracts.critic import CriticReport
 from app.contracts.generation import ExecutionStatus, GenerationUsage, InsightRanking
-from app.contracts.insight import SourceRef, SourceType
+from app.contracts.insight import Basis, Origin, SourceRef, SourceType, Support
 from app.contracts.profile import ProfileFeature
 
 
@@ -40,6 +40,21 @@ class TraceDocument(Contract):
     chunks: list[TraceChunk]
 
 
+type Section = Literal[
+    "what_happened", "why_it_matters", "risks", "opportunities", "actions", "bank_view"
+]
+
+
+class TraceClaim(Contract):
+    """Утверждение итогового вывода и фрагменты, из которых оно получено."""
+
+    statement_id: Id
+    section: Section
+    origin: Origin
+    support: Support
+    basis: list[Basis] = Field(default_factory=list)
+
+
 class AgentTrace(Contract):
     schema_version: Literal["1.0"] = SCHEMA_VERSION
     insight_id: Id
@@ -62,6 +77,9 @@ class AgentTrace(Contract):
     role: Text | None = None
     feed_snapshot_id: Id | None = None
     usage: GenerationUsage
+    claims: list[TraceClaim] = Field(
+        default_factory=list, description="Связь каждого утверждения с фрагментами документов"
+    )
 
     @model_validator(mode="after")
     def references(self) -> Self:
@@ -101,6 +119,33 @@ class AgentTrace(Contract):
                 " ".join(source.quote.split()) in " ".join(chunk.text.split()) for chunk in chunks
             ):
                 raise ValueError("Цитата основания не подтверждается снимком")
+        require_unique((claim.statement_id for claim in self.claims), "утверждений")
+        sources = {source.id: source for source in self.used_sources}
+        for claim in self.claims:
+            kinds = {basis.type for basis in claim.basis}
+            if claim.support is Support.SOURCE and not kinds - {SourceType.PROFILE_FEATURE}:
+                raise ValueError("Подтверждение источником требует фрагмента документа")
+            if claim.support is Support.COMPANY_DATA and SourceType.PROFILE_FEATURE not in kinds:
+                raise ValueError("Подтверждение данными компании требует признака")
+            for basis in claim.basis:
+                cited = sources.get(basis.source_id)
+                if cited is None or (cited.type, cited.ref_id) != (basis.type, basis.ref_id):
+                    raise ValueError("Основание утверждения не совпадает с источником вывода")
+                if basis.type is SourceType.PROFILE_FEATURE:
+                    if basis.ref_id not in features:
+                        raise ValueError("Признак утверждения отсутствует в снимке")
+                    continue
+                document = documents.get(basis.ref_id)
+                texts = [
+                    " ".join(chunk.text.split())
+                    for chunk in (document.chunks if document else [])
+                    if basis.fragment_id is None or chunk.fragment_id == basis.fragment_id
+                ]
+                if not texts or (
+                    basis.quote is not None
+                    and not any(" ".join(basis.quote.split()) in text for text in texts)
+                ):
+                    raise ValueError("Фрагмент утверждения не подтверждается снимком")
         if self.finished_at < self.started_at:
             raise ValueError("Время завершения раньше начала")
         return self
