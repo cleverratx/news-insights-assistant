@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "related_feed.schema.json",
+  "$defs": {
+    "CompanyMention": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "relationship": {
+          "enum": [
+            "competitor",
+            "counterparty"
+          ],
+          "title": "Relationship",
+          "type": "string"
+        },
+        "origins": {
+          "items": {
+            "$ref": "#/$defs/LinkOrigin"
+          },
+          "title": "Origins",
+          "type": "array"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CounterpartyRole"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "method": {
+          "enum": [
+            "entity",
+            "text"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "evidence": {
+          "description": "Название сущности или фрагмент исходного текста",
+          "minLength": 1,
+          "title": "Evidence",
+          "type": "string"
+        },
+        "news_id": {
+          "description": "Публикация, в которой найдено упоминание",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "relationship",
+        "method",
+        "evidence",
+        "news_id"
+      ],
+      "title": "CompanyMention",
+      "type": "object"
+    },
+    "CounterpartyRole": {
+      "enum": [
+        "buyer",
+        "supplier",
+        "carrier"
+      ],
+      "title": "CounterpartyRole",
+      "type": "string"
+    },
+    "LinkOrigin": {
+      "enum": [
+        "payments",
+        "group",
+        "shared_person",
+        "client"
+      ],
+      "title": "LinkOrigin",
+      "type": "string"
+    },
+    "NewsCard": {
+      "additionalProperties": false,
+      "description": "Карточка оригинала: издание, дата, ссылка на статью и картинка, если она есть.",
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "news_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "source": {
+          "description": "Издание",
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "published_at": {
+          "format": "date-time",
+          "title": "Published At",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Статья в первоисточнике",
+          "title": "Url"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Картинка статьи; null — показывать placeholder",
+          "title": "Image"
+        },
+        "placeholder": {
+          "$ref": "#/$defs/Placeholder"
+        }
+      },
+      "required": [
+        "news_id",
+        "title",
+        "source",
+        "published_at",
+        "placeholder"
+      ],
+      "title": "NewsCard",
+      "type": "object"
+    },
+    "Placeholder": {
+      "additionalProperties": false,
+      "description": "Чем заполнить место картинки, если её нет: карточка не должна менять вёрстку.",
+      "properties": {
+        "initials": {
+          "description": "Буквы издания: «РГ», «И»",
+          "minLength": 1,
+          "title": "Initials",
+          "type": "string"
+        },
+        "domain": {
+          "description": "Домен статьи: vedomosti.ru",
+          "minLength": 1,
+          "title": "Domain",
+          "type": "string"
+        },
+        "color": {
+          "description": "Цвет фона, постоянный у издания",
+          "minLength": 1,
+          "pattern": "^#[0-9A-F]{6}$",
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "initials",
+        "domain",
+        "color"
+      ],
+      "title": "Placeholder",
+      "type": "object"
+    },
+    "RelatedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "news_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        },
+        "story_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Story Id"
+        },
+        "card": {
+          "$ref": "#/$defs/NewsCard"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "companies": {
+          "items": {
+            "$ref": "#/$defs/CompanyMention"
+          },
+          "minItems": 1,
+          "title": "Companies",
+          "type": "array"
+        },
+        "publications": {
+          "items": {
+            "$ref": "#/$defs/NewsCard"
+          },
+          "minItems": 1,
+          "title": "Publications",
+          "type": "array"
+        }
+      },
+      "required": [
+        "news_id",
+        "card",
+        "companies",
+        "publications"
+      ],
+      "title": "RelatedEvent",
+      "type": "object"
+    },
+    "RelatedScope": {
+      "enum": [
+        "all",
+        "competitors",
+        "counterparties"
+      ],
+      "title": "RelatedScope",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "company_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Company Id",
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "period_days": {
+      "maximum": 14,
+      "minimum": 1,
+      "title": "Period Days",
+      "type": "integer"
+    },
+    "scope": {
+      "$ref": "#/$defs/RelatedScope"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/RelatedEvent"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "considered": {
+      "description": "Публикаций за период до отбора",
+      "minimum": 0,
+      "title": "Considered",
+      "type": "integer"
+    },
+    "matched": {
+      "description": "Сюжетов до ограничения limit",
+      "minimum": 0,
+      "title": "Matched",
+      "type": "integer"
+    },
+    "unnamed_companies": {
+      "description": "Пропущено компаний без публичного имени",
+      "minimum": 0,
+      "title": "Unnamed Companies",
+      "type": "integer"
+    },
+    "warnings": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "company_id",
+    "generated_at",
+    "period_days",
+    "scope",
+    "considered",
+    "matched",
+    "unnamed_companies"
+  ],
+  "title": "RelatedFeed",
+  "type": "object"
+}
