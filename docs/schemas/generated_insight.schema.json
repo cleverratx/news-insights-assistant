@@ -1236,6 +1236,150 @@
       "title": "RoleAdjustment",
       "type": "object"
     },
+    "RoleRewrite": {
+      "additionalProperties": false,
+      "properties": {
+        "statement_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Statement Id",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement_id",
+        "text"
+      ],
+      "title": "RoleRewrite",
+      "type": "object"
+    },
+    "RoleView": {
+      "additionalProperties": false,
+      "description": "Инсайт глазами должности: формулировки и акценты, а фактура — общая для всех ролей.",
+      "properties": {
+        "role": {
+          "minLength": 1,
+          "title": "Role",
+          "type": "string"
+        },
+        "title": {
+          "description": "Должность словами",
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "focus": {
+          "description": "Что важно этой должности",
+          "minLength": 1,
+          "title": "Focus",
+          "type": "string"
+        },
+        "method": {
+          "description": "llm — формулировки переписаны под роль и проверены; rules — только акценты",
+          "enum": [
+            "llm",
+            "rules"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "headline": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Headline"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Главное для этой должности",
+          "title": "Summary"
+        },
+        "summary_ids": {
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Summary Ids",
+          "type": "array"
+        },
+        "emphasis": {
+          "description": "Утверждения, которые роль увидит первыми",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Emphasis",
+          "type": "array"
+        },
+        "risks": {
+          "description": "Порядок рисков для роли",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Risks",
+          "type": "array"
+        },
+        "opportunities": {
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Opportunities",
+          "type": "array"
+        },
+        "actions": {
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Actions",
+          "type": "array"
+        },
+        "rewrites": {
+          "description": "Формулировки выводов модели под роль",
+          "items": {
+            "$ref": "#/$defs/RoleRewrite"
+          },
+          "title": "Rewrites",
+          "type": "array"
+        }
+      },
+      "required": [
+        "role",
+        "title",
+        "focus",
+        "method"
+      ],
+      "title": "RoleView",
+      "type": "object"
+    },
     "ScoreBreakdown": {
       "additionalProperties": false,
       "properties": {
@@ -1633,6 +1777,18 @@
       },
       "title": "Gaps",
       "type": "array"
+    },
+    "role_view": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RoleView"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Акценты и формулировки под должность поверх общей фактуры"
     },
     "offer": {
       "anyOf": [

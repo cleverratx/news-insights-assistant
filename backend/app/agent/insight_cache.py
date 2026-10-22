@@ -1,5 +1,6 @@
-"""A5-09: кеш проверенных инсайтов. Тот же профиль, те же материалы, роль и акцент — тот же
-разбор без повторного вызова модели, пока он не устарел."""
+"""A5-09: кеш проверенных инсайтов. Тот же профиль, те же материалы и акцент — тот же
+разбор без повторного вызова модели, пока он не устарел. Должность в ключ не входит (A5-14):
+разбор общий для всех ролей, под роль меняются только оценки и подача."""
 
 import json
 from collections.abc import Sequence
@@ -16,7 +17,6 @@ from app.contracts.insight import InsightStatus
 from app.contracts.news import NewsItem
 from app.contracts.profile import CompanyProfile
 from app.contracts.trace import AgentTrace
-from app.rank.roles import Role
 from app.rank.snapshots import digest
 
 KIND = "insight"
@@ -27,15 +27,12 @@ def cache_version() -> str:
     return version_of(INSTRUCTION, schema_text(Draft), schema_text(GeneratedInsight))
 
 
-def cache_input(
-    profile: CompanyProfile, news: Sequence[NewsItem], role: Role | None, focus: str | None
-) -> str:
+def cache_input(profile: CompanyProfile, news: Sequence[NewsItem], focus: str | None) -> str:
     return json.dumps(
         {
             "company_id": profile.company_id,
             "profile": digest(profile),
             "news": [[item.id, digest(item)] for item in news],
-            "role": role.value if role else None,
             "focus": " ".join(focus.split()).casefold() if focus else None,
         },
         ensure_ascii=False,

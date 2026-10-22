@@ -69,7 +69,8 @@ async def test_snapshot_reuses_scores_and_rejects_stale_profile_role_and_materia
     assert result.role == trace.role == "cfo"
     assert result.ranking == trace.ranking
     assert result.usage.calls == 0
-    assert "Финансовый директор" in trace.objective
+    assert "Финансовый директор" not in trace.objective
+    assert result.role_view is None
     with pytest.raises(ValueError):
         await restore(db, feed.snapshot_id, company, [db.news], "logistics")
     with pytest.raises(ValueError):

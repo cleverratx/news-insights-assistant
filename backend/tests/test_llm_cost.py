@@ -24,7 +24,6 @@ from app.llm.models import AllowedModel, Message, Task
 from app.llm.spend import LLMSpendMiddleware, record, spend_scope
 from app.llm.usage import report
 from app.main import create_app
-from app.rank.roles import Role
 from tests.test_agent_insight import finish
 from tests.test_agent_tools import Replies
 from tests.test_agent_trace import Store
@@ -246,17 +245,16 @@ async def test_usage_endpoint_reports_or_fails_safely(monkeypatch: pytest.Monkey
     assert "private-redis-detail" not in failed.text
 
 
-def test_cache_key_follows_profile_materials_role_and_focus() -> None:
+def test_cache_key_follows_profile_materials_and_focus() -> None:
     db = Store()
     company = profile()
-    base = cache_input(company, [db.news], None, "Влияние  на ставку")
-    assert base == cache_input(company, [db.news], None, " влияние на   ставку ")
-    assert base != cache_input(company, [db.news], Role.CFO, "Влияние на ставку")
-    assert base != cache_input(company, [db.news], None, None)
+    base = cache_input(company, [db.news], "Влияние  на ставку")
+    assert base == cache_input(company, [db.news], " влияние на   ставку ")
+    assert base != cache_input(company, [db.news], None)
     changed = db.news.model_copy(update={"text": "Материал изменён"})
-    assert base != cache_input(company, [changed], None, "Влияние на ставку")
+    assert base != cache_input(company, [changed], "Влияние на ставку")
     edited = company.model_copy(update={"features": company.features[1:]})
-    assert base != cache_input(edited, [db.news], None, "Влияние на ставку")
+    assert base != cache_input(edited, [db.news], "Влияние на ставку")
 
 
 class CacheStore(Store):
@@ -337,7 +335,7 @@ async def test_failed_or_expired_insight_is_not_served_from_cache(cache_client: 
         "/api/companies/U_1/insights", json={"news_ids": [db.news.id, db.bank.id]}
     )
     assert ready.json()["insight"]["status"] == "ready"
-    key = cache_input(profile(), [db.news, db.bank], None, None)
+    key = cache_input(profile(), [db.news, db.bank], None)
     later = datetime.now(UTC) + timedelta(hours=25)
     assert await cached(db, key, timedelta(hours=24), later) is None
     assert await cached(db, key, timedelta(hours=24)) is not None

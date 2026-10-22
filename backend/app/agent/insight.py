@@ -14,6 +14,7 @@ from app.agent.critic import Draft, InsightCritic
 from app.agent.fallback import confirmed_facts, data_gaps, salvage
 from app.agent.offers import offer_for, prompt_hint
 from app.agent.orchestrator import SYSTEM_PROMPT, Completer, Limits, LLMPlanner, Orchestrator
+from app.agent.roles import role_view
 from app.agent.tools.builtin import create_tools
 from app.agent.trace import build_trace, ground
 from app.contracts.common import Significance
@@ -229,6 +230,84 @@ def event_sources(news: Sequence[NewsItem]) -> list[SourceRef]:
     ]
 
 
+LEVELS = {
+    ImportanceLevel.CRITICAL: Significance.HIGH,
+    ImportanceLevel.IMPORTANT: Significance.HIGH,
+    ImportanceLevel.INFO: Significance.MEDIUM,
+    ImportanceLevel.BACKGROUND: Significance.LOW,
+}
+
+
+def rank(
+    profile: CompanyProfile,
+    news: Sequence[NewsItem],
+    role: Role | None,
+    ranking: Sequence[FeedItem] | None,
+    now: datetime,
+) -> list[InsightRanking]:
+    """Оценки карточек для ответа: из снимка ленты или по правилам с весами должности."""
+    scored = [score(profile, n, now) for n in news]
+    if role is not None:
+        scored = [apply_role(s, n, weights_for(role)) for s, n in zip(scored, news, strict=True)]
+    rankings = []
+    for n, s in zip(news, scored, strict=True):
+        card = next((c for c in ranking or [] if c.news_id == n.id), None)
+        weight = card.importance if card else importance(s, n.kind)
+        rankings.append(
+            InsightRanking(
+                news_id=n.id,
+                score=card.score if card else s.breakdown(),
+                importance=weight,
+                significance=card.significance if card else LEVELS[weight.level],
+                impact=card.impact if card else rules_impact(n, profile),
+            )
+        )
+    return rankings
+
+
+def neutral(
+    profile: CompanyProfile,
+    news: Sequence[NewsItem],
+    ranking: Sequence[FeedItem] | None,
+    now: datetime,
+) -> list[InsightRanking]:
+    """Оценки без должности для самого разбора: фактура не зависит от роли читателя.
+    Оценка влияния из ленты сохраняется — она относится к компании, а не к должности."""
+    impacts = {card.news_id: card.impact for card in ranking or []}
+    return [
+        item.model_copy(update={"impact": impacts[item.news_id]})
+        if item.news_id in impacts
+        else item
+        for item in rank(profile, news, None, None, now)
+    ]
+
+
+async def for_role(
+    result: GeneratedInsight,
+    profile: CompanyProfile,
+    news: Sequence[NewsItem],
+    llm: Completer | None,
+    connection: Any,
+    *,
+    role: Role | None,
+    ranking: Sequence[FeedItem] | None = None,
+    feed_snapshot_id: str | None = None,
+) -> GeneratedInsight:
+    """Готовый общий разбор для другой должности: те же утверждения, свои оценки и подача."""
+    rankings = rank(profile, news, role, ranking, datetime.now(UTC))
+    view = await role_view(llm, result.insight, role, connection)
+    return GeneratedInsight.model_validate(
+        {
+            **result.model_dump(mode="json"),
+            "role": role.value if role else None,
+            "ranking": [r.model_dump(mode="json") for r in rankings],
+            "feed_snapshot_id": feed_snapshot_id,
+            "role_view": view.model_dump(mode="json") if view else None,
+            "cache_hit": True,
+        }
+    )
+
+
 async def generate_with_trace(
     profile: CompanyProfile,
     news: Sequence[NewsItem],
@@ -245,36 +324,15 @@ async def generate_with_trace(
     if not news or len(news) > 3 or len({n.id for n in news}) != len(news):
         raise ValueError("Нужны 1–3 различных материала")
     now = datetime.now(UTC)
-    scored = [score(profile, n, now) for n in news]
-    if role is not None:
-        scored = [apply_role(s, n, weights_for(role)) for s, n in zip(scored, news, strict=True)]
-    levels = {
-        ImportanceLevel.CRITICAL: Significance.HIGH,
-        ImportanceLevel.IMPORTANT: Significance.HIGH,
-        ImportanceLevel.INFO: Significance.MEDIUM,
-        ImportanceLevel.BACKGROUND: Significance.LOW,
-    }
-    rankings = []
-    for n, s in zip(news, scored, strict=True):
-        card = next((c for c in ranking or [] if c.news_id == n.id), None)
-        weight = card.importance if card else importance(s, n.kind)
-        rankings.append(
-            InsightRanking(
-                news_id=n.id,
-                score=card.score if card else s.breakdown(),
-                importance=weight,
-                significance=card.significance if card else levels[weight.level],
-                impact=card.impact if card else rules_impact(n, profile),
-            )
-        )
-    best = max(rankings, key=lambda r: r.importance.score)
+    rankings = rank(profile, news, role, ranking, now)
+    shared = neutral(profile, news, ranking, now)
+    best = max(shared, key=lambda r: r.importance.score)
     usage = GenerationUsage()
+    recording: RecordingClient | None = None
     objective = OBJECTIVE + (f". Акцент пользователя: {focus}" if focus else "")
-    if role is not None:
-        objective += f". Должность: {weights_for(role).title} ({role.value})"
     objective += ". " + prompt_hint(profile, news)
     objective += ". Контекст ранжирования (оценки, а не подтверждённые факты): " + json.dumps(
-        [r.model_dump(mode="json") for r in rankings], ensure_ascii=False
+        [r.model_dump(mode="json") for r in shared], ensure_ascii=False
     )
     context = AnalysisContext(profile=profile, news=list(news), objective=objective, started_at=now)
     run_id = context.run_id
@@ -388,6 +446,9 @@ async def generate_with_trace(
             ),
         )
     insight = ground(insight, context)
+    view = await role_view(recording, insight, role, connection)
+    if recording is not None:
+        usage = recording.usage
     warnings = []
     if status is not InsightStatus.READY:
         warnings.append(reason or "Вывод не проверен")
@@ -408,6 +469,7 @@ async def generate_with_trace(
             pruned=pruned,
         ),
         offer=offer_for(insight, profile, news),
+        role_view=view,
         ranking=rankings,
         role=role,
         feed_snapshot_id=feed_snapshot_id,

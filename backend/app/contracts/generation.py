@@ -104,6 +104,34 @@ class ProductOffer(Contract):
     disclaimer: Text
 
 
+class RoleRewrite(Contract):
+    statement_id: Id
+    text: Text
+
+
+class RoleView(Contract):
+    """Инсайт глазами должности: формулировки и акценты, а фактура — общая для всех ролей."""
+
+    role: Text
+    title: Text = Field(description="Должность словами")
+    focus: Text = Field(description="Что важно этой должности")
+    method: Literal["llm", "rules"] = Field(
+        description="llm — формулировки переписаны под роль и проверены; rules — только акценты"
+    )
+    headline: Text | None = None
+    summary: Text | None = Field(default=None, description="Главное для этой должности")
+    summary_ids: list[Id] = Field(default_factory=list)
+    emphasis: list[Id] = Field(
+        default_factory=list, description="Утверждения, которые роль увидит первыми"
+    )
+    risks: list[Id] = Field(default_factory=list, description="Порядок рисков для роли")
+    opportunities: list[Id] = Field(default_factory=list)
+    actions: list[Id] = Field(default_factory=list)
+    rewrites: list[RoleRewrite] = Field(
+        default_factory=list, description="Формулировки выводов модели под роль"
+    )
+
+
 class InsightRanking(Contract):
     news_id: Id
     score: ScoreBreakdown
@@ -123,6 +151,9 @@ class GeneratedInsight(Contract):
     feed_snapshot_id: Id | None = None
     gaps: list[DataGap] = Field(
         default_factory=list, description="Чего не хватило: честный ответ вместо догадок"
+    )
+    role_view: RoleView | None = Field(
+        default=None, description="Акценты и формулировки под должность поверх общей фактуры"
     )
     offer: ProductOffer | None = Field(
         default=None, description="Не больше одного продукта и только при обоснованной связи"
@@ -146,6 +177,34 @@ class GeneratedInsight(Contract):
             raise ValueError("Готовый инсайт должен пройти проверку и содержать действия")
         if self.insight.status is InsightStatus.READY and any(g.blocking for g in self.gaps):
             raise ValueError("У готового инсайта не может быть блокирующих пробелов")
+        if self.role_view is not None:
+            view = self.role_view
+            if self.insight.status is not InsightStatus.READY or view.role != self.role:
+                raise ValueError("Взгляд роли — только для готового инсайта и той же должности")
+            orders: list[tuple[list[str], list[str]]] = [
+                (view.risks, [s.id for s in self.insight.risks]),
+                (view.opportunities, [s.id for s in self.insight.opportunities]),
+                (view.actions, [s.id for s in self.insight.actions]),
+            ]
+            for order, section in orders:
+                if sorted(order) != sorted(section):
+                    raise ValueError("Порядок роли должен переставлять утверждения раздела")
+            model_ids = {
+                s.id
+                for s in [
+                    *self.insight.why_it_matters,
+                    *self.insight.risks,
+                    *self.insight.opportunities,
+                    *self.insight.actions,
+                ]
+                if s.origin is Origin.MODEL
+            }
+            rewritten = [r.statement_id for r in view.rewrites]
+            if len(set(rewritten)) != len(rewritten) or not set(rewritten) <= model_ids:
+                raise ValueError("Под роль переписываются только выводы модели, факты — нет")
+            known = {s.id for s in self.insight.statements()}
+            if not set(view.emphasis) | set(view.summary_ids) <= known:
+                raise ValueError("Взгляд роли ссылается на неизвестные утверждения")
         if self.offer is not None:
             impacts = {s.id for s in [*self.insight.risks, *self.insight.opportunities]}
             if self.insight.status is not InsightStatus.READY:
