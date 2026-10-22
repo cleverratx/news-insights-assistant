@@ -105,7 +105,13 @@ class LLMPlanner:
             "profile": context.profile.model_dump(mode="json"),
             "news": [n.model_dump(mode="json") for n in context.news],
             "steps": [step.model_dump(mode="json") for step in context.steps],
-            "tools": [tool.model_dump(mode="json") for tool in tools],
+            "tools": [
+                {
+                    **tool.model_dump(mode="json", exclude={"result_schema"}),
+                    "result_fields": tool.result_fields(),
+                }
+                for tool in tools
+            ],
             "budget": {
                 "remaining_steps": context.remaining_steps,
                 "remaining_seconds": context.remaining_seconds,

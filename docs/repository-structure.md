@@ -55,3 +55,5 @@
 - Данные и секреты в репозиторий не попадают: в `data/samples` только синтетика, в `.env.example` только имена переменных.
 
 Оркестратор агента A5-01: `backend/app/agent/orchestrator.py`; цикл, лимиты и подключение инструментов описаны в [agent.md](agent.md).
+
+Инструменты агента A5-03: `backend/app/agent/tools/`, фабрика реестра — `tools/builtin.py`, расчёт платёжной доли — `app/profile/exposure.py`.

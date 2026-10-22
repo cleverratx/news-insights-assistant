@@ -232,7 +232,7 @@ async def test_tool_schemas_are_sent_to_planner() -> None:
     payload = json.loads(llm.messages[0][1].content)
     [spec] = payload["tools"]
     assert spec["arguments_schema"]["required"] == ["q"]
-    assert spec["result_schema"]["required"] == ["count"]
+    assert spec["result_fields"] == ["count"]
 
 
 async def test_repairs_can_be_disabled() -> None:

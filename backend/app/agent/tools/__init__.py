@@ -73,6 +73,10 @@ class ToolSpec(BaseModel):
     arguments_schema: dict[str, JsonValue] = Field(default_factory=dict)
     result_schema: dict[str, JsonValue] = Field(default_factory=dict)
 
+    def result_fields(self) -> list[str]:
+        properties = self.result_schema.get("properties", {})
+        return list(properties) if isinstance(properties, dict) else []
+
 
 Handler = Callable[["AnalysisContext", dict[str, JsonValue]], Awaitable[Observation]]
 
