@@ -80,5 +80,7 @@
 
 Событие у конкурента или контрагента A5-15 — `backend/app/agent/related.py`: связь как признак профиля, `GeneratedInsight.related` с выжимкой и «что это значит для нас».
 
+Связи между новостями A5-16 — `backend/app/agent/threads.py`, API — `backend/app/api/news_links.py` (`/api/news/threads`, `/api/news/{id}/links`).
+
 Снимки оценок ленты и проверка неизменности контекста — `backend/app/rank/snapshots.py`.
 `frontend/src/App.tsx` подключает ленты, выбор роли, генерацию и чтение трассы.

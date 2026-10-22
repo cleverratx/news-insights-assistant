@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "news_links.schema.json",
+  "$defs": {
+    "LinkKind": {
+      "enum": [
+        "continuation",
+        "reinforces",
+        "contradicts"
+      ],
+      "title": "LinkKind",
+      "type": "string"
+    },
+    "NewsCard": {
+      "additionalProperties": false,
+      "description": "Карточка оригинала: издание, дата, ссылка на статью и картинка, если она есть.",
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "news_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "source": {
+          "description": "Издание",
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "published_at": {
+          "format": "date-time",
+          "title": "Published At",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Статья в первоисточнике",
+          "title": "Url"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Картинка статьи; null — показывать placeholder",
+          "title": "Image"
+        },
+        "placeholder": {
+          "$ref": "#/$defs/Placeholder"
+        }
+      },
+      "required": [
+        "news_id",
+        "title",
+        "source",
+        "published_at",
+        "placeholder"
+      ],
+      "title": "NewsCard",
+      "type": "object"
+    },
+    "NewsLink": {
+      "additionalProperties": false,
+      "description": "Связь более новой публикации с более ранней.",
+      "properties": {
+        "news_id": {
+          "description": "Более новая публикация",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "News Id",
+          "type": "string"
+        },
+        "linked_id": {
+          "description": "Более ранняя публикация, с которой она связана",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Linked Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/LinkKind",
+          "description": "continuation — развитие сюжета о тех же участниках; reinforces — другое событие той же направленности по той же теме; contradicts — та же тема и участники, но противоположная оценка"
+        },
+        "label": {
+          "description": "«Продолжение», «Усиливает» или «Противоречит»",
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "explanation": {
+          "description": "Коротко: что общего и в чём связь",
+          "minLength": 1,
+          "title": "Explanation",
+          "type": "string"
+        },
+        "shared": {
+          "description": "Общие участники, отрасли, регионы",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Shared",
+          "type": "array"
+        },
+        "shared_keys": {
+          "description": "Ключи общих сущностей A3-11",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Shared Keys",
+          "type": "array"
+        },
+        "topics": {
+          "description": "Общие темы",
+          "items": {
+            "$ref": "#/$defs/Topic"
+          },
+          "minItems": 1,
+          "title": "Topics",
+          "type": "array"
+        },
+        "strength": {
+          "description": "Сумма весов общих сущностей",
+          "minimum": 0,
+          "title": "Strength",
+          "type": "number"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "method": {
+          "const": "entities",
+          "default": "entities",
+          "description": "Связь построена по общим сущностям и теме, без LLM",
+          "title": "Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "news_id",
+        "linked_id",
+        "kind",
+        "label",
+        "explanation",
+        "shared",
+        "shared_keys",
+        "topics",
+        "strength",
+        "confidence"
+      ],
+      "title": "NewsLink",
+      "type": "object"
+    },
+    "Placeholder": {
+      "additionalProperties": false,
+      "description": "Чем заполнить место картинки, если её нет: карточка не должна менять вёрстку.",
+      "properties": {
+        "initials": {
+          "description": "Буквы издания: «РГ», «И»",
+          "minLength": 1,
+          "title": "Initials",
+          "type": "string"
+        },
+        "domain": {
+          "description": "Домен статьи: vedomosti.ru",
+          "minLength": 1,
+          "title": "Domain",
+          "type": "string"
+        },
+        "color": {
+          "description": "Цвет фона, постоянный у издания",
+          "minLength": 1,
+          "pattern": "^#[0-9A-F]{6}$",
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "initials",
+        "domain",
+        "color"
+      ],
+      "title": "Placeholder",
+      "type": "object"
+    },
+    "Topic": {
+      "enum": [
+        "key_rate",
+        "inflation",
+        "fx",
+        "commodities",
+        "trade",
+        "logistics",
+        "sanctions",
+        "regulation",
+        "taxes",
+        "labor",
+        "consumption",
+        "debt_market",
+        "macro",
+        "industry",
+        "regional",
+        "company",
+        "other"
+      ],
+      "title": "Topic",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "news_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "News Id",
+      "type": "string"
+    },
+    "links": {
+      "items": {
+        "$ref": "#/$defs/NewsLink"
+      },
+      "title": "Links",
+      "type": "array"
+    },
+    "cards": {
+      "description": "Карточки связанных публикаций",
+      "items": {
+        "$ref": "#/$defs/NewsCard"
+      },
+      "title": "Cards",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "news_id"
+  ],
+  "title": "NewsLinks",
+  "type": "object"
+}
