@@ -18,6 +18,16 @@ from app.contracts.rank import ImpactAssessment, Importance, ScoreBreakdown
 from app.contracts.related_feed import CompanyMention
 from app.llm.models import AllowedModel
 
+NOT_ADVICE = "Не является инвестиционной рекомендацией."
+AI_MADE = (
+    "Разбор подготовил ИИ по материалам ленты и аналитике Альфа-Банка. Позиция банка — только "
+    "в разделе «Позиция Альфа-Банка», остальные выводы не являются официальной позицией банка."
+)
+AI_ONLY = (
+    "Разбор подготовил ИИ. Аналитики Альфа-Банка по этой теме не найдено: выводы ИИ "
+    "не являются официальной позицией банка."
+)
+
 type BlockId = Literal["event", "relevance", "consequences", "actions", "bank", "basis"]
 type ExecutionStatus = Literal[
     "completed", "step_limit", "timeout", "planner_error", "check_failed", "unavailable"
@@ -178,6 +188,16 @@ class GeneratedInsight(Contract):
         default=False,
         description="Сохранённый ранее разбор выдан из кеша инсайтов без обращения к LLM",
     )
+    disclaimer: Text = Field(
+        default=f"{AI_MADE} {NOT_ADVICE}",
+        description="Обязательная пометка под разбором: кто составил и что это не рекомендация",
+    )
+
+    @model_validator(mode="after")
+    def disclaimed(self) -> Self:
+        if NOT_ADVICE not in self.disclaimer:
+            raise ValueError("Разбор должен предупреждать, что это не инвестиционная рекомендация")
+        return self
 
     @model_validator(mode="after")
     def separated(self) -> Self:

@@ -1101,6 +1101,75 @@
       "title": "TraceDocument",
       "type": "object"
     },
+    "TraceRejection": {
+      "additionalProperties": false,
+      "description": "Утверждение черновика, которое проверка оспорила: что именно написала модель и почему\nэто не показано как есть. Пользователь видит только число скрытых выводов и причины.",
+      "properties": {
+        "check_index": {
+          "minimum": 0,
+          "title": "Check Index",
+          "type": "integer"
+        },
+        "statement_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Statement Id",
+          "type": "string"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Section"
+            },
+            {
+              "const": "headline",
+              "type": "string"
+            }
+          ],
+          "title": "Section"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Origin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "problems": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Problems",
+          "type": "array"
+        },
+        "shown": {
+          "description": "Тот же текст попал в итоговый вывод после исправлений",
+          "title": "Shown",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "check_index",
+        "statement_id",
+        "section",
+        "text",
+        "problems",
+        "shown"
+      ],
+      "title": "TraceRejection",
+      "type": "object"
+    },
     "TraceStep": {
       "additionalProperties": false,
       "properties": {
@@ -1414,6 +1483,14 @@
         "$ref": "#/$defs/TraceClaim"
       },
       "title": "Claims",
+      "type": "array"
+    },
+    "rejected": {
+      "description": "Оспоренные проверкой утверждения черновиков: текст модели и замечания",
+      "items": {
+        "$ref": "#/$defs/TraceRejection"
+      },
+      "title": "Rejected",
       "type": "array"
     }
   },
