@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     llm_max_input_bytes: int = Field(default=128000, gt=0, le=1000000)
     llm_budget_timezone: str = "UTC"
     llm_routes: dict[Task, AllowedModel] = Field(default_factory=dict)
+    llm_reasoning_tasks: frozenset[Task] = Field(default_factory=frozenset)
     llm_bulk_budget_share: Decimal = Field(default=Decimal("0.6"), gt=0, le=1, allow_inf_nan=False)
     llm_economy_share: Decimal = Field(default=Decimal("0.8"), gt=0, le=1, allow_inf_nan=False)
     llm_insight_cache_hours: int = Field(default=24, ge=0, le=720)
