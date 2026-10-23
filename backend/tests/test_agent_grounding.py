@@ -96,6 +96,45 @@ async def test_unconfirmed_model_text_is_marked_as_assumption() -> None:
     assert claim.support is Support.ASSUMPTION
 
 
+async def test_consequence_that_does_not_link_event_and_company_is_an_assumption() -> None:
+    db = Store()
+    value = ready_draft(db)
+    model = {"origin": "model"}
+    value["risks"] = [
+        {**model, "id": "linked", "text": "Перевозки подорожают", "source_ids": ["n", "p"]},
+        {**model, "id": "industry", "text": "Отрасль заплатит больше", "source_ids": ["n"]},
+        {**model, "id": "company", "text": "Компания уязвима", "source_ids": ["p"]},
+        {
+            **model,
+            "id": "unsure",
+            "text": "Возможна задержка поставок",
+            "source_ids": ["n", "p"],
+            "confidence": "low",
+        },
+    ]
+    value["actions"].append(
+        {
+            **model,
+            "id": "what_if",
+            "text": "Если тарифы вырастут, пересмотреть логистику",
+            "kind": "scenario",
+            "source_ids": ["n", "p"],
+        }
+    )
+    result, _ = await generate_with_trace(
+        profile(), [db.news, db.bank], db, Replies(finish(value), '{"issues":[]}')
+    )
+    supports = {s.id: s.support for s in result.insight.statements()}
+    assert supports["linked"] is Support.SOURCE
+    assert supports["action"] is Support.SOURCE
+    assert {supports[key] for key in ("industry", "company", "unsure", "what_if")} == {
+        Support.ASSUMPTION
+    }
+    assert supports["why"] is Support.SOURCE
+    labels = {r.statement.id: r.label for r in result.presentation.ai_conclusions}
+    assert labels["industry"] == ASSUMPTION_LABEL and labels["linked"] == "Вывод ИИ"
+
+
 async def test_fact_without_fragment_is_rejected_by_critic() -> None:
     db = Database()
     value = draft(db)

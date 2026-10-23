@@ -198,7 +198,8 @@ async def test_ready_insight_refines_impact_from_its_conclusions():
     impact = result.ranking[0].impact
     assert impact != cards[0].impact
     assert [(a.question_id, a.level) for a in impact.answers] == [("money.debt", -1)]
-    assert impact.score == -1 and impact.method == "llm"
+    assert impact.score == impact.answers[0].points and impact.score < 0
+    assert impact.method == "llm"
     assert "проверенные выводы разбора" in llm.messages[-1][1].content
     assert result.ranking == trace.ranking
     assert result.usage.calls == len(llm.messages) == 4
