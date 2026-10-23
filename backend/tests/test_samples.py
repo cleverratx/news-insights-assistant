@@ -51,12 +51,13 @@ def test_samples_exercise_every_cleaning_rule() -> None:
         ("companies", "код ОКВЭД не распознан"),
         ("companies", "нулевое значение"),
         ("companies", "отрицательное значение"),
+        ("companies", "заглушка 1000 ₽ вместо выручки, считаем неизвестной"),
         ("companies", "дубликат, оставлена полная строка"),
         ("payments", "нет суммы, строка отброшена"),
         ("payments", "платёж самому себе, строка отброшена"),
         ("persons", "нет идентификатора, строка отброшена"),
     }
-    assert report["tables"]["companies"]["loaded"] == 71
+    assert report["tables"]["companies"]["loaded"] == 72
     assert report["tables"]["payments"]["loaded"] == 14
     assert report["warnings"] == []
 
@@ -103,7 +104,7 @@ async def test_end_to_end_profiles_on_samples(database: asyncpg.Connection) -> N
 
 
 @pytest.mark.parametrize(
-    "company_id", [f"U_9004{number:02d}" for number in range(1, 18)] + ["U_900418"]
+    "company_id", [*(f"U_9004{number:02d}" for number in range(1, 18)), "U_900418", "U_900420"]
 )
 async def test_noisy_companies_answer_not_fail(
     database: asyncpg.Connection, company_id: str

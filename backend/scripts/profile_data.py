@@ -23,6 +23,7 @@ from case_data import (
 MAX_TOP_VALUES = 10
 LOW_FILL_THRESHOLD = 0.5
 LARGE_BUSINESS_REVENUE = 15_000_000_000
+REVENUE_STUB = 1000
 
 
 def column_overview(frame: pd.DataFrame) -> pd.DataFrame:
@@ -257,13 +258,16 @@ def build_report(case: CaseTables) -> str:
     parts.append(markdown_table(column_overview(companies)))
 
     if "REVENUE_COMPANY" in companies.columns:
-        parts.append("\n## Выручка\n")
-        parts.append(markdown_table(numeric_summary(companies["REVENUE_COMPANY"])))
         revenue = to_number(companies["REVENUE_COMPANY"])
+        stub = revenue == REVENUE_STUB
+        parts.append("\n## Выручка\n")
+        parts.append(markdown_table(numeric_summary(revenue.mask(stub))))
         large = int((revenue >= LARGE_BUSINESS_REVENUE).sum())
         parts.append(
             f"\n- компаний с выручкой от 15 млрд (целевой сегмент кейса): {large} "
             f"({share(large, len(companies))})\n"
+            f"- заглушек 1000 ₽ вместо выручки (в сводку выше не входят): {int(stub.sum())} "
+            f"({share(int(stub.sum()), len(companies))})\n"
         )
 
     for column, title in (
