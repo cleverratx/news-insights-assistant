@@ -1,0 +1,262 @@
+.widget {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gap-16);
+  padding: var(--gap-24);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+  box-shadow: var(--shadow-xs);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gap-16);
+}
+
+.heading {
+  display: grid;
+  gap: var(--gap-12);
+  min-width: 0;
+}
+
+.title {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gap-4);
+  padding: var(--gap-4) var(--gap-12);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-pill);
+}
+
+.chipIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.chipNew {
+  font-weight: 700;
+  color: var(--c-text-inverted);
+  background: var(--c-accent-press);
+}
+
+.chipImportant {
+  color: var(--c-attention-text-a11y);
+  background: var(--c-attention-muted);
+}
+
+.chipRisk {
+  color: var(--c-negative-text-a11y);
+  background: var(--c-negative-muted);
+}
+
+.chipChance {
+  color: var(--c-positive-text-a11y);
+  background: var(--c-positive-muted);
+}
+
+.calm {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}
+
+.allButton {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: var(--size-48);
+  padding: 0 var(--gap-20);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--c-text-primary);
+  text-decoration: none;
+  background: var(--c-bg-control);
+  border-radius: var(--radius-12);
+  transition: background-color 150ms ease;
+}
+
+.allButton:hover {
+  background: var(--c-bg-control-hover);
+}
+
+.state {
+  display: grid;
+  gap: var(--gap-12);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.hint {
+  color: var(--c-text-secondary);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0 calc(-1 * var(--gap-12));
+  padding: 0;
+  list-style: none;
+}
+
+.list > li + li {
+  border-top: 1px solid var(--c-border-secondary);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--gap-20);
+  padding: var(--gap-16) var(--gap-12);
+  color: var(--c-text-primary);
+  text-decoration: none;
+  border-radius: var(--radius-16);
+  transition: background-color 150ms ease;
+}
+
+.row:hover {
+  background: var(--c-bg-page);
+}
+
+.lead {
+  padding-top: var(--gap-8);
+  padding-bottom: var(--gap-20);
+}
+
+.body {
+  display: grid;
+  gap: var(--gap-8);
+  min-width: 0;
+}
+
+.newsTitle {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lead .newsTitle {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-8);
+}
+
+.marks:empty {
+  display: none;
+}
+
+.mark {
+  padding: 2px var(--gap-8);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--c-text-primary);
+  background: var(--c-bg-page);
+  border-radius: var(--radius-8);
+}
+
+.row:hover .mark:not(.markBank) {
+  background: var(--c-bg-tertiary);
+}
+
+.newDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 var(--gap-8) 0 0;
+  vertical-align: 0.15em;
+  background: var(--c-accent);
+  border-radius: 50%;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.markBank {
+  color: var(--c-negative-text-a11y);
+  background: var(--c-negative-muted);
+}
+
+.chevron {
+  width: 24px;
+  height: 24px;
+  color: var(--c-graphic-secondary);
+}
+
+@media (max-width: 767px) {
+  .head {
+    flex-direction: column;
+  }
+
+  .row {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--gap-12) var(--gap-16);
+  }
+
+  .row > :nth-child(3) {
+    grid-column: 2;
+    width: 100%;
+    max-width: 240px;
+  }
+
+  .chevron {
+    display: none;
+  }
+
+  .lead .newsTitle {
+    font-size: 20px;
+    line-height: 24px;
+    -webkit-line-clamp: 3;
+  }
+}
+
+@media (max-width: 599px) {
+  .widget {
+    padding: var(--gap-20) var(--gap-16);
+  }
+
+  .title {
+    font-size: 20px;
+    line-height: 24px;
+  }
+
+  .allButton {
+    height: var(--size-40);
+    font-size: 14px;
+  }
+}

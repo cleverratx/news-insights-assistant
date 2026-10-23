@@ -1,6 +1,46 @@
 .page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--gap-24);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--gap-24);
+  align-items: start;
+}
+
+.actions {
+  display: grid;
+  gap: var(--gap-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-12);
+  min-height: var(--size-48);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+  cursor: default;
+}
+
+.actionIcon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  color: var(--c-graphic-secondary);
+}
+
+@media (max-width: 1023px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .plate {

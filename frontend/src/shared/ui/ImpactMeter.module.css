@@ -1,0 +1,94 @@
+.meter {
+  display: grid;
+  gap: var(--gap-4);
+  flex: none;
+}
+
+.l {
+  width: 200px;
+}
+
+.m {
+  width: 152px;
+}
+
+.uncertain {
+  opacity: 0.55;
+}
+
+.value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--gap-4);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text-primary);
+}
+
+.l .value {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.m .value {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.arrow {
+  width: 16px;
+  height: 16px;
+  color: var(--tone, var(--c-graphic-secondary));
+}
+
+.track {
+  position: relative;
+  display: block;
+  height: 10px;
+  background: var(--c-bg-tertiary);
+  border-radius: var(--radius-pill);
+}
+
+.fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--tone);
+}
+
+.negative {
+  --tone: var(--c-accent);
+}
+
+.positive {
+  --tone: var(--c-positive-text-a11y);
+}
+
+.negative .fill {
+  border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+}
+
+.positive .fill {
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+}
+
+.zero {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--c-graphic-secondary);
+  border-radius: 1px;
+}
+
+.scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text-secondary);
+}

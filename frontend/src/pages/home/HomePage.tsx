@@ -1,7 +1,12 @@
-import { Link } from 'react-router';
+import type { ComponentType, SVGProps } from 'react';
 import { Typography } from '@alfalab/core-components-typography';
+import { ArrowsRightLeftMIcon } from '@alfalab/icons-glyph/ArrowsRightLeftMIcon';
+import { BanknotesMIcon } from '@alfalab/icons-glyph/BanknotesMIcon';
+import { DocumentMIcon } from '@alfalab/icons-glyph/DocumentMIcon';
+import { UsersMIcon } from '@alfalab/icons-glyph/UsersMIcon';
 
 import { useShell } from '@/app/shell-context';
+import { NewsWidget } from '@/features/news-widget/NewsWidget';
 import type { CompanyProfile } from '@/shared/api/types';
 import { formatRubles } from '@/shared/lib/format';
 import { ErrorState, Skeleton } from '@/shared/ui/StateView';
@@ -18,6 +23,13 @@ const PRODUCTS: Record<NonNullable<CompanyProfile['products']>[number], string> 
   factoring: 'факторинг',
 };
 
+const QUICK_ACTIONS: { title: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
+  { title: 'Новый платёж', icon: ArrowsRightLeftMIcon },
+  { title: 'Выписка по счёту', icon: DocumentMIcon },
+  { title: 'Зарплатная ведомость', icon: UsersMIcon },
+  { title: 'Заявка на кредит', icon: BanknotesMIcon },
+];
+
 function greeting(hour: number): string {
   if (hour < 5) return 'Доброй ночи';
   if (hour < 12) return 'Доброе утро';
@@ -26,7 +38,7 @@ function greeting(hour: number): string {
 }
 
 export function HomePage() {
-  const { user, profiles, current, company, search } = useShell();
+  const { user, profiles, current, company, search, feed, fresh } = useShell();
   const firstName = user.name.split(' ')[0];
 
   return (
@@ -34,36 +46,45 @@ export function HomePage() {
       <Typography.Title tag="h1" view="medium">
         {greeting(new Date().getHours())}, {firstName}
       </Typography.Title>
-      <section className={styles.plate} aria-labelledby="company-title">
-        {profiles.loading && <Skeleton lines={4} />}
-        {profiles.error && (
-          <ErrorState
-            title="Не удалось загрузить организации"
-            message={profiles.error}
-            onRetry={profiles.retry}
-          />
-        )}
-        {current?.error && (
-          <ErrorState
-            title="Не удалось загрузить профиль организации"
-            message={current.error}
-            onRetry={profiles.retry}
-          />
-        )}
-        {current?.profile && <CompanySummary profile={current.profile} id={company} />}
-      </section>
-      <section className={styles.plate} aria-labelledby="news-entry-title">
-        <Typography.Title tag="h2" view="xsmall" id="news-entry-title">
-          Новости для бизнеса
-        </Typography.Title>
-        <p className={styles.lead}>
-          События, которые касаются вашей компании, с разбором рисков и возможностей под вашу
-          должность.
-        </p>
-        <Link className={styles.primaryLink} to={{ pathname: '/feed', search }}>
-          Открыть новости
-        </Link>
-      </section>
+      <NewsWidget feed={feed} fresh={fresh} search={search} />
+      <div className={styles.columns}>
+        <section className={styles.plate} aria-labelledby="company-title">
+          {profiles.loading && <Skeleton lines={4} />}
+          {profiles.error && (
+            <ErrorState
+              title="Не удалось загрузить организации"
+              message={profiles.error}
+              onRetry={profiles.retry}
+            />
+          )}
+          {current?.error && (
+            <ErrorState
+              title="Не удалось загрузить профиль организации"
+              message={current.error}
+              onRetry={profiles.retry}
+            />
+          )}
+          {current?.profile && <CompanySummary profile={current.profile} id={company} />}
+        </section>
+        <section className={styles.plate} aria-labelledby="actions-title">
+          <Typography.Title tag="h2" view="xsmall" id="actions-title">
+            Быстрые действия
+          </Typography.Title>
+          <ul className={styles.actions}>
+            {QUICK_ACTIONS.map(({ title, icon: ActionIcon }) => (
+              <li
+                key={title}
+                className={styles.action}
+                aria-disabled="true"
+                title="В демо недоступно"
+              >
+                <ActionIcon className={styles.actionIcon} aria-hidden="true" />
+                {title}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
     </div>
   );
 }

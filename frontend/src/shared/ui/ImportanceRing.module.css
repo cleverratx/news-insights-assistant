@@ -1,0 +1,57 @@
+.ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.l {
+  width: 72px;
+  height: 72px;
+}
+
+.m {
+  width: 48px;
+  height: 48px;
+}
+
+.track,
+.value {
+  fill: none;
+  stroke-width: 5;
+}
+
+.track {
+  stroke: var(--c-bg-tertiary);
+}
+
+.value {
+  stroke: color-mix(in oklch, var(--c-attention) calc(var(--share) * 100%), var(--c-positive));
+  stroke-linecap: round;
+}
+
+.score {
+  position: relative;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text-primary);
+}
+
+.l .score {
+  font-size: 20px;
+  line-height: 24px;
+}
+
+.m .score {
+  font-size: 14px;
+  line-height: 20px;
+}

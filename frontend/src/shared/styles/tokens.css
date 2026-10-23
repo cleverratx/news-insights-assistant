@@ -81,7 +81,7 @@
 
   --focus-ring: 0 0 0 2px var(--c-bg-plate), 0 0 0 4px var(--c-info);
 
-  --sidebar-width: 248px;
+  --sidebar-width: 264px;
   --header-height: 64px;
   --content-max: 1232px;
 }
