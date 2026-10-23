@@ -13,8 +13,7 @@
     "lint": "eslint .",
     "format": "prettier --write src",
     "typecheck": "tsc -b",
-    "test": "node --test tests/*.test.mjs",
-    "dev:ask": "node tests/preview-ask.mjs"
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@alfalab/core-components-button": "^13.2.4",
