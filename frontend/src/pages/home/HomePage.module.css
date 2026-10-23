@@ -1,0 +1,82 @@
+.page {
+  display: grid;
+  gap: var(--gap-24);
+}
+
+.plate {
+  display: grid;
+  gap: var(--gap-16);
+  padding: var(--gap-24);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+}
+
+.companyHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--gap-8) var(--gap-12);
+}
+
+.companyId {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--c-text-secondary);
+}
+
+.lead {
+  max-width: 75ch;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--gap-16) var(--gap-24);
+  margin: 0;
+}
+
+.fact {
+  display: grid;
+  align-content: start;
+  gap: var(--gap-4);
+  min-width: 0;
+}
+
+.fact dt {
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--c-text-secondary);
+}
+
+.fact dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.primaryLink {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  height: var(--size-48);
+  padding: 0 var(--gap-24);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--c-text-inverted);
+  text-decoration: none;
+  background: var(--c-accent);
+  border-radius: var(--radius-12);
+  transition: background-color 150ms ease;
+}
+
+.primaryLink:hover {
+  background: var(--c-accent-hover);
+}
+
+.primaryLink:active {
+  background: var(--c-accent-press);
+}

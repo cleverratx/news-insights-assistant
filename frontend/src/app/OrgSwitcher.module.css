@@ -1,0 +1,26 @@
+.switcher {
+  flex: 0 1 360px;
+  min-width: 0;
+}
+
+.option {
+  display: grid;
+  min-width: 0;
+}
+
+.name {
+  font-size: 16px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--c-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

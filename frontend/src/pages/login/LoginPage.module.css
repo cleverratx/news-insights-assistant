@@ -1,0 +1,126 @@
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--gap-24) var(--gap-16);
+}
+
+.plate {
+  display: grid;
+  gap: var(--gap-24);
+  width: 100%;
+  max-width: 440px;
+  padding: var(--gap-32);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+  box-shadow: var(--shadow-xs);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.demoMark {
+  padding: 0 var(--gap-8);
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 400;
+  color: var(--c-text-secondary);
+  background: var(--c-bg-tertiary);
+  border-radius: var(--radius-pill);
+}
+
+.users {
+  display: grid;
+  gap: var(--gap-8);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-bottom: var(--gap-8);
+  padding: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-12);
+  padding: var(--gap-12) var(--gap-16);
+  border: 1px solid var(--c-border-primary);
+  border-radius: var(--radius-12);
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.user:hover {
+  background: var(--c-bg-page);
+}
+
+.user:has(.radio:checked) {
+  border-color: var(--c-dark);
+  box-shadow: inset 0 0 0 1px var(--c-dark);
+}
+
+.user:has(.radio:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+
+.radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-40);
+  height: var(--size-40);
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--c-bg-tertiary);
+  border-radius: 50%;
+}
+
+.person {
+  display: grid;
+  min-width: 0;
+}
+
+.name {
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.role {
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--c-text-secondary);
+}
+
+.note {
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--c-text-secondary);
+}
+
+@media (max-width: 599px) {
+  .plate {
+    padding: var(--gap-24) var(--gap-20);
+  }
+}
