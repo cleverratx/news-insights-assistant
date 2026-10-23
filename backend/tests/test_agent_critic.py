@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 from typing import Any
 
@@ -356,3 +357,84 @@ async def test_unrecognized_output_block_is_not_silently_approved() -> None:
     value["unsupported_claims"] = ["Не подтверждённый источником вывод"]
     report = await InsightCritic(Replies()).review(context(db), value)
     assert not report.passed
+
+
+def bank_search(db: Database) -> Any:
+    from app.contracts.search import SearchHit, SearchResult
+
+    fragment = db.bank.fragments[1]
+    hit = SearchHit(
+        doc_id=db.bank.id,
+        kind=db.bank.kind,
+        title=db.bank.title,
+        source=db.bank.source.name,
+        document=db.bank.title,
+        published_at=db.bank.published_at,
+        fragment_id=fragment.id,
+        quote=fragment.text,
+        score=0.2,
+        bm25=1.0,
+    )
+    return SearchResult(query="корма", hits=[hit], reranked=False, searched=1)
+
+
+async def test_unrelated_bank_hits_do_not_force_a_bank_view() -> None:
+    from app.agent.tools import Observation
+
+    db = Database()
+    ctx = context(db, bank=False)
+    found = bank_search(db).model_dump(mode="json")
+    ctx.remember("search_bank_analytics", {"query": "корма"}, Observation(data=found), 1, True)
+    value = draft(db)
+    value["bank_view"] = []
+    value["sources"] = value["sources"][:2]
+    assert (await InsightCritic(Replies('{"issues":[]}')).review(ctx, value)).passed
+
+
+async def test_bank_material_under_analysis_requires_bank_view() -> None:
+    from app.agent.tools import Observation
+
+    db = Database()
+    ctx = context(db)
+    found = bank_search(db).model_dump(mode="json")
+    ctx.remember("search_bank_analytics", {"query": "ставка"}, Observation(data=found), 1, True)
+    value = draft(db)
+    value["bank_view"] = []
+    report = await InsightCritic(Replies()).review(ctx, value)
+    assert not report.passed
+    assert any("позиции банка" in i.detail for i in report.issues)
+
+
+async def test_semantic_critic_sees_whole_source_documents_once() -> None:
+    db = Database()
+    llm = Replies('{"issues":[]}')
+    value = draft(db)
+    value["sources"].append({**value["sources"][0], "id": "n2"})
+    await InsightCritic(llm).review(context(db), value)
+    payload = json.loads(llm.messages[0][1].content)
+    assert "evidence_excerpts" not in payload
+    assert set(payload["documents"]) == {db.news.id, db.bank.id}
+    assert payload["documents"][db.news.id] == db.news.text
+    assert db.bank.fragments[1].text in payload["documents"][db.bank.id]
+    assert "origin=model" in llm.messages[0][0].content
+
+
+def test_long_document_is_windowed_around_quote() -> None:
+    from app.agent.critic import DOCUMENT_CHARS, Evidence, document
+    from app.contracts.insight import SourceType
+
+    text = "А" * 20000 + " цитата из середины " + "Б" * 20000
+    window = document(Evidence(SourceType.NEWS, [(None, text)]), "цитата из середины")
+    assert len(window) == DOCUMENT_CHARS and "цитата из середины" in window
+
+
+async def test_generation_critic_names_what_to_fix() -> None:
+    from app.agent.insight import GenerationCritic
+
+    db = Database()
+    value = draft(db)
+    value["risks"][0]["origin"] = "bank"
+    report = await GenerationCritic(Replies()).review(context(db), value)
+    details = {i.statement_id: i.detail for i in report.issues}
+    assert db.bank.id in details[None] and db.news.id in details[None]
+    assert "bank_view" in details["risk"]

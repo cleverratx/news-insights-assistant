@@ -238,3 +238,122 @@ async def test_ready_insight_cannot_carry_blocking_gap() -> None:
     )
     with pytest.raises(ValidationError):
         GeneratedInsight.model_validate(payload)
+
+
+def with_second_risk(db: Database) -> dict[str, Any]:
+    value = draft(db)
+    value["news_ids"] = [db.news.id, db.bank.id]
+    value["risks"].append(
+        {
+            "id": "risk2",
+            "text": "Компания потеряет ключевых покупателей",
+            "origin": "model",
+            "source_ids": ["n", "p"],
+        }
+    )
+    return value
+
+
+DISPUTED = (
+    '{"issues":[{"statement_id":"risk2","problem":"unsupported",'
+    '"detail":"Потеря покупателей не следует из источника"}]}'
+)
+
+
+async def test_disputed_statements_are_hidden_and_rest_is_verified() -> None:
+    db = Database()
+    value = with_second_risk(db)
+    llm = Replies(finish(value), DISPUTED, finish(value), DISPUTED, '{"issues":[]}')
+    result = await generate(
+        profile(), [db.news, db.bank], db, llm, limits=Limits(max_critic_reviews=2)
+    )
+    assert result.insight.status == "ready" and result.execution_status == "completed"
+    assert "risk2" not in {s.id for s in result.insight.statements()}
+    assert "risk" in {s.id for s in result.insight.risks}
+    [gap] = [g for g in result.gaps if g.kind is GapKind.VERIFICATION]
+    assert not gap.blocking and "Скрыто выводов: 1" in gap.consequence
+    assert gap.details == ["Потеря покупателей не следует из источника"]
+    assert not [g for g in result.gaps if g.kind is GapKind.NUMBERS and "Скрыто" in g.consequence]
+    assert len(llm.messages) == 5
+
+
+async def test_general_semantic_objection_is_not_salvaged() -> None:
+    db = Database()
+    value = with_second_risk(db)
+    general = '{"issues":[{"statement_id":null,"problem":"other","detail":"Разбор не о том"}]}'
+    llm = Replies(finish(value), general, finish(value), general)
+    result = await generate(
+        profile(), [db.news, db.bank], db, llm, limits=Limits(max_critic_reviews=2)
+    )
+    assert result.insight.status == "insufficient_data"
+    assert len(llm.messages) == 4
+
+
+async def test_salvage_that_empties_a_block_is_rejected() -> None:
+    db = Database()
+    value = with_second_risk(db)
+    both = (
+        '{"issues":[{"statement_id":"risk","problem":"unsupported","detail":"x"},'
+        '{"statement_id":"risk2","problem":"unsupported","detail":"y"}]}'
+    )
+    llm = Replies(finish(value), both, finish(value), both)
+    result = await generate(
+        profile(), [db.news, db.bank], db, llm, limits=Limits(max_critic_reviews=2)
+    )
+    assert result.insight.status == "insufficient_data"
+    assert len(llm.messages) == 4
+
+
+async def test_disputed_headline_falls_back_to_material_title() -> None:
+    db = Database()
+    value = {**with_second_risk(db), "headline": "Выдуманный акцент заголовка"}
+    reply = (
+        '{"issues":[{"statement_id":"headline","problem":"contradiction",'
+        '"detail":"Заголовок противоречит данным компании"}]}'
+    )
+    llm = Replies(finish(value), reply, finish(value), reply, '{"issues":[]}')
+    result = await generate(
+        profile(), [db.news, db.bank], db, llm, limits=Limits(max_critic_reviews=2)
+    )
+    assert result.insight.status == "ready"
+    assert result.insight.headline == db.news.title
+    [gap] = [g for g in result.gaps if g.kind is GapKind.VERIFICATION]
+    assert "Скрыто выводов: 0; заголовок заменён" in gap.consequence
+
+
+async def test_disputed_only_action_is_not_salvaged() -> None:
+    db = Database()
+    value = with_second_risk(db)
+    reply = (
+        '{"issues":[{"statement_id":"action","problem":"trivial",'
+        '"detail":"Действие не даёт ценности"}]}'
+    )
+    llm = Replies(finish(value), reply, finish(value), reply)
+    result = await generate(
+        profile(), [db.news, db.bank], db, llm, limits=Limits(max_critic_reviews=2)
+    )
+    assert result.insight.status == "insufficient_data"
+    assert len(llm.messages) == 4
+
+
+async def test_draft_without_actions_is_still_rejected() -> None:
+    db = Database()
+    value = with_second_risk(db)
+    value["actions"] = []
+    report = await InsightCritic(Replies()).review(context(db), value)
+    assert any("Действия" in i.detail for i in report.issues)
+
+
+async def test_statement_with_unknown_source_is_hidden_and_rest_is_verified() -> None:
+    db = Database()
+    value = with_second_risk(db)
+    value["risks"][1]["source_ids"] = ["missing"]
+    llm = Replies(finish(value), finish(value), '{"issues":[]}')
+    result = await generate(
+        profile(), [db.news, db.bank], db, llm, limits=Limits(max_critic_reviews=2)
+    )
+    assert result.insight.status == "ready"
+    assert "risk2" not in {s.id for s in result.insight.statements()}
+    [gap] = [g for g in result.gaps if g.kind is GapKind.VERIFICATION]
+    assert "Утверждение ссылается на неизвестный источник" in gap.details
+    assert len(llm.messages) == 3
