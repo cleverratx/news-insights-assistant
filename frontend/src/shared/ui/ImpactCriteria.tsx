@@ -37,6 +37,10 @@ function toneClass(level: number): string {
   return level < 0 ? styles.downText : level > 0 ? styles.upText : styles.zeroText;
 }
 
+function weighted(impact: Pick<Impact, 'scale'>): boolean {
+  return impact.scale === 'weighted';
+}
+
 function Arrow({ level }: { level: number }) {
   const Icon = level < 0 ? ArrowDownSIcon : ArrowUpSIcon;
   return (
@@ -56,7 +60,11 @@ export function CriteriaLine({ impact, limit = 3 }: { impact: Impact; limit?: nu
           <Arrow level={criterion.level} />
           <span>
             <span className={styles.title}>{criterion.title}</span>
-            <span className={toneClass(criterion.level)}> — {levelWords(criterion.level)}</span>
+            <span className={toneClass(criterion.level)}>
+              {' '}
+              — {levelWords(criterion.level)}
+              {weighted(impact) && ` ${formatSigned(criterion.points)}`}
+            </span>
             {criterion.timing_title && (
               <span className={styles.meta}> · {criterion.timing_title}</span>
             )}
@@ -73,14 +81,13 @@ export function CriteriaLine({ impact, limit = 3 }: { impact: Impact; limit?: nu
   );
 }
 
-function Bar({ level }: { level: number }) {
-  const value = Math.max(-2, Math.min(2, level));
+function Bar({ sign, share }: { sign: number; share: number }) {
   return (
     <span className={styles.bar} aria-hidden="true">
-      {value !== 0 && (
+      {sign !== 0 && share > 0 && (
         <span
-          className={`${styles.fill} ${value < 0 ? styles.fillDown : styles.fillUp}`}
-          style={{ width: `${(Math.abs(value) / 2) * 50}%` }}
+          className={`${styles.fill} ${sign < 0 ? styles.fillDown : styles.fillUp}`}
+          style={{ width: `${Math.min(share, 1) * 50}%` }}
         />
       )}
       <span className={styles.zero} />
@@ -91,7 +98,7 @@ function Bar({ level }: { level: number }) {
 function Timing({ item }: { item: Pick<Criterion, 'timing_title' | 'timing_source'> }) {
   if (!item.timing_title && !item.timing_source) return null;
   return (
-    <span className={styles.chips}>
+    <>
       {item.timing_title && <span className={styles.chip}>{item.timing_title}</span>}
       {item.timing_source && (
         <span
@@ -102,17 +109,35 @@ function Timing({ item }: { item: Pick<Criterion, 'timing_title' | 'timing_sourc
           срок: {SOURCE_WORDS[item.timing_source]}
         </span>
       )}
+    </>
+  );
+}
+
+function Exposure({ answer }: { answer: Answer }) {
+  const features = answer.features ?? [];
+  if (features.length === 0) {
+    return <span className={styles.chip}>ваши данные этот канал не подтверждают</span>;
+  }
+  const full = features.map((feature) => feature.label).join('; ');
+  const short = features.map((feature) => feature.label.split(/[:(]/)[0]?.trim() || feature.label);
+  return (
+    <span className={`${styles.chip} ${styles.yours}`} title={full}>
+      по вашим данным: {short.join(', ')}
     </span>
   );
 }
 
-function Answers({ criterion, answers }: { criterion: Criterion; answers: Answer[] }) {
+type AnswersProps = { criterion: Criterion; answers: Answer[]; scored: boolean };
+
+function Answers({ criterion, answers, scored }: AnswersProps) {
   if (answers.length === 0) {
     if (!criterion.reason) return null;
     return (
       <div className={styles.answers}>
         <div className={styles.answer}>
-          <Timing item={criterion} />
+          <span className={styles.chips}>
+            <Timing item={criterion} />
+          </span>
           <p className={styles.reason}>{criterion.reason}</p>
         </div>
       </div>
@@ -124,9 +149,15 @@ function Answers({ criterion, answers }: { criterion: Criterion; answers: Answer
         <li key={answer.question_id} className={styles.answer}>
           <p className={styles.question}>
             {answer.question}{' '}
-            <span className={toneClass(answer.level)}>{levelWords(answer.level)}</span>
+            <span className={toneClass(answer.level)}>
+              {levelWords(answer.level)}
+              {scored && answer.points != null && ` · ${formatSigned(answer.points)}`}
+            </span>
           </p>
-          <Timing item={answer} />
+          <span className={styles.chips}>
+            <Timing item={answer} />
+            {scored && <Exposure answer={answer} />}
+          </span>
           <p className={styles.reason}>{answer.reason}</p>
         </li>
       ))}
@@ -144,15 +175,23 @@ export function ImpactBreakdown({ impact, info, compact = false }: BreakdownProp
   const criteria = [...impact.criteria].sort(
     (a, b) => Number(touched(b)) - Number(touched(a)) || Math.abs(b.points) - Math.abs(a.points),
   );
+  const scored = weighted(impact);
   const contribution = (points: number) =>
     impact.scale === 'levels' ? `вклад ${formatSigned(points)}` : formatSigned(points);
+  const share = (criterion: Criterion) =>
+    scored ? Math.abs(criterion.points) / 100 : Math.abs(criterion.level) / 2;
 
   return (
     <ul className={`${styles.breakdown} ${compact ? styles.compact : ''}`}>
       {criteria.map((criterion) => {
         const own = answers
           .filter((answer) => answer.criterion === criterion.id)
-          .sort((a, b) => Math.abs(b.level) - Math.abs(a.level) || a.level - b.level);
+          .sort(
+            (a, b) =>
+              Math.abs(b.points ?? 0) - Math.abs(a.points ?? 0) ||
+              Math.abs(b.level) - Math.abs(a.level) ||
+              a.level - b.level,
+          );
         const balanced = criterion.level === 0 && own.length > 0;
         return (
           <li
@@ -163,7 +202,7 @@ export function ImpactBreakdown({ impact, info, compact = false }: BreakdownProp
               <span className={styles.criterionTitle} title={descriptions.get(criterion.id)}>
                 {criterion.title}
               </span>
-              <Bar level={criterion.level} />
+              <Bar sign={Math.sign(criterion.points || criterion.level)} share={share(criterion)} />
               {(!compact || touched(criterion)) && (
                 <span className={`${styles.criterionLevel} ${toneClass(criterion.level)}`}>
                   {balanced
@@ -174,7 +213,7 @@ export function ImpactBreakdown({ impact, info, compact = false }: BreakdownProp
                 </span>
               )}
             </div>
-            {touched(criterion) && <Answers criterion={criterion} answers={own} />}
+            {touched(criterion) && <Answers criterion={criterion} answers={own} scored={scored} />}
           </li>
         );
       })}
@@ -210,6 +249,44 @@ export function ImpactToggle({ impact, info }: BreakdownProps) {
   );
 }
 
+const NOTES: Record<Impact['scale'], string> = {
+  weighted:
+    'Ответ «заметно» даёт до 30, «существенно» — до 60. Меньше, если скажется не скоро или ваши данные этот канал не подтверждают. Риски и возможности копятся до 100, итог — возможности минус риски.',
+  levels:
+    'Каждый вопрос оценивается от −2 до +2, итог — сумма всех оценок. Плюсы и минусы внутри критерия взаимно гасятся.',
+  points:
+    'Уровень критерия — самое сильное влияние среди вопросов его группы, поэтому один эффект не считается дважды.',
+};
+
+function Sides({ impact }: { impact: Impact }) {
+  const risk = impact.risk ?? 0;
+  const opportunity = impact.opportunity ?? 0;
+  return (
+    <div
+      className={styles.sides}
+      aria-label={`Риски ${risk} из 100, возможности ${opportunity} из 100`}
+    >
+      <span className={styles.side}>
+        <span>Риски</span>
+        <span className={styles.sideTrack} aria-hidden="true">
+          <span className={`${styles.sideFill} ${styles.sideDown}`} style={{ width: `${risk}%` }} />
+        </span>
+        <b className={styles.downText}>{risk > 0 ? formatSigned(-risk) : '0'}</b>
+      </span>
+      <span className={styles.side}>
+        <span>Возможности</span>
+        <span className={styles.sideTrack} aria-hidden="true">
+          <span
+            className={`${styles.sideFill} ${styles.sideUp}`}
+            style={{ width: `${opportunity}%` }}
+          />
+        </span>
+        <b className={styles.upText}>{formatSigned(opportunity)}</b>
+      </span>
+    </div>
+  );
+}
+
 export function CriteriaTable({ impact, info }: BreakdownProps) {
   return (
     <section className={styles.table} aria-labelledby="criteria-title">
@@ -219,19 +296,16 @@ export function CriteriaTable({ impact, info }: BreakdownProps) {
         </h2>
         <span className={styles.total}>
           {impact.title} · итог {formatSigned(impact.score)}
-          {impact.scale === 'points' && ' из ±100'}
+          {impact.scale !== 'levels' && ' из ±100'}
           {impact.confidence === 'low' && ' · оценка неточная'}
         </span>
       </div>
+      {weighted(impact) && <Sides impact={impact} />}
       {(affectedCriteria(impact).length === 0 || impact.score === 0) && (
         <p className={styles.none}>{impact.rationale || 'Заметного влияния на показатели нет.'}</p>
       )}
       <ImpactBreakdown impact={impact} info={info} />
-      <p className={styles.note}>
-        {impact.scale === 'levels'
-          ? 'Каждый вопрос оценивается от −2 до +2, итог — сумма всех оценок. Плюсы и минусы внутри критерия взаимно гасятся.'
-          : 'Уровень критерия — самое сильное влияние среди вопросов его группы, поэтому один эффект не считается дважды.'}
-      </p>
+      <p className={styles.note}>{NOTES[impact.scale]}</p>
     </section>
   );
 }

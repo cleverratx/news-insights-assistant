@@ -529,7 +529,7 @@ export interface components {
        * @description Заполняет сервер: фрагменты документов и признаки, подтверждающие текст
        */
       basis?: components['schemas']['Basis'][];
-      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — подтверждения нет, это предположение модели */
+      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — предположение модели: подтверждения нет, риск или возможность не связаны одновременно с событием и признаком компании, модель не уверена или это сценарий */
       support?: components['schemas']['Support'] | null;
       kind: components['schemas']['ActionKind'];
       product?: components['schemas']['BankProduct'] | null;
@@ -1524,7 +1524,7 @@ export interface components {
        * @description Заполняет сервер: фрагменты документов и признаки, подтверждающие текст
        */
       basis?: components['schemas']['Basis'][];
-      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — подтверждения нет, это предположение модели */
+      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — предположение модели: подтверждения нет, риск или возможность не связаны одновременно с событием и признаком компании, модель не уверена или это сценарий */
       support?: components['schemas']['Support'] | null;
       /** Horizon */
       horizon?: ('short' | 'medium' | 'long') | null;
@@ -1558,11 +1558,22 @@ export interface components {
       timing_title?: string | null;
       /** Timing Source */
       timing_source?: ('source' | 'estimate') | null;
+      /**
+       * Points
+       * @description Вклад ответа в итог (scale=weighted): сила с учётом срока и того, подтверждён ли канал данными компании
+       */
+      points?: number | null;
+      /**
+       * Features
+       * @description Признаки компании, через которые канал у неё есть; пусто — канал данными компании не подтверждён
+       */
+      features?: components['schemas']['ImpactFeature'][];
     };
     /**
      * ImpactAssessment
      * @description Оценка влияния события на бизнес компании: балл от −100 до +100, цвет и обоснование.
-     *     Балл равен сумме вкладов критериев, ограниченной ±100.
+     *     Балл равен сумме вкладов критериев, ограниченной ±100; при scale=weighted — разнице
+     *     возможностей и рисков.
      */
     ImpactAssessment: {
       /** Score */
@@ -1598,16 +1609,26 @@ export interface components {
       model?: string | null;
       /**
        * Answers
-       * @description Вопросы с влиянием: каждый от −2 до +2, итог — их сумма
+       * @description Вопросы с влиянием: уровень от −2 до +2 и вклад в итог
        */
       answers?: components['schemas']['ImpactAnswer'][];
       /**
        * Scale
-       * @description levels — итог равен сумме уровней всех ответов (50 вопросов × ±2 = ±100); points — прежний подсчёт ±20/±50 у сохранённых раньше оценок
+       * @description weighted — вклад ответа зависит от уровня, срока и подтверждения данными компании, риски и возможности накапливаются с насыщением до 100; levels и points — прежние подсчёты у сохранённых раньше оценок
        * @default points
        * @enum {string}
        */
-      scale: 'levels' | 'points';
+      scale: 'weighted' | 'levels' | 'points';
+      /**
+       * Risk
+       * @description Сила рисков 0–100 (scale=weighted)
+       */
+      risk?: number | null;
+      /**
+       * Opportunity
+       * @description Сила возможностей 0–100 (scale=weighted)
+       */
+      opportunity?: number | null;
     };
     /**
      * ImpactBand
@@ -1687,6 +1708,19 @@ export interface components {
       title: string;
       /** Description */
       description: string;
+    };
+    /**
+     * ImpactFeature
+     * @description Признак компании, через который канал влияния у неё есть: кредиты, импорт, контрагент.
+     */
+    ImpactFeature: {
+      /**
+       * Id
+       * @description ProfileFeature.id
+       */
+      id: string;
+      /** Label */
+      label: string;
     };
     /**
      * ImpactTiming
@@ -2886,7 +2920,7 @@ export interface components {
        * @description Заполняет сервер: фрагменты документов и признаки, подтверждающие текст
        */
       basis?: components['schemas']['Basis'][];
-      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — подтверждения нет, это предположение модели */
+      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — предположение модели: подтверждения нет, риск или возможность не связаны одновременно с событием и признаком компании, модель не уверена или это сценарий */
       support?: components['schemas']['Support'] | null;
     };
     /**
