@@ -1,0 +1,83 @@
+.aside {
+  display: grid;
+  gap: var(--gap-16);
+  align-content: start;
+}
+
+.plate {
+  display: grid;
+  gap: var(--gap-12);
+  padding: var(--gap-24);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+}
+
+.title {
+  font-size: 20px;
+  line-height: 24px;
+}
+
+.caption {
+  margin-top: calc(-1 * var(--gap-8));
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--c-text-secondary);
+}
+
+.verdict {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.balance {
+  display: flex;
+  gap: 4px;
+  height: 12px;
+}
+
+.balance > span {
+  min-width: 4px;
+  border-radius: var(--radius-pill);
+}
+
+.negative {
+  background: var(--c-accent);
+}
+
+.positive {
+  background: var(--c-positive-text-a11y);
+}
+
+.empty {
+  flex: 1;
+  background: var(--c-bg-tertiary);
+}
+
+.legend {
+  display: grid;
+  gap: var(--gap-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.sum {
+  margin-left: auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

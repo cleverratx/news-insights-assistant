@@ -8,7 +8,7 @@ import styles from './ImpactMeter.module.css';
 
 type Props = {
   impact: FeedItem['impact'];
-  size?: 'l' | 'm';
+  size?: 'l' | 'm' | 's';
 };
 
 export function ImpactMeter({ impact, size = 'm' }: Props) {
@@ -41,6 +41,11 @@ export function ImpactMeter({ impact, size = 'm' }: Props) {
         />
         <span className={styles.zero} />
       </span>
+      {size === 's' && (
+        <span className={styles.caption} aria-hidden="true">
+          {uncertain ? 'оценка неточная' : impact.title}
+        </span>
+      )}
       {size === 'l' && (
         <span className={styles.scale} aria-hidden="true">
           <span>−100</span>
