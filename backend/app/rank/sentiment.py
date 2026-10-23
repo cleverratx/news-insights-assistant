@@ -50,6 +50,7 @@ from app.contracts.rank import (
     ImpactCriterionInfo,
     ImpactFeature,
     ImpactTiming,
+    ImpactWeight,
 )
 from app.llm.errors import LLMError
 from app.llm.guard import clean
@@ -340,11 +341,16 @@ def criteria_info() -> list[ImpactCriterionInfo]:
     ]
 
 
-def strength(effect: Effect) -> float:
-    """Вклад ответа до насыщения: уровень × срок × подтверждение канала данными компании."""
+def factors(effect: Effect) -> tuple[int, float, float]:
     timing = TIMING_WEIGHT[effect.timing] if effect.timing else UNTIMED_WEIGHT
     exposure = 1.0 if effect.features else UNCONFIRMED_WEIGHT
-    return BASE_POINTS[min(abs(effect.level), 2)] * timing * exposure
+    return BASE_POINTS[min(abs(effect.level), 2)], timing, exposure
+
+
+def strength(effect: Effect) -> float:
+    """Вклад ответа до насыщения: уровень × срок × подтверждение канала данными компании."""
+    base, timing, exposure = factors(effect)
+    return base * timing * exposure
 
 
 def saturate(values: Sequence[float]) -> int:
@@ -367,11 +373,20 @@ def allot(values: Sequence[float], total: int) -> list[int]:
     return parts
 
 
-def weigh(entries: Sequence[Entry]) -> tuple[list[int], int, int]:
+@dataclass(frozen=True)
+class Weighed:
+    points: list[int]
+    risk: int
+    opportunity: int
+    weights: list[ImpactWeight]
+
+
+def weigh(entries: Sequence[Entry]) -> Weighed:
     """Вклады ответов со знаком, сила рисков и сила возможностей. Внутри критерия второй и
     следующие ответы того же знака весят вполовину: «долг», «лизинг» и «новые кредиты» —
     один канал стоимости денег, и три ответа не должны давать тройной эффект."""
     effective = [0.0] * len(entries)
+    overlaps = [1.0] * len(entries)
     for key in CRITERIA:
         for sign in (-1, 1):
             group = [
@@ -379,18 +394,33 @@ def weigh(entries: Sequence[Entry]) -> tuple[list[int], int, int]:
             ]
             group.sort(key=lambda i: -strength(entries[i].effect))
             for rank, index in enumerate(group):
-                weight = 1.0 if rank == 0 else OVERLAP_WEIGHT
-                effective[index] = strength(entries[index].effect) * weight
+                overlaps[index] = 1.0 if rank == 0 else OVERLAP_WEIGHT
+                effective[index] = strength(entries[index].effect) * overlaps[index]
     points = [0] * len(entries)
-    sides = {}
+    sides: dict[int, tuple[int, float]] = {}
     for sign in (-1, 1):
         indices = [i for i, e in enumerate(entries) if e.effect.level * sign > 0]
         values = [effective[i] for i in indices]
         total = saturate(values)
         for index, part in zip(indices, allot(values, total), strict=True):
             points[index] = sign * part
-        sides[sign] = total
-    return points, sides[-1], sides[1]
+        sides[sign] = (total, sum(values))
+    weights = []
+    for index, entry in enumerate(entries):
+        base, timing, exposure = factors(entry.effect)
+        side, side_strength = sides[1 if entry.effect.level > 0 else -1]
+        weights.append(
+            ImpactWeight(
+                base=base,
+                timing=timing,
+                exposure=exposure,
+                overlap=overlaps[index],
+                strength=round(effective[index], 2),
+                side_strength=round(side_strength, 2),
+                side=side,
+            )
+        )
+    return Weighed(points, sides[-1][0], sides[1][0], weights)
 
 
 def assessment(
@@ -400,7 +430,8 @@ def assessment(
     confidence: Literal["low", "medium", "high"],
     model: str | None = None,
 ) -> ImpactAssessment:
-    points, risk, opportunity = weigh(entries)
+    weighed = weigh(entries)
+    points, risk, opportunity = weighed.points, weighed.risk, weighed.opportunity
     criteria = []
     for key, (title, _) in CRITERIA.items():
         own = [(e, p) for e, p in zip(entries, points, strict=True) if e.criterion is key]
@@ -421,8 +452,8 @@ def assessment(
             )
         )
     answers = [
-        answer_of(entry, part)
-        for entry, part in zip(entries, points, strict=True)
+        answer_of(entry, part, weight)
+        for entry, part, weight in zip(entries, points, weighed.weights, strict=True)
         if entry.question_id
     ]
     score = opportunity - risk
@@ -620,7 +651,7 @@ def effect_of(
     return Effect(level, impact.reason, timing, origin, features)
 
 
-def answer_of(entry: Entry, points: int) -> ImpactAnswer:
+def answer_of(entry: Entry, points: int, weight: ImpactWeight) -> ImpactAnswer:
     effect = entry.effect
     question_id = entry.question_id or ""
     return ImpactAnswer(
@@ -634,6 +665,7 @@ def answer_of(entry: Entry, points: int) -> ImpactAnswer:
         timing_source=effect.source if effect.timing else None,
         points=points,
         features=list(effect.features),
+        weight=weight,
     )
 
 
