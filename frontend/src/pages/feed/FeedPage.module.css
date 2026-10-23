@@ -100,22 +100,6 @@
   color: var(--c-text-secondary);
 }
 
-.notice {
-  display: grid;
-  gap: var(--gap-4);
-  padding: var(--gap-16) var(--gap-20);
-  font-size: 14px;
-  line-height: 20px;
-  color: var(--c-text-primary);
-  background: var(--c-attention-muted);
-  border-radius: var(--radius-16);
-}
-
-.noticeTitle {
-  font-weight: 700;
-  color: var(--c-attention-text-a11y);
-}
-
 .hint {
   color: var(--c-text-secondary);
 }
@@ -152,12 +136,6 @@
 
 .more:hover {
   text-decoration: underline;
-}
-
-.warning {
-  font-size: 13px;
-  line-height: 16px;
-  color: var(--c-attention-text-a11y);
 }
 
 @media (max-width: 1279px) {

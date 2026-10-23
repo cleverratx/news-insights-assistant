@@ -133,12 +133,18 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
 
   useEffect(() => () => controller.current?.abort(), []);
 
-  const feed = useCachedApi<Feed>(
-    feedPath(company, role, { days: filters.days, all: filters.all }),
+  const feed = useCachedApi<Feed>(feedPath(company, role, { days: filters.days }));
+  const extra = useCachedApi<Feed>(
+    filters.all ? feedPath(company, role, { days: filters.days, all: true }) : null,
   );
   const feedData = feed.data ?? (feed.loading ? feed.previous : undefined);
   const refreshing = feed.loading && feedData !== undefined;
-  const items = feedData?.items ?? [];
+  const baseItems = feedData?.items ?? [];
+  const baseIds = new Set(baseItems.map((item) => item.news_id));
+  const extraItems = (extra.data?.items ?? []).filter((item) => !baseIds.has(item.news_id));
+  const items = [...baseItems, ...extraItems];
+  const snapshotFor = (newsId: string) =>
+    baseIds.has(newsId) ? feedData?.snapshot_id : extra.data?.snapshot_id;
   const visible = applyFilters(items, filters);
   const opened = items.find((item) => item.news_id === analysis?.newsId);
 
@@ -189,7 +195,7 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
     runInsight(item.news_id, {
       news_ids: [item.news_id],
       role,
-      feed_snapshot_id: feedData?.snapshot_id,
+      feed_snapshot_id: snapshotFor(item.news_id),
       refresh: false,
     });
 
@@ -235,7 +241,6 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
             )}
           </div>
           {refreshing && <p className={styles.refreshing}>Обновляем ленту…</p>}
-          {feedData?.verified === false && <UnverifiedNotice warnings={feedData.warnings ?? []} />}
           {feed.loading && !feedData && (
             <div className={styles.plate}>
               <p className={styles.hint}>
@@ -259,6 +264,7 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
               items={items}
               visible={visible}
               filters={filters}
+              extraLoading={extra.loading}
               seen={seenOnOpen}
               activeId={analysis?.newsId}
               onOpen={open}
@@ -267,28 +273,9 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
             />
           )}
         </div>
-        {feedData && (
-          <FeedOverview
-            items={items.filter((item) => item.importance.level !== 'background')}
-            period={periodTitle(filters.days)}
-          />
-        )}
+        {feedData && <FeedOverview items={baseItems} period={periodTitle(filters.days)} />}
       </div>
     </>
-  );
-}
-
-function UnverifiedNotice({ warnings }: { warnings: string[] }) {
-  const budget = warnings.some((warning) => warning.includes('бюджет'));
-  return (
-    <div className={styles.notice} role="status">
-      <p className={styles.noticeTitle}>Лента собрана без проверки моделью</p>
-      <p>
-        События отобраны и оценены по правилам: важных может оказаться больше, чем на самом деле, а
-        оценки влияния приблизительные.
-        {budget && ' Дневной лимит запросов к модели исчерпан, он обновится в 3:00 МСК.'}
-      </p>
-    </div>
   );
 }
 
@@ -297,6 +284,7 @@ type FeedListProps = {
   items: FeedItem[];
   visible: FeedItem[];
   filters: FeedFilters;
+  extraLoading: boolean;
   seen: ReadonlySet<string>;
   activeId?: string;
   onOpen: (item: FeedItem) => void;
@@ -309,6 +297,7 @@ function FeedList({
   items,
   visible,
   filters,
+  extraLoading,
   seen,
   activeId,
   onOpen,
@@ -316,7 +305,6 @@ function FeedList({
   onShowAll,
 }: FeedListProps) {
   const hidden = feed.hidden_below_threshold;
-  const warnings = feed.warnings ?? [];
 
   if (items.length === 0) {
     return (
@@ -356,8 +344,10 @@ function FeedList({
           ))}
         </ul>
       )}
-      <div className={styles.footer}>
-        {filters.all || hidden === 0 ? (
+      <div className={styles.footer} aria-live="polite">
+        {filters.all && extraLoading ? (
+          <p>Загружаем малозначимые события…</p>
+        ) : filters.all || hidden === 0 ? (
           <p>Показаны все события за период</p>
         ) : (
           <p>
@@ -367,9 +357,6 @@ function FeedList({
               Показать
             </button>
           </p>
-        )}
-        {warnings.length > 0 && (
-          <p className={styles.warning}>Часть данных недоступна: {warnings.join('; ')}</p>
         )}
       </div>
     </>
