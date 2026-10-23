@@ -1,3 +1,4 @@
+import { numberSources, sourceAnchor, type SourceRef } from '@/features/trace/sources';
 import type { components } from '@/shared/api/schema';
 import type { GeneratedInsight, LabeledStatement } from '@/shared/api/types';
 import { OriginMark } from '@/shared/ui/OriginMark';
@@ -7,7 +8,6 @@ import styles from './InsightView.module.css';
 
 type Schemas = components['schemas'];
 type Block = Schemas['InsightBlock'];
-type SourceRef = Schemas['SourceRef'];
 
 const HORIZON: Record<NonNullable<Schemas['Impact']['horizon']>, string> = {
   short: 'в ближайшие месяцы',
@@ -30,35 +30,17 @@ const ACTION_KIND: Record<Schemas['ActionKind'], string> = {
   bank_product: 'Продукт банка',
 };
 
-const SOURCE_TYPE: Record<Schemas['SourceType'], string> = {
-  news: 'Новость',
-  bank_analytics: 'Аналитика Альфа-Банка',
-  profile_feature: 'Данные вашей компании',
-};
-
-function sourceKey(source: SourceRef): string {
-  return source.url ?? `${source.type}:${source.title}`;
-}
-
-function numberSources(originals: SourceRef[]): Map<string, number> {
-  const byKey = new Map<string, number>();
-  return new Map(
-    originals.map((source) => {
-      const key = sourceKey(source);
-      if (!byKey.has(key)) byKey.set(key, byKey.size + 1);
-      return [source.id, byKey.get(key) ?? 0];
-    }),
-  );
-}
-
 type Context = {
   rows: Map<string, LabeledStatement>;
   numbers: Map<string, number>;
   sources: Map<string, SourceRef>;
   rewrites: Map<string, string>;
+  onSource: (number: number) => void;
 };
 
-export function InsightView({ result }: { result: GeneratedInsight }) {
+type Props = { result: GeneratedInsight; onSource: (number: number) => void };
+
+export function InsightView({ result, onSource }: Props) {
   const { insight, presentation } = result;
   const originals = presentation.originals ?? [];
   const all = [
@@ -74,36 +56,36 @@ export function InsightView({ result }: { result: GeneratedInsight }) {
     rewrites: new Map(
       (result.role_view?.rewrites ?? []).map((item) => [item.statement_id, item.text]),
     ),
+    onSource,
   };
   const risks = new Set((insight.risks ?? []).map((item) => item.id));
 
   return (
     <div className={styles.view}>
-      {presentation.blocks.map((block) => (
-        <section key={block.id} className={styles.block} aria-labelledby={`block-${block.id}`}>
-          <h2 id={`block-${block.id}`} className={styles.blockTitle}>
-            {block.title}
-          </h2>
-          {block.id === 'consequences' ? (
-            <Consequences block={block} context={context} risks={risks} />
-          ) : block.id === 'basis' ? (
-            <Sources block={block} originals={originals} numbers={context.numbers} />
-          ) : (
-            <Statements ids={block.statement_ids ?? []} context={context} />
-          )}
-          {block.id === 'actions' && result.offer && <OfferCard offer={result.offer} />}
-          {block.empty_reason && !hasContent(block, result) && (
-            <p className={styles.empty}>{block.empty_reason}</p>
-          )}
-        </section>
-      ))}
+      {presentation.blocks
+        .filter((block) => block.id !== 'basis')
+        .map((block) => (
+          <section key={block.id} className={styles.block} aria-labelledby={`block-${block.id}`}>
+            <h2 id={`block-${block.id}`} className={styles.blockTitle}>
+              {block.title}
+            </h2>
+            {block.id === 'consequences' ? (
+              <Consequences block={block} context={context} risks={risks} />
+            ) : (
+              <Statements ids={block.statement_ids ?? []} context={context} />
+            )}
+            {block.id === 'actions' && result.offer && <OfferCard offer={result.offer} />}
+            {block.empty_reason && !hasContent(block, result) && (
+              <p className={styles.empty}>{block.empty_reason}</p>
+            )}
+          </section>
+        ))}
     </div>
   );
 }
 
 function hasContent(block: Block, result: GeneratedInsight): boolean {
   if ((block.statement_ids ?? []).length > 0) return true;
-  if (block.id === 'basis') return (result.presentation.originals ?? []).length > 0;
   if (block.id === 'actions') return Boolean(result.offer);
   return false;
 }
@@ -162,7 +144,11 @@ function Statement({ row, context }: { row: LabeledStatement; context: Context }
               <a
                 key={number}
                 className={styles.ref}
-                href={`#source-${number}`}
+                href={`#${sourceAnchor(number)}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  context.onSource(number);
+                }}
                 title={source?.quote ?? source?.title}
                 aria-label={`Источник ${number}: ${source?.title ?? ''}`}
               >
@@ -207,45 +193,5 @@ function Consequences({ block, context, risks }: ConsequencesProps) {
         )}
       </div>
     </div>
-  );
-}
-
-type SourcesProps = { block: Block; originals: SourceRef[]; numbers: Map<string, number> };
-
-function Sources({ block, originals, numbers }: SourcesProps) {
-  const wanted = new Set(block.source_ids ?? []);
-  const list = wanted.size > 0 ? originals.filter((source) => wanted.has(source.id)) : originals;
-  const groups = new Map<number, SourceRef[]>();
-  list.forEach((source) => {
-    const number = numbers.get(source.id) ?? 0;
-    groups.set(number, [...(groups.get(number) ?? []), source]);
-  });
-  if (groups.size === 0) return null;
-  return (
-    <ol className={styles.sources}>
-      {[...groups.entries()].map(([number, sources]) => {
-        const [first] = sources;
-        const quotes = sources.flatMap((source) => (source.quote ? [source.quote] : []));
-        return (
-          <li key={number} id={`source-${number}`} className={styles.source}>
-            <span className={styles.sourceNumber}>{number}</span>
-            <div className={styles.sourceBody}>
-              <p className={styles.sourceMeta}>{SOURCE_TYPE[first.type]}</p>
-              <p className={styles.sourceTitle}>{first.title}</p>
-              {quotes.map((quote) => (
-                <blockquote key={quote} className={styles.quote}>
-                  {quote}
-                </blockquote>
-              ))}
-              {first.url && (
-                <a href={first.url} target="_blank" rel="noreferrer" className={styles.sourceLink}>
-                  Открыть оригинал
-                </a>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
   );
 }
