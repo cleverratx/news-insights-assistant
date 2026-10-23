@@ -309,10 +309,70 @@
   color: var(--c-text-secondary);
 }
 
-.toggleCount {
-  margin-left: var(--gap-4);
-  font-weight: 400;
+.explain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-16);
+  width: 100%;
+  padding: var(--gap-12) var(--gap-12) var(--gap-12) var(--gap-16);
+  font: inherit;
+  text-align: left;
+  color: var(--c-text-primary);
+  background: var(--c-bg-page);
+  border: 0;
+  border-radius: var(--radius-12);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.explain:hover {
+  background: var(--c-bg-tertiary);
+}
+
+.explainText {
+  display: grid;
+  gap: var(--gap-8);
+  min-width: 0;
+}
+
+.explainTitle {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+.explainChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-8);
+}
+
+.explainChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px var(--gap-12);
+  font-size: 14px;
+  line-height: 20px;
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-pill);
+}
+
+.explainChip b {
+  font-variant-numeric: tabular-nums;
+}
+
+.explainIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   color: var(--c-text-secondary);
+  background: var(--c-bg-plate);
+  border-radius: 50%;
 }
 
 .tableBody {
@@ -354,8 +414,8 @@
 
 .net {
   position: absolute;
-  top: 5px;
-  bottom: 5px;
+  top: 0;
+  bottom: 0;
 }
 
 .netDown {
@@ -452,6 +512,12 @@
 
 .score:hover {
   border-color: currentColor;
+}
+
+.plainScore {
+  margin-left: var(--gap-8);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .scoreChevron {

@@ -229,8 +229,7 @@ function AnswerItem({ answer, criterion, scored }: AnswerProps) {
   return (
     <li className={styles.answer}>
       <p className={styles.question}>
-        {answer.question}{' '}
-        <span className={toneClass(answer.level)}>{levelWords(answer.level)}</span>
+        {answer.question}
         {explained ? (
           <button
             type="button"
@@ -247,10 +246,11 @@ function AnswerItem({ answer, criterion, scored }: AnswerProps) {
             />
           </button>
         ) : (
-          scored &&
-          answer.points != null && (
-            <span className={toneClass(answer.level)}> · {formatSigned(answer.points)}</span>
-          )
+          <span className={`${styles.plainScore} ${toneClass(answer.level)}`}>
+            {scored && answer.points != null
+              ? formatSigned(answer.points)
+              : levelWords(answer.level)}
+          </span>
         )}
       </p>
       {open && <Calculation id={id} answer={answer} criterion={criterion} />}
@@ -466,19 +466,29 @@ export function CriteriaTable({ impact, info }: BreakdownProps) {
         <>
           <button
             type="button"
-            className={styles.toggle}
+            className={styles.explain}
             aria-expanded={open}
             aria-controls={id}
             onClick={() => setOpen((value) => !value)}
           >
-            {open ? 'Скрыть критерии' : 'Из чего складывается оценка'}
-            <span className={styles.toggleCount}>
-              {counted(criteria.length, { one: 'критерий', few: 'критерия', many: 'критериев' })}
+            <span className={styles.explainText}>
+              <span className={styles.explainTitle}>Из чего складывается оценка</span>
+              <span className={styles.explainChips}>
+                {criteria.map((criterion) => (
+                  <span key={criterion.id} className={styles.explainChip}>
+                    {criterion.title}
+                    <b className={toneClass(criterion.points || criterion.level)}>
+                      {weighted(impact)
+                        ? formatSigned(criterion.points)
+                        : levelWords(criterion.level)}
+                    </b>
+                  </span>
+                ))}
+              </span>
             </span>
-            <ChevronDownMIcon
-              className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
-              aria-hidden="true"
-            />
+            <span className={styles.explainIcon} aria-hidden="true">
+              <ChevronDownMIcon className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`} />
+            </span>
           </button>
           {open && (
             <div id={id} className={styles.tableBody}>
