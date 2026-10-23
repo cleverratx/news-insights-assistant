@@ -3921,6 +3921,13 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description Снимок ленты не относится к этой компании или материалам */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Связанная компания не найдена или не упоминается в материалах */
       422: {
         headers: {

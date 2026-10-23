@@ -31,6 +31,10 @@ export function formatAgo(iso: string, now = Date.now()): string {
   return dateTime.format(new Date(iso));
 }
 
+export function formatDateTime(iso: string): string {
+  return dateTime.format(new Date(iso));
+}
+
 export function plural(count: number, forms: { one: string; few: string; many: string }): string {
   const rule = plurals.select(count);
   return rule === 'one' ? forms.one : rule === 'few' ? forms.few : forms.many;

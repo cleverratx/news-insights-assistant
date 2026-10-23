@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 
 import type { Feed, FeedItem } from '@/shared/api/types';
 import { formatAgo, plural } from '@/shared/lib/format';
@@ -12,16 +13,15 @@ type Props = {
   item: FeedItem;
   feed: Feed;
   isFresh: boolean;
-  active: boolean;
-  onOpen: (item: FeedItem) => void;
+  to: { pathname: string; search: string };
 };
 
-export function FeedCard({ item, feed, isFresh, active, onOpen }: Props) {
+export function FeedCard({ item, feed, isFresh, to }: Props) {
   const { card, event } = item;
   const markers = event.markers ?? [];
 
   return (
-    <article className={`${styles.card} ${active ? styles.active : ''}`}>
+    <article className={styles.card}>
       <div className={styles.scores}>
         <ImportanceRing importance={item.importance} scale={feed.importance_scale} />
         <ImpactMeter impact={item.impact} size="s" />
@@ -33,14 +33,14 @@ export function FeedCard({ item, feed, isFresh, active, onOpen }: Props) {
           <time dateTime={card.published_at}>{formatAgo(card.published_at)}</time>
         </p>
         <h2 className={styles.title}>
-          <button type="button" className={styles.open} onClick={() => onOpen(item)}>
+          <Link className={styles.open} to={to}>
             {isFresh && (
               <span className={styles.newDot}>
                 <span className={styles.srOnly}>Новое: </span>
               </span>
             )}
             {card.title}
-          </button>
+          </Link>
         </h2>
         {item.explanation && (
           <p className={styles.reason}>
