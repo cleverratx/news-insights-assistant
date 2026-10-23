@@ -169,7 +169,12 @@ class ImpactCriterion(Contract):
     id: ImpactCriterionId
     title: Text
     level: int = Field(ge=-2, le=2, description="−2 существенно хуже … +2 существенно лучше")
-    points: int = Field(ge=-50, le=50, description="Вклад в балл: ±20 — заметно, ±50 — существенно")
+    points: int = Field(
+        ge=-100,
+        le=100,
+        description="Вклад в итог: сумма уровней ответов группы (scale=levels) "
+        "или ±20/±50 в оценках до перехода на сумму (scale=points)",
+    )
     reason: Text | None = Field(default=None, description="Почему такой уровень; пусто при 0")
     timing: ImpactTiming | None = Field(default=None, description="Когда скажется на компании")
     timing_title: Text | None = Field(default=None, description="Срок словами для карточки")
@@ -230,7 +235,8 @@ class ImpactAssessment(Contract):
     score: int = Field(ge=-100, le=100)
     color: ImpactColor
     title: Text = Field(
-        description="Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность"
+        description="Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность; "
+        "Двоякое влияние — плюсы и минусы в сумме дали ноль"
     )
     criteria: list[ImpactCriterion] = Field(
         min_length=5,
@@ -246,18 +252,31 @@ class ImpactAssessment(Contract):
     answers: list[ImpactAnswer] = Field(
         default_factory=list,
         max_length=50,
-        description="Вопросы с влиянием; уровень критерия — самый сильный ответ его группы",
+        description="Вопросы с влиянием: каждый от −2 до +2, итог — их сумма",
+    )
+    scale: Literal["levels", "points"] = Field(
+        default="points",
+        description="levels — итог равен сумме уровней всех ответов (50 вопросов × ±2 = ±100); "
+        "points — прежний подсчёт ±20/±50 у сохранённых раньше оценок",
     )
 
     @model_validator(mode="after")
     def criteria_from_answers(self) -> Self:
         require_unique((answer.question_id for answer in self.answers), "ответов")
-        if not self.answers:
-            return self
         for criterion in self.criteria:
-            top = strongest([a for a in self.answers if a.criterion is criterion.id])
-            if criterion.level != (top.level if top else 0):
-                raise ValueError("Уровень критерия не равен самому сильному ответу группы")
+            group = [a for a in self.answers if a.criterion is criterion.id]
+            if self.scale == "levels":
+                points = sum(a.level for a in group) if self.answers else criterion.level
+                if criterion.points != points:
+                    raise ValueError("Вклад критерия не равен сумме уровней его вопросов")
+                if criterion.level != max(-2, min(2, points)):
+                    raise ValueError("Уровень критерия не соответствует сумме его вопросов")
+            else:
+                if criterion.points != LEVEL_POINTS[criterion.level]:
+                    raise ValueError("Вклад критерия не соответствует уровню")
+                top = strongest(group)
+                if self.answers and criterion.level != (top.level if top else 0):
+                    raise ValueError("Уровень критерия не равен самому сильному ответу группы")
         return self
 
     @model_validator(mode="after")
@@ -266,8 +285,6 @@ class ImpactAssessment(Contract):
         total = max(-100, min(100, sum(criterion.points for criterion in self.criteria)))
         if total != self.score:
             raise ValueError("Балл влияния не равен сумме вкладов критериев")
-        if any(criterion.points != LEVEL_POINTS[criterion.level] for criterion in self.criteria):
-            raise ValueError("Вклад критерия не соответствует уровню")
         return self
 
 

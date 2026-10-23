@@ -117,9 +117,10 @@ def explanation(ranked: RankedItem) -> str:
 
 
 def impact_polarity(impact: ImpactAssessment) -> Polarity:
-    if impact.score <= -IMPACT_SIGN:
+    sign = 1 if impact.scale == "levels" else IMPACT_SIGN
+    if impact.score <= -sign:
         return Polarity.RISK
-    return Polarity.OPPORTUNITY if impact.score >= IMPACT_SIGN else Polarity.NEUTRAL
+    return Polarity.OPPORTUNITY if impact.score >= sign else Polarity.NEUTRAL
 
 
 def feed_item(
