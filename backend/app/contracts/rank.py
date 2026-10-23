@@ -203,6 +203,13 @@ def check_timing(
         raise ValueError("Подпись срока не соответствует сроку")
 
 
+class ImpactFeature(Contract):
+    """Признак компании, через который канал влияния у неё есть: кредиты, импорт, контрагент."""
+
+    id: Id = Field(description="ProfileFeature.id")
+    label: Text
+
+
 class ImpactAnswer(Contract):
     """Ответ на один из общих вопросов о том, через что событие доходит до бизнеса компании."""
 
@@ -214,11 +221,25 @@ class ImpactAnswer(Contract):
     timing: ImpactTiming | None = None
     timing_title: Text | None = None
     timing_source: Literal["source", "estimate"] | None = None
+    points: int | None = Field(
+        default=None,
+        ge=-100,
+        le=100,
+        description="Вклад ответа в итог (scale=weighted): сила с учётом срока и того, "
+        "подтверждён ли канал данными компании",
+    )
+    features: list[ImpactFeature] = Field(
+        default_factory=list,
+        description="Признаки компании, через которые канал у неё есть; пусто — канал "
+        "данными компании не подтверждён",
+    )
 
     @model_validator(mode="after")
     def answered(self) -> Self:
         if self.level == 0:
             raise ValueError("В ответах только вопросы с влиянием")
+        if self.points is not None and self.points * self.level < 0:
+            raise ValueError("Знак вклада ответа не совпадает с его уровнем")
         check_timing(self.level, self.timing, self.timing_title, self.timing_source)
         return self
 
@@ -230,7 +251,8 @@ def strongest(answers: list[ImpactAnswer]) -> ImpactAnswer | None:
 
 class ImpactAssessment(Contract):
     """Оценка влияния события на бизнес компании: балл от −100 до +100, цвет и обоснование.
-    Балл равен сумме вкладов критериев, ограниченной ±100."""
+    Балл равен сумме вкладов критериев, ограниченной ±100; при scale=weighted — разнице
+    возможностей и рисков."""
 
     score: int = Field(ge=-100, le=100)
     color: ImpactColor
@@ -252,17 +274,27 @@ class ImpactAssessment(Contract):
     answers: list[ImpactAnswer] = Field(
         default_factory=list,
         max_length=50,
-        description="Вопросы с влиянием: каждый от −2 до +2, итог — их сумма",
+        description="Вопросы с влиянием: уровень от −2 до +2 и вклад в итог",
     )
-    scale: Literal["levels", "points"] = Field(
+    scale: Literal["weighted", "levels", "points"] = Field(
         default="points",
-        description="levels — итог равен сумме уровней всех ответов (50 вопросов × ±2 = ±100); "
-        "points — прежний подсчёт ±20/±50 у сохранённых раньше оценок",
+        description="weighted — вклад ответа зависит от уровня, срока и подтверждения "
+        "данными компании, риски и возможности накапливаются с насыщением до 100; "
+        "levels и points — прежние подсчёты у сохранённых раньше оценок",
+    )
+    risk: int | None = Field(
+        default=None, ge=0, le=100, description="Сила рисков 0–100 (scale=weighted)"
+    )
+    opportunity: int | None = Field(
+        default=None, ge=0, le=100, description="Сила возможностей 0–100 (scale=weighted)"
     )
 
     @model_validator(mode="after")
     def criteria_from_answers(self) -> Self:
         require_unique((answer.question_id for answer in self.answers), "ответов")
+        if self.scale == "weighted":
+            self.check_weighted()
+            return self
         for criterion in self.criteria:
             group = [a for a in self.answers if a.criterion is criterion.id]
             if self.scale == "levels":
@@ -278,6 +310,25 @@ class ImpactAssessment(Contract):
                 if self.answers and criterion.level != (top.level if top else 0):
                     raise ValueError("Уровень критерия не равен самому сильному ответу группы")
         return self
+
+    def check_weighted(self) -> None:
+        if self.risk is None or self.opportunity is None:
+            raise ValueError("У взвешенной оценки есть сила рисков и возможностей")
+        if self.score != self.opportunity - self.risk:
+            raise ValueError("Балл влияния не равен разнице возможностей и рисков")
+        if any(answer.points is None for answer in self.answers):
+            raise ValueError("У каждого ответа взвешенной оценки есть вклад")
+        parts = [answer.points or 0 for answer in self.answers] or [
+            criterion.points for criterion in self.criteria
+        ]
+        if sum(p for p in parts if p < 0) != -self.risk or sum(p for p in parts if p > 0) != (
+            self.opportunity
+        ):
+            raise ValueError("Вклады не складываются в силу рисков и возможностей")
+        for criterion in self.criteria:
+            group = [a.points or 0 for a in self.answers if a.criterion is criterion.id]
+            if self.answers and criterion.points != sum(group):
+                raise ValueError("Вклад критерия не равен сумме вкладов его вопросов")
 
     @model_validator(mode="after")
     def score_from_criteria(self) -> Self:
