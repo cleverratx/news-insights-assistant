@@ -51,7 +51,7 @@ class Replies:
     [
         "",
         "не JSON",
-        '```json\n{"action":"finish","reason":"ok"}\n```',
+        '```json\n{"action":"finish","action":"tool","reason":"ok"}\n```',
         "[]",
         "null",
         '{"action":"tool","reason":"ok"}',
@@ -68,6 +68,18 @@ def test_malformed_decision_rejected(text: str) -> None:
         parse_decision(text)
     assert raised.value.detail.code == "invalid_decision"
     assert "input" not in raised.value.detail.model_dump_json()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '```json\n{"action":"finish","reason":"ok"}\n```',
+        '```\n{"action":"finish","reason":"ok"}\n```',
+        'Решение:\n{"action":"finish","reason":"ok"}\nГотово.',
+    ],
+)
+def test_wrapped_decision_is_accepted(text: str) -> None:
+    assert parse_decision(text) == Decision(action="finish", reason="ok")
 
 
 def test_valid_decision_round_trip_and_response_invariants() -> None:
