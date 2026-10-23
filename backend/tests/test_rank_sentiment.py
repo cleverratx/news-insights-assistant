@@ -470,3 +470,29 @@ def test_rules_count_exposure_from_profile_as_confirmed() -> None:
     plain = rules_impact(rate, profile()).score
     confirmed = rules_impact(rate, exposed).score
     assert (plain, confirmed) == (-12, -20)
+
+
+async def test_each_answer_explains_its_points_step_by_step() -> None:
+    llm = FakeLLM(
+        answer(
+            judged(
+                "n1",
+                q14=(-1, "Долг подорожает", "quarter", "estimate", ["feature:loan"]),
+                q16=(-1, "Новые кредиты дороже", "quarter", "estimate", ["feature:loan"]),
+                q7=(-1, "Сырьё дороже", "year", "estimate"),
+            )
+        )
+    )
+    found = (await assess(llm, profile(), cards(1))).impacts["n:0"]
+    debt, funding, materials = found.answers
+    assert debt.weight is not None and funding.weight is not None
+    assert materials.weight is not None
+    assert (debt.weight.base, debt.weight.timing, debt.weight.exposure) == (30, 0.85, 1.0)
+    assert (debt.weight.overlap, funding.weight.overlap) == (1.0, 0.5)
+    assert (materials.weight.exposure, materials.weight.timing) == (0.6, 0.65)
+    assert debt.weight.strength == 25.5 and funding.weight.strength == 12.75
+    assert debt.weight.side == found.risk == 43
+    for reply in found.answers:
+        assert reply.weight is not None
+        share = reply.weight.side * reply.weight.strength / reply.weight.side_strength
+        assert abs(abs(reply.points or 0) - share) < 1

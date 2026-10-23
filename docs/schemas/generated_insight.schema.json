@@ -682,6 +682,18 @@
           },
           "title": "Features",
           "type": "array"
+        },
+        "weight": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImpactWeight"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Расчёт вклада ответа по шагам (scale=weighted)"
         }
       },
       "required": [
@@ -975,6 +987,69 @@
       ],
       "title": "ImpactTiming",
       "type": "string"
+    },
+    "ImpactWeight": {
+      "additionalProperties": false,
+      "description": "Как получен вклад ответа: сила до сведения — база уровня, умноженная на срок,\nподтверждение канала данными компании и пересечение с другими ответами критерия; затем\nсила стороны (рисков или возможностей) делится между ответами пропорционально силе.",
+      "properties": {
+        "base": {
+          "description": "«Заметно» — 30, «существенно» — 60",
+          "title": "Base",
+          "type": "integer"
+        },
+        "timing": {
+          "description": "Множитель срока",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Timing",
+          "type": "number"
+        },
+        "exposure": {
+          "description": "1 — канал подтверждён данными компании",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Exposure",
+          "type": "number"
+        },
+        "overlap": {
+          "description": "0,5 — не первый ответ того же знака в критерии",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Overlap",
+          "type": "number"
+        },
+        "strength": {
+          "description": "Сила до сведения",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Strength",
+          "type": "number"
+        },
+        "side_strength": {
+          "description": "Сумма сил всех ответов той же стороны",
+          "minimum": 0,
+          "title": "Side Strength",
+          "type": "number"
+        },
+        "side": {
+          "description": "Сила стороны после насыщения",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Side",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "base",
+        "timing",
+        "exposure",
+        "overlap",
+        "strength",
+        "side_strength",
+        "side"
+      ],
+      "title": "ImpactWeight",
+      "type": "object"
     },
     "Importance": {
       "additionalProperties": false,

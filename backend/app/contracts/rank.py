@@ -210,6 +210,37 @@ class ImpactFeature(Contract):
     label: Text
 
 
+class ImpactWeight(Contract):
+    """Как получен вклад ответа: сила до сведения — база уровня, умноженная на срок,
+    подтверждение канала данными компании и пересечение с другими ответами критерия; затем
+    сила стороны (рисков или возможностей) делится между ответами пропорционально силе."""
+
+    base: int = Field(description="«Заметно» — 30, «существенно» — 60")
+    timing: float = Field(gt=0, le=1, allow_inf_nan=False, description="Множитель срока")
+    exposure: float = Field(
+        gt=0, le=1, allow_inf_nan=False, description="1 — канал подтверждён данными компании"
+    )
+    overlap: float = Field(
+        gt=0,
+        le=1,
+        allow_inf_nan=False,
+        description="0,5 — не первый ответ того же знака в критерии",
+    )
+    strength: float = Field(ge=0, le=100, allow_inf_nan=False, description="Сила до сведения")
+    side_strength: float = Field(
+        ge=0, allow_inf_nan=False, description="Сумма сил всех ответов той же стороны"
+    )
+    side: int = Field(ge=0, le=100, description="Сила стороны после насыщения")
+
+    @model_validator(mode="after")
+    def multiplied(self) -> Self:
+        if abs(self.base * self.timing * self.exposure * self.overlap - self.strength) > 0.06:
+            raise ValueError("Сила ответа не равна произведению множителей")
+        if self.side_strength + 0.06 < self.strength:
+            raise ValueError("Сила стороны меньше силы её ответа")
+        return self
+
+
 class ImpactAnswer(Contract):
     """Ответ на один из общих вопросов о том, через что событие доходит до бизнеса компании."""
 
@@ -232,6 +263,9 @@ class ImpactAnswer(Contract):
         default_factory=list,
         description="Признаки компании, через которые канал у неё есть; пусто — канал "
         "данными компании не подтверждён",
+    )
+    weight: ImpactWeight | None = Field(
+        default=None, description="Расчёт вклада ответа по шагам (scale=weighted)"
     )
 
     @model_validator(mode="after")
