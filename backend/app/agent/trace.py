@@ -1,12 +1,12 @@
 """A5-08: снимок происхождения вывода и атомарное хранение вместе с инсайтом."""
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import HttpUrl
 
 from app.agent.context import AnalysisContext
-from app.agent.critic import Evidence, evidence
+from app.agent.critic import HEADLINE, Evidence, evidence
 from app.contracts.generation import GeneratedInsight
 from app.contracts.insight import (
     Basis,
@@ -23,6 +23,7 @@ from app.contracts.trace import (
     TraceChunk,
     TraceClaim,
     TraceDocument,
+    TraceRejection,
     TraceStep,
 )
 
@@ -162,6 +163,54 @@ def claims_of(insight: Insight) -> list[TraceClaim]:
     ]
 
 
+def rejected_of(context: AnalysisContext, insight: Insight) -> list[TraceRejection]:
+    final = {(s.id, s.text) for s in insight.statements()} | {(HEADLINE, insight.headline)}
+    found = []
+    for index, review in enumerate(context.critic_reviews):
+        draft = review.draft if isinstance(review.draft, dict) else {}
+        problems: dict[str, list[str]] = {}
+        for issue in review.report.issues:
+            if issue.statement_id is not None:
+                problems.setdefault(issue.statement_id, []).append(issue.detail)
+        for statement_id, details in problems.items():
+            located = locate_statement(draft, statement_id)
+            if located is None:
+                continue
+            section, origin, text = located
+            found.append(
+                TraceRejection(
+                    check_index=index,
+                    statement_id=statement_id,
+                    section=section,
+                    origin=origin,
+                    text=text,
+                    problems=list(dict.fromkeys(details)),
+                    shown=(statement_id, text) in final,
+                )
+            )
+    return found
+
+
+def locate_statement(
+    draft: dict[str, Any], statement_id: str
+) -> tuple[Section | Literal["headline"], Origin | None, str] | None:
+    headline = draft.get(HEADLINE)
+    if statement_id == HEADLINE:
+        return ("headline", None, headline) if isinstance(headline, str) and headline else None
+    for section in SECTIONS:
+        items = draft.get(section)
+        for item in items if isinstance(items, list) else []:
+            if not isinstance(item, dict) or item.get("id") != statement_id:
+                continue
+            text = item.get("text")
+            if not isinstance(text, str) or not text.strip():
+                return None
+            origin = item.get("origin")
+            known = origin if isinstance(origin, str) and origin in set(Origin) else None
+            return section, Origin(known) if known else None, text
+    return None
+
+
 def build_trace(
     result: GeneratedInsight, context: AnalysisContext, elapsed_seconds: float
 ) -> AgentTrace:
@@ -229,6 +278,7 @@ def build_trace(
         role=result.role,
         feed_snapshot_id=result.feed_snapshot_id,
         claims=claims_of(result.insight),
+        rejected=rejected_of(context, result.insight),
     ).model_copy(deep=True)
 
 

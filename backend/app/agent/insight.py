@@ -22,6 +22,9 @@ from app.contracts.common import Significance
 from app.contracts.critic import CriticReport
 from app.contracts.feed import FeedItem
 from app.contracts.generation import (
+    AI_MADE,
+    AI_ONLY,
+    NOT_ADVICE,
     BlockId,
     ExecutionStatus,
     GeneratedInsight,
@@ -512,6 +515,7 @@ async def generate_with_trace(
         ranking=rankings,
         role=role,
         feed_snapshot_id=feed_snapshot_id,
+        disclaimer=f"{AI_MADE if insight.bank_view else AI_ONLY} {NOT_ADVICE}",
     )
 
     return result, build_trace(result, context, monotonic() - started)

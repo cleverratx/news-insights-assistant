@@ -55,6 +55,19 @@ class TraceClaim(Contract):
     basis: list[Basis] = Field(default_factory=list)
 
 
+class TraceRejection(Contract):
+    """Утверждение черновика, которое проверка оспорила: что именно написала модель и почему
+    это не показано как есть. Пользователь видит только число скрытых выводов и причины."""
+
+    check_index: int = Field(ge=0)
+    statement_id: Id
+    section: Section | Literal["headline"]
+    origin: Origin | None = None
+    text: Text
+    problems: list[Text] = Field(min_length=1)
+    shown: bool = Field(description="Тот же текст попал в итоговый вывод после исправлений")
+
+
 class AgentTrace(Contract):
     schema_version: Literal["1.0"] = SCHEMA_VERSION
     insight_id: Id
@@ -80,9 +93,15 @@ class AgentTrace(Contract):
     claims: list[TraceClaim] = Field(
         default_factory=list, description="Связь каждого утверждения с фрагментами документов"
     )
+    rejected: list[TraceRejection] = Field(
+        default_factory=list,
+        description="Оспоренные проверкой утверждения черновиков: текст модели и замечания",
+    )
 
     @model_validator(mode="after")
     def references(self) -> Self:
+        if any(r.check_index >= len(self.checks) for r in self.rejected):
+            raise ValueError("Отклонённое утверждение ссылается на неизвестную проверку")
         require_unique((str(s.number) for s in self.steps), "шагов")
         require_unique((o.id for o in self.observations), "наблюдений")
         require_unique((d.ref_id for d in self.documents), "документов")

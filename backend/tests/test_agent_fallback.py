@@ -357,3 +357,49 @@ async def test_statement_with_unknown_source_is_hidden_and_rest_is_verified() ->
     [gap] = [g for g in result.gaps if g.kind is GapKind.VERIFICATION]
     assert "Утверждение ссылается на неизвестный источник" in gap.details
     assert len(llm.messages) == 3
+
+
+async def test_trace_keeps_text_of_disputed_statements() -> None:
+    db = Database()
+    value = with_second_risk(db)
+    llm = Replies(finish(value), DISPUTED, finish(value), DISPUTED, '{"issues":[]}')
+    result, trace = await generate_with_trace(
+        profile(), [db.news, db.bank], db, llm, limits=Limits(max_critic_reviews=2)
+    )
+    assert result.insight.status == "ready"
+    assert [(r.check_index, r.statement_id) for r in trace.rejected] == [(0, "risk2"), (1, "risk2")]
+    rejected = trace.rejected[0]
+    assert rejected.text == "Компания потеряет ключевых покупателей"
+    assert rejected.section == "risks" and rejected.origin == "model" and not rejected.shown
+    assert rejected.problems == ["Потеря покупателей не следует из источника"]
+    assert "Компания потеряет ключевых покупателей" not in result.model_dump_json()
+
+
+async def test_trace_marks_statement_kept_after_repeated_check() -> None:
+    db = Database()
+    value = with_second_risk(db)
+    llm = Replies(finish(value), DISPUTED, finish(value), '{"issues":[]}')
+    result, trace = await generate_with_trace(
+        profile(), [db.news, db.bank], db, llm, limits=Limits(max_critic_reviews=2)
+    )
+    assert result.insight.status == "ready"
+    [rejected] = trace.rejected
+    assert rejected.statement_id == "risk2" and rejected.shown
+
+
+async def test_insight_carries_investment_disclaimer() -> None:
+    from app.contracts.generation import AI_MADE, AI_ONLY, NOT_ADVICE
+
+    db = Database()
+    value = with_second_risk(db)
+    with_bank = await generate(
+        profile(), [db.news, db.bank], db, Replies(finish(value), '{"issues":[]}')
+    )
+    assert with_bank.disclaimer == f"{AI_MADE} {NOT_ADVICE}"
+    without_model = await generate(profile(), [db.news], db, None)
+    assert without_model.disclaimer == f"{AI_ONLY} {NOT_ADVICE}"
+    data = with_bank.model_dump(mode="json")
+    with pytest.raises(ValidationError):
+        GeneratedInsight.model_validate({**data, "disclaimer": "Выводы ИИ"})
+    data.pop("disclaimer")
+    assert NOT_ADVICE in GeneratedInsight.model_validate(data).disclaimer
