@@ -139,10 +139,13 @@ type BreakdownProps = { impact: Impact; info?: CriteriaInfo; compact?: boolean }
 export function ImpactBreakdown({ impact, info, compact = false }: BreakdownProps) {
   const descriptions = new Map((info ?? []).map((item) => [item.id, item.description]));
   const answers = impact.answers ?? [];
+  const touched = (criterion: Criterion) =>
+    criterion.level !== 0 || answers.some((answer) => answer.criterion === criterion.id);
   const criteria = [...impact.criteria].sort(
-    (a, b) =>
-      Number(b.level !== 0) - Number(a.level !== 0) || Math.abs(b.points) - Math.abs(a.points),
+    (a, b) => Number(touched(b)) - Number(touched(a)) || Math.abs(b.points) - Math.abs(a.points),
   );
+  const contribution = (points: number) =>
+    impact.scale === 'levels' ? `вклад ${formatSigned(points)}` : formatSigned(points);
 
   return (
     <ul className={`${styles.breakdown} ${compact ? styles.compact : ''}`}>
@@ -150,25 +153,28 @@ export function ImpactBreakdown({ impact, info, compact = false }: BreakdownProp
         const own = answers
           .filter((answer) => answer.criterion === criterion.id)
           .sort((a, b) => Math.abs(b.level) - Math.abs(a.level) || a.level - b.level);
+        const balanced = criterion.level === 0 && own.length > 0;
         return (
           <li
             key={criterion.id}
-            className={`${styles.criterion} ${criterion.level === 0 ? styles.idle : ''}`}
+            className={`${styles.criterion} ${touched(criterion) ? '' : styles.idle}`}
           >
             <div className={styles.criterionHead}>
               <span className={styles.criterionTitle} title={descriptions.get(criterion.id)}>
                 {criterion.title}
               </span>
               <Bar level={criterion.level} />
-              {(!compact || criterion.level !== 0) && (
+              {(!compact || touched(criterion)) && (
                 <span className={`${styles.criterionLevel} ${toneClass(criterion.level)}`}>
-                  {criterion.level === 0
-                    ? levelWords(0)
-                    : `${levelWords(criterion.level)} · ${formatSigned(criterion.points)}`}
+                  {balanced
+                    ? 'плюсы и минусы уравновесились'
+                    : criterion.level === 0
+                      ? levelWords(0)
+                      : `${levelWords(criterion.level)} · ${contribution(criterion.points)}`}
                 </span>
               )}
             </div>
-            {criterion.level !== 0 && <Answers criterion={criterion} answers={own} />}
+            {touched(criterion) && <Answers criterion={criterion} answers={own} />}
           </li>
         );
       })}
@@ -212,17 +218,19 @@ export function CriteriaTable({ impact, info }: BreakdownProps) {
           Как скажется на бизнесе
         </h2>
         <span className={styles.total}>
-          Итог {formatSigned(impact.score)} из ±100
+          {impact.title} · итог {formatSigned(impact.score)}
+          {impact.scale === 'points' && ' из ±100'}
           {impact.confidence === 'low' && ' · оценка неточная'}
         </span>
       </div>
-      {affectedCriteria(impact).length === 0 && (
+      {(affectedCriteria(impact).length === 0 || impact.score === 0) && (
         <p className={styles.none}>{impact.rationale || 'Заметного влияния на показатели нет.'}</p>
       )}
       <ImpactBreakdown impact={impact} info={info} />
       <p className={styles.note}>
-        Уровень критерия — самое сильное влияние среди вопросов его группы, поэтому один эффект не
-        считается дважды.
+        {impact.scale === 'levels'
+          ? 'Каждый вопрос оценивается от −2 до +2, итог — сумма всех оценок. Плюсы и минусы внутри критерия взаимно гасятся.'
+          : 'Уровень критерия — самое сильное влияние среди вопросов его группы, поэтому один эффект не считается дважды.'}
       </p>
     </section>
   );

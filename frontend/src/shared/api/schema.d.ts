@@ -1570,7 +1570,7 @@ export interface components {
       color: components['schemas']['ImpactColor'];
       /**
        * Title
-       * @description Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность
+       * @description Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность; Двоякое влияние — плюсы и минусы в сумме дали ноль
        */
       title: string;
       /**
@@ -1598,9 +1598,16 @@ export interface components {
       model?: string | null;
       /**
        * Answers
-       * @description Вопросы с влиянием; уровень критерия — самый сильный ответ его группы
+       * @description Вопросы с влиянием: каждый от −2 до +2, итог — их сумма
        */
       answers?: components['schemas']['ImpactAnswer'][];
+      /**
+       * Scale
+       * @description levels — итог равен сумме уровней всех ответов (50 вопросов × ±2 = ±100); points — прежний подсчёт ±20/±50 у сохранённых раньше оценок
+       * @default points
+       * @enum {string}
+       */
+      scale: 'levels' | 'points';
     };
     /**
      * ImpactBand
@@ -1638,7 +1645,7 @@ export interface components {
       level: number;
       /**
        * Points
-       * @description Вклад в балл: ±20 — заметно, ±50 — существенно
+       * @description Вклад в итог: сумма уровней ответов группы (scale=levels) или ±20/±50 в оценках до перехода на сумму (scale=points)
        */
       points: number;
       /**

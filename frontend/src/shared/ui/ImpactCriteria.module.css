@@ -78,7 +78,7 @@
 
 .criterionHead {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 160px 190px;
+  grid-template-columns: minmax(0, 1fr) 160px 240px;
   align-items: center;
   gap: var(--gap-16);
   font-size: 15px;

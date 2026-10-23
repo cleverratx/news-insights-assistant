@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ArrowLeftMIcon } from '@alfalab/icons-glyph/ArrowLeftMIcon';
 import { InformationCircleLineMIcon } from '@alfalab/icons-glyph/InformationCircleLineMIcon';
@@ -9,6 +9,7 @@ import { InsightView } from '@/features/insight/InsightView';
 import { StatusNotice } from '@/features/insight/StatusNotice';
 import { TraceSteps } from '@/features/insight/TraceSteps';
 import { useInsight } from '@/features/insight/useInsight';
+import { invalidateCached } from '@/shared/api/cache';
 import { useFeed } from '@/shared/api/feed';
 import type { GeneratedInsight } from '@/shared/api/types';
 import { formatAgo, formatDateTime, plural } from '@/shared/lib/format';
@@ -33,6 +34,10 @@ export function InsightPage() {
   const item = feed.data?.items?.find((entry) => entry.news_id === newsId);
   const result = insight.data;
   const ranking = result?.ranking?.find((entry) => entry.news_id === newsId);
+
+  useEffect(() => {
+    if (result?.ranking?.length) invalidateCached(`/companies/${encodeURIComponent(company)}/feed`);
+  }, [result, company]);
   const importance = ranking?.importance ?? item?.importance;
   const impact = ranking?.impact ?? item?.impact;
   const headline =
