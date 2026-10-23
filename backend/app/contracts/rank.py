@@ -180,13 +180,47 @@ class ImpactCriterion(Contract):
 
     @model_validator(mode="after")
     def timed(self) -> Self:
-        if (self.timing is None) != (self.timing_source is None):
-            raise ValueError("Срок влияния указывается вместе с его основанием")
-        if self.timing is not None and self.level == 0:
-            raise ValueError("Срок есть только у ненулевого влияния")
-        if self.timing_title != (TIMING_TITLES[self.timing] if self.timing else None):
-            raise ValueError("Подпись срока не соответствует сроку")
+        check_timing(self.level, self.timing, self.timing_title, self.timing_source)
         return self
+
+
+def check_timing(
+    level: int,
+    timing: ImpactTiming | None,
+    title: str | None,
+    source: Literal["source", "estimate"] | None,
+) -> None:
+    if (timing is None) != (source is None):
+        raise ValueError("Срок влияния указывается вместе с его основанием")
+    if timing is not None and level == 0:
+        raise ValueError("Срок есть только у ненулевого влияния")
+    if title != (TIMING_TITLES[timing] if timing else None):
+        raise ValueError("Подпись срока не соответствует сроку")
+
+
+class ImpactAnswer(Contract):
+    """Ответ на один из общих вопросов о том, через что событие доходит до бизнеса компании."""
+
+    question_id: Id = Field(description="Идентификатор вопроса, например costs.suppliers")
+    question: Text = Field(description="Вопрос словами для сводки по клику")
+    criterion: ImpactCriterionId
+    level: int = Field(ge=-2, le=2, description="−2 существенно хуже … +2 существенно лучше")
+    reason: Text
+    timing: ImpactTiming | None = None
+    timing_title: Text | None = None
+    timing_source: Literal["source", "estimate"] | None = None
+
+    @model_validator(mode="after")
+    def answered(self) -> Self:
+        if self.level == 0:
+            raise ValueError("В ответах только вопросы с влиянием")
+        check_timing(self.level, self.timing, self.timing_title, self.timing_source)
+        return self
+
+
+def strongest(answers: list[ImpactAnswer]) -> ImpactAnswer | None:
+    """Самый сильный ответ группы; при равной силе — риск, а не возможность."""
+    return min(answers, key=lambda answer: (-abs(answer.level), answer.level), default=None)
 
 
 class ImpactAssessment(Contract):
@@ -209,6 +243,22 @@ class ImpactAssessment(Contract):
     )
     confidence: Literal["low", "medium", "high"]
     model: Text | None = None
+    answers: list[ImpactAnswer] = Field(
+        default_factory=list,
+        max_length=50,
+        description="Вопросы с влиянием; уровень критерия — самый сильный ответ его группы",
+    )
+
+    @model_validator(mode="after")
+    def criteria_from_answers(self) -> Self:
+        require_unique((answer.question_id for answer in self.answers), "ответов")
+        if not self.answers:
+            return self
+        for criterion in self.criteria:
+            top = strongest([a for a in self.answers if a.criterion is criterion.id])
+            if criterion.level != (top.level if top else 0):
+                raise ValueError("Уровень критерия не равен самому сильному ответу группы")
+        return self
 
     @model_validator(mode="after")
     def score_from_criteria(self) -> Self:

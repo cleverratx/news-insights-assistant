@@ -301,6 +301,89 @@
       "title": "GenerationUsage",
       "type": "object"
     },
+    "ImpactAnswer": {
+      "additionalProperties": false,
+      "description": "Ответ на один из общих вопросов о том, через что событие доходит до бизнеса компании.",
+      "properties": {
+        "question_id": {
+          "description": "Идентификатор вопроса, например costs.suppliers",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Question Id",
+          "type": "string"
+        },
+        "question": {
+          "description": "Вопрос словами для сводки по клику",
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        },
+        "criterion": {
+          "$ref": "#/$defs/ImpactCriterionId"
+        },
+        "level": {
+          "description": "−2 существенно хуже … +2 существенно лучше",
+          "maximum": 2,
+          "minimum": -2,
+          "title": "Level",
+          "type": "integer"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "timing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImpactTiming"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "timing_title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timing Title"
+        },
+        "timing_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "source",
+                "estimate"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timing Source"
+        }
+      },
+      "required": [
+        "question_id",
+        "question",
+        "criterion",
+        "level",
+        "reason"
+      ],
+      "title": "ImpactAnswer",
+      "type": "object"
+    },
     "ImpactAssessment": {
       "additionalProperties": false,
       "description": "Оценка влияния события на бизнес компании: балл от −100 до +100, цвет и обоснование.\nБалл равен сумме вкладов критериев, ограниченной ±100.",
@@ -366,6 +449,15 @@
           ],
           "default": null,
           "title": "Model"
+        },
+        "answers": {
+          "description": "Вопросы с влиянием; уровень критерия — самый сильный ответ его группы",
+          "items": {
+            "$ref": "#/$defs/ImpactAnswer"
+          },
+          "maxItems": 50,
+          "title": "Answers",
+          "type": "array"
         }
       },
       "required": [
