@@ -8,7 +8,7 @@ import styles from './ImportanceRing.module.css';
 type Props = {
   importance: FeedItem['importance'];
   scale?: Feed['importance_scale'];
-  size?: 'l' | 'm';
+  size?: 'l' | 'm' | 's';
 };
 
 const RADIUS = 20;

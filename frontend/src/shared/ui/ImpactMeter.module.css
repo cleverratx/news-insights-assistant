@@ -12,7 +12,12 @@
   width: 152px;
 }
 
-.uncertain {
+.s {
+  width: 100%;
+}
+
+.uncertain .value,
+.uncertain .track {
   opacity: 0.55;
 }
 
@@ -34,6 +39,19 @@
 .m .value {
   font-size: 18px;
   line-height: 24px;
+}
+
+.s .value {
+  justify-content: center;
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.caption {
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--c-text-secondary);
 }
 
 .arrow {

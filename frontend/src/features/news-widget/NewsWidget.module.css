@@ -48,6 +48,15 @@
   border-radius: var(--radius-pill);
 }
 
+.chip {
+  text-decoration: none;
+  transition: box-shadow 150ms ease;
+}
+
+.chip:hover {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
 .chipIcon {
   width: 16px;
   height: 16px;

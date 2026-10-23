@@ -22,10 +22,14 @@ type Props = {
 
 const LIST_SIZE = 4;
 
-function analyzeLink(search: string, newsId: string) {
+function feedLink(search: string, extra: Record<string, string> = {}) {
   const params = new URLSearchParams(search);
-  params.set('open', newsId);
+  Object.entries(extra).forEach(([key, value]) => params.set(key, value));
   return { pathname: '/feed', search: `?${params}` };
+}
+
+function analyzeLink(search: string, newsId: string) {
+  return feedLink(search, { open: newsId });
 }
 
 export function NewsWidget({ feed, fresh, search }: Props) {
@@ -41,7 +45,7 @@ export function NewsWidget({ feed, fresh, search }: Props) {
           <h2 id="news-widget-title" className={styles.title}>
             Новости для бизнеса
           </h2>
-          {feed.data && <Summary items={items} fresh={fresh.length} />}
+          {feed.data && <Summary items={items} fresh={fresh.length} search={search} />}
         </div>
         <Link className={styles.allButton} to={{ pathname: '/feed', search }}>
           Вся лента
@@ -101,7 +105,9 @@ export function NewsWidget({ feed, fresh, search }: Props) {
   );
 }
 
-function Summary({ items, fresh }: { items: FeedItem[]; fresh: number }) {
+type SummaryProps = { items: FeedItem[]; fresh: number; search: string };
+
+function Summary({ items, fresh, search }: SummaryProps) {
   const important = items.filter(isImportant).length;
   const risks = items.filter((item) => item.event.polarity === 'risk').length;
   const chances = items.filter((item) => item.event.polarity === 'opportunity').length;
@@ -109,26 +115,43 @@ function Summary({ items, fresh }: { items: FeedItem[]; fresh: number }) {
   return (
     <ul className={styles.summary}>
       {fresh > 0 && (
-        <li className={`${styles.chip} ${styles.chipNew}`}>
-          {fresh} {plural(fresh, { one: 'новое', few: 'новых', many: 'новых' })}
+        <li>
+          <Link className={`${styles.chip} ${styles.chipNew}`} to={feedLink(search)}>
+            {fresh} {plural(fresh, { one: 'новое', few: 'новых', many: 'новых' })}
+          </Link>
         </li>
       )}
       {important > 0 && (
-        <li className={`${styles.chip} ${styles.chipImportant}`}>
-          {important} {plural(important, { one: 'важное', few: 'важных', many: 'важных' })}
+        <li>
+          <Link
+            className={`${styles.chip} ${styles.chipImportant}`}
+            to={feedLink(search, { important: '1' })}
+          >
+            {important} {plural(important, { one: 'важное', few: 'важных', many: 'важных' })}
+          </Link>
         </li>
       )}
       {risks > 0 && (
-        <li className={`${styles.chip} ${styles.chipRisk}`}>
-          <ArrowDownSIcon className={styles.chipIcon} aria-hidden="true" />
-          {risks} {plural(risks, { one: 'риск', few: 'риска', many: 'рисков' })}
+        <li>
+          <Link
+            className={`${styles.chip} ${styles.chipRisk}`}
+            to={feedLink(search, { polarity: 'risk' })}
+          >
+            <ArrowDownSIcon className={styles.chipIcon} aria-hidden="true" />
+            {risks} {plural(risks, { one: 'риск', few: 'риска', many: 'рисков' })}
+          </Link>
         </li>
       )}
       {chances > 0 && (
-        <li className={`${styles.chip} ${styles.chipChance}`}>
-          <ArrowUpSIcon className={styles.chipIcon} aria-hidden="true" />
-          {chances}{' '}
-          {plural(chances, { one: 'возможность', few: 'возможности', many: 'возможностей' })}
+        <li>
+          <Link
+            className={`${styles.chip} ${styles.chipChance}`}
+            to={feedLink(search, { polarity: 'opportunity' })}
+          >
+            <ArrowUpSIcon className={styles.chipIcon} aria-hidden="true" />
+            {chances}{' '}
+            {plural(chances, { one: 'возможность', few: 'возможности', many: 'возможностей' })}
+          </Link>
         </li>
       )}
       {fresh === 0 && <li className={styles.calm}>Новых важных событий нет</li>}

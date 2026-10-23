@@ -4,10 +4,13 @@ import type { Role } from '@/shared/lib/demo';
 
 const IMPORTANT_LEVELS = new Set<FeedItem['importance']['level']>(['critical', 'important']);
 
-export function feedPath(company: string, role: Role | null, background = false): string {
+type FeedOptions = { days?: number; all?: boolean };
+
+export function feedPath(company: string, role: Role | null, options: FeedOptions = {}): string {
   const query = new URLSearchParams();
+  if (options.days && options.days !== 7) query.set('days', String(options.days));
   if (role) query.set('role', role);
-  if (background) query.set('min_importance', '0');
+  if (options.all) query.set('min_importance', '0');
   const search = query.toString();
   return `/companies/${encodeURIComponent(company)}/feed${search ? `?${search}` : ''}`;
 }
