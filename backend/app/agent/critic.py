@@ -12,6 +12,7 @@ from app.agent.context import AnalysisContext
 from app.agent.fallback import number_issues, pool
 from app.agent.offers import product_issues
 from app.agent.related import relation_ids
+from app.agent.tools import strict_json
 from app.agent.tools.builtin import SourceExcerpt
 from app.contracts.common import Id, Text
 from app.contracts.critic import CriticReport
@@ -359,6 +360,17 @@ SYSTEM = """Ты критик персональной бизнес-аналит
 statement_id — только из черновика или null. Если ошибок нет, issues=[].
 Верни только JSON по схеме:
 """
+REPAIRS = 1
+REPAIR = "Ответ не прошёл проверку: {error}. Верни только исправленный JSON-объект по схеме."
+
+
+def describe(error: ValidationError | ValueError) -> str:
+    if isinstance(error, ValidationError):
+        return "; ".join(
+            f"{'.'.join(str(part) for part in found['loc']) or 'ответ'}: {found['msg']}"
+            for found in error.errors(include_input=False, include_url=False)[:5]
+        )[:300]
+    return str(error).splitlines()[0][:300]
 
 
 class InsightCritic:
@@ -413,41 +425,41 @@ class InsightCritic:
             },
             context.run_id,
         )
-        try:
-            result = await self.llm.complete(
-                Task.INTERPRET,
-                [
-                    Message(
-                        role="system",
-                        content=SYSTEM + json.dumps(SemanticAnswer.model_json_schema()),
-                    ),
-                    Message(role="user", content=json.dumps(payload, ensure_ascii=False)),
-                ],
-            )
-        except Exception:
-            return self.unavailable(Decimal(0))
-        try:
-
-            def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-                values: dict[str, Any] = {}
-                for key, value in pairs:
-                    if key in values:
-                        raise ValueError("Повторяющийся JSON-ключ")
-                    values[key] = value
-                return values
-
-            json.loads(result.text, object_pairs_hook=unique)
-            answer = SemanticAnswer.model_validate_json(result.text)
-            ids = {s.id for s in draft.statements()}
-            if any(i.statement_id is not None and i.statement_id not in ids for i in answer.issues):
-                raise ValueError("Неизвестное утверждение")
-        except (ValidationError, ValueError):
-            return self.unavailable(result.cost_rub)
+        messages = [
+            Message(
+                role="system",
+                content=SYSTEM + json.dumps(SemanticAnswer.model_json_schema()),
+            ),
+            Message(role="user", content=json.dumps(payload, ensure_ascii=False)),
+        ]
+        cost = Decimal(0)
+        answer: SemanticAnswer | None = None
+        for _ in range(1 + REPAIRS):
+            try:
+                result = await self.llm.complete(Task.INTERPRET, messages)
+            except Exception:
+                return self.unavailable(cost)
+            cost += result.cost_rub
+            try:
+                answer = SemanticAnswer.model_validate(strict_json(result.text))
+                break
+            except (ValidationError, ValueError) as error:
+                messages = [
+                    *messages,
+                    Message(role="assistant", content=result.text),
+                    Message(role="user", content=REPAIR.format(error=describe(error))),
+                ]
+        if answer is None:
+            return self.unavailable(cost)
+        ids = {s.id for s in draft.statements()}
         return CriticReport(
             passed=not answer.issues,
             semantic_checked=True,
-            issues=[issue(i.problem, i.detail, i.statement_id) for i in answer.issues],
-            cost_rub=result.cost_rub,
+            issues=[
+                issue(i.problem, i.detail, i.statement_id if i.statement_id in ids else None)
+                for i in answer.issues
+            ],
+            cost_rub=cost,
             suggested_tools=["get_original", "search_news", "search_bank_analytics"]
             if answer.issues
             else [],

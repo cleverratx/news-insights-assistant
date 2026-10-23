@@ -1,6 +1,7 @@
 """A5-02: JSON-протокол и проверяемый реестр инструментов."""
 
 import json
+import re
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Literal, Self
 
@@ -10,6 +11,8 @@ from app.contracts.common import Id, Text
 
 if TYPE_CHECKING:
     from app.agent.context import AnalysisContext
+
+FENCE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL | re.IGNORECASE)
 
 
 class Decision(BaseModel):
@@ -256,7 +259,20 @@ class ToolResponse(BaseModel):
         return self
 
 
-def parse_decision(text: str) -> Decision:
+def unwrap(text: str) -> str:
+    """Объект из ответа модели без обёртки ```json и текста вокруг: модели часто так
+    отвечают, и строгий разбор отбрасывал оплаченный ответ вместе со всем прогоном."""
+    stripped = text.strip()
+    fenced = FENCE.match(stripped)
+    if fenced:
+        stripped = fenced.group(1)
+    start, end = stripped.find("{"), stripped.rfind("}")
+    return stripped[start : end + 1] if 0 <= start < end else stripped
+
+
+def strict_json(text: str) -> JsonValue:
+    """Повтор ключа мог бы спрятать замечание или подменить действие, NaN — не JSON."""
+
     def constant(value: str) -> None:
         raise ValueError("Нестандартное JSON-число")
 
@@ -268,8 +284,12 @@ def parse_decision(text: str) -> Decision:
             result[key] = value
         return result
 
+    data: JsonValue = json.loads(unwrap(text), parse_constant=constant, object_pairs_hook=unique)
+    return data
+
+
+def parse_decision(text: str) -> Decision:
     try:
-        data = json.loads(text, parse_constant=constant, object_pairs_hook=unique)
-        return Decision.model_validate(data, strict=True)
+        return Decision.model_validate(strict_json(text), strict=True)
     except (ValidationError, ValueError, TypeError) as error:
         raise ToolProtocolError(validation_error("invalid_decision", error)) from None
