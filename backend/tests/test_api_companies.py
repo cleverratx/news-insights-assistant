@@ -112,6 +112,47 @@ async def test_unavailable_database_is_503(monkeypatch: pytest.MonkeyPatch) -> N
     assert response.json() == {"detail": "База данных недоступна"}
 
 
+async def test_busy_pool_is_503_instead_of_hanging(monkeypatch: pytest.MonkeyPatch) -> None:
+    class BusyPool:
+        async def acquire(self, **options: float) -> None:
+            assert options == {"timeout": 10}
+            raise TimeoutError
+
+    async def busy_pool() -> BusyPool:
+        return BusyPool()
+
+    monkeypatch.setattr("app.api.companies.get_pool", busy_pool)
+    async with AsyncClient(
+        transport=ASGITransport(app=create_app()), base_url="http://test"
+    ) as client:
+        response = await client.get("/api/companies/U_1/profile")
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Сервис занят другими запросами, повторите позже"}
+
+
+async def test_connection_returns_to_pool_after_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    released: list[object] = []
+    connection = FakeConnection(asyncpg.UndefinedTableError("нет таблицы"))
+
+    class Pool:
+        async def acquire(self, **options: float) -> FakeConnection:
+            return connection
+
+        async def release(self, value: object) -> None:
+            released.append(value)
+
+    async def pool() -> Pool:
+        return Pool()
+
+    monkeypatch.setattr("app.api.companies.get_pool", pool)
+    async with AsyncClient(
+        transport=ASGITransport(app=create_app()), base_url="http://test"
+    ) as client:
+        response = await client.get("/api/companies/U_1/profile")
+    assert response.status_code == 503
+    assert released == [connection]
+
+
 async def test_openapi_documents_profile_contract() -> None:
     async with AsyncClient(
         transport=ASGITransport(app=create_app()), base_url="http://test"
