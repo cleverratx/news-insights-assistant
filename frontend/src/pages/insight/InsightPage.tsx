@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ArrowLeftMIcon } from '@alfalab/icons-glyph/ArrowLeftMIcon';
+import { DocumentMIcon } from '@alfalab/icons-glyph/DocumentMIcon';
 import { InformationCircleLineMIcon } from '@alfalab/icons-glyph/InformationCircleLineMIcon';
 
 import { useShell } from '@/app/shell-context';
 import { InsightLoading } from '@/features/insight/InsightLoading';
 import { InsightView } from '@/features/insight/InsightView';
 import { StatusNotice } from '@/features/insight/StatusNotice';
-import { TraceSteps } from '@/features/insight/TraceSteps';
 import { useInsight } from '@/features/insight/useInsight';
+import { BasisPanel } from '@/features/trace/BasisPanel';
 import { invalidateCached } from '@/shared/api/cache';
 import { useFeed } from '@/shared/api/feed';
 import type { GeneratedInsight } from '@/shared/api/types';
@@ -27,8 +28,29 @@ const DISCLAIMER =
 export function InsightPage() {
   const { newsId = '' } = useParams();
   const { company, role, search } = useShell();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const snapshot = params.get('snapshot');
+  const basisOpen = params.get('basis') === '1';
+  const [focus, setFocus] = useState<number | null>(null);
+  const toggleBasis = (open: boolean) =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (open) next.set('basis', '1');
+        else next.delete('basis');
+        return next;
+      },
+      { replace: true, preventScrollReset: true },
+    );
+  const showSource = (number: number) => {
+    setFocus(number);
+    toggleBasis(true);
+  };
+  const showBasis = () => {
+    setFocus(null);
+    toggleBasis(true);
+    document.getElementById('basis')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const insight = useInsight({ company, newsId, role, snapshot });
   const feed = useFeed(company, role);
   const item = feed.data?.items?.find((entry) => entry.news_id === newsId);
@@ -95,6 +117,12 @@ export function InsightPage() {
               {result.role_view.summary ?? result.role_view.focus}
             </p>
           )}
+          {result && (
+            <button type="button" className={styles.basisLink} onClick={showBasis}>
+              <DocumentMIcon className={styles.basisIcon} aria-hidden="true" />
+              На чём основан вывод
+            </button>
+          )}
         </div>
         {importance && impact && (
           <div className={styles.scores}>
@@ -128,12 +156,12 @@ export function InsightPage() {
         {result && (
           <>
             <StatusNotice result={result} />
-            <InsightView result={result} />
+            <InsightView result={result} onSource={showSource} />
             <aside className={styles.disclaimer} aria-label="Важно знать">
               <InformationCircleLineMIcon className={styles.disclaimerIcon} aria-hidden="true" />
               <p>{result.disclaimer || DISCLAIMER}</p>
             </aside>
-            <TraceSteps insightId={result.insight.id} />
+            <BasisPanel result={result} open={basisOpen} focus={focus} onToggle={toggleBasis} />
             <CacheLine result={result} onRebuild={insight.rebuild} />
           </>
         )}

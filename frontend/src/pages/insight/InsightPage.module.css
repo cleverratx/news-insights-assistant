@@ -78,6 +78,35 @@
   text-underline-offset: 6px;
 }
 
+.basisLink {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: var(--gap-8);
+  margin-top: var(--gap-4);
+  padding: var(--gap-4) var(--gap-12) var(--gap-4) var(--gap-8);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--c-text-primary);
+  background: var(--c-bg-page);
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.basisLink:hover {
+  background: var(--c-bg-tertiary);
+}
+
+.basisIcon {
+  width: 18px;
+  height: 18px;
+  color: var(--c-text-secondary);
+}
+
 .original {
   font-size: 16px;
   line-height: 24px;
