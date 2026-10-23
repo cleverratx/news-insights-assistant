@@ -133,6 +133,25 @@ class ImpactCriterionId(StrEnum):
     MARKET_ACCESS = "market_access"
     COST_OF_MONEY = "cost_of_money"
     REGULATORY = "regulatory"
+    LIQUIDITY = "liquidity"
+    FX = "fx"
+    COUNTERPARTIES = "counterparties"
+    COMPETITION = "competition"
+
+
+class ImpactTiming(StrEnum):
+    NOW = "now"
+    QUARTER = "quarter"
+    YEAR = "year"
+    LATER = "later"
+
+
+TIMING_TITLES = {
+    ImpactTiming.NOW: "сразу, в течение месяца",
+    ImpactTiming.QUARTER: "в ближайшие 3 месяца",
+    ImpactTiming.YEAR: "через 3–12 месяцев",
+    ImpactTiming.LATER: "больше чем через год",
+}
 
 
 class ImpactColor(StrEnum):
@@ -152,6 +171,22 @@ class ImpactCriterion(Contract):
     level: int = Field(ge=-2, le=2, description="−2 существенно хуже … +2 существенно лучше")
     points: int = Field(ge=-50, le=50, description="Вклад в балл: ±20 — заметно, ±50 — существенно")
     reason: Text | None = Field(default=None, description="Почему такой уровень; пусто при 0")
+    timing: ImpactTiming | None = Field(default=None, description="Когда скажется на компании")
+    timing_title: Text | None = Field(default=None, description="Срок словами для карточки")
+    timing_source: Literal["source", "estimate"] | None = Field(
+        default=None,
+        description="source — срок назван в материале, estimate — оценка ИИ",
+    )
+
+    @model_validator(mode="after")
+    def timed(self) -> Self:
+        if (self.timing is None) != (self.timing_source is None):
+            raise ValueError("Срок влияния указывается вместе с его основанием")
+        if self.timing is not None and self.level == 0:
+            raise ValueError("Срок есть только у ненулевого влияния")
+        if self.timing_title != (TIMING_TITLES[self.timing] if self.timing else None):
+            raise ValueError("Подпись срока не соответствует сроку")
+        return self
 
 
 class ImpactAssessment(Contract):
@@ -163,7 +198,11 @@ class ImpactAssessment(Contract):
     title: Text = Field(
         description="Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность"
     )
-    criteria: list[ImpactCriterion] = Field(min_length=5, max_length=5)
+    criteria: list[ImpactCriterion] = Field(
+        min_length=5,
+        max_length=len(ImpactCriterionId),
+        description="Все критерии оценки; в сохранённых до расширения оценках их пять",
+    )
     rationale: Text = Field(description="Обоснование балла для карточки")
     method: Literal["llm", "rules"] = Field(
         description="llm — оценила модель с учётом профиля, rules — запасная оценка по теме"
