@@ -88,6 +88,9 @@ npm run build
 
 ## Дополнительные проверки
 
+Фильтры ленты (A6-07): поведение, параметры API и сценарии проверки описаны в
+[frontend/src/features/feed/README.md](../frontend/src/features/feed/README.md).
+
 Уточняющий диалог по инсайту (A6-06) использует поле `focus` существующего API разборов.
 Как открыть чат, какие данные сохраняются в контексте и как проверить его без платных
 вызовов LLM — в [frontend/src/features/ask/README.md](../frontend/src/features/ask/README.md).
