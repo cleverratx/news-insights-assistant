@@ -423,3 +423,18 @@ def test_prompt_lists_all_fifty_general_questions() -> None:
     assert len(QUESTIONS) == 50 and len({q for q, _, _ in QUESTIONS}) == 50
     assert all(f"q{index}. " in text for index in range(1, 51))
     assert {criterion for _, criterion, _ in QUESTIONS} == set(C)
+
+
+async def test_refined_impact_replaces_batch_estimate_in_feed() -> None:
+    from app.rank.sentiment import refine
+
+    cache = MemoryCache()
+    news, why = cards(1)[0]
+    reply = answer(judged("n1", q14=(-1, "Ставка удержит долг дорогим")))
+    refined = await refine(
+        FakeLLM(reply), profile(), news, why, ["Ставка 14% держит долг дорогим"], cache
+    )  # type: ignore[arg-type]
+    assert refined is not None and refined.score == -1
+    down = FakeLLM(BudgetExceededError("Бюджет исчерпан"))
+    feed = await assess(down, profile(), [(news, why)], cache)  # type: ignore[arg-type]
+    assert down.calls == [] and feed.impacts[news.id] == refined
