@@ -340,9 +340,9 @@ function CriterionRow({ impact, criterion, description }: RowProps) {
   );
 }
 
-type BreakdownProps = { impact: Impact; info?: CriteriaInfo; compact?: boolean };
+type BreakdownProps = { impact: Impact; info?: CriteriaInfo };
 
-export function ImpactBreakdown({ impact, info, compact = false }: BreakdownProps) {
+export function ImpactBreakdown({ impact, info }: BreakdownProps) {
   const descriptions = new Map((info ?? []).map((item) => [item.id, item.description]));
   const criteria = touchedCriteria(impact);
   if (criteria.length === 0) {
@@ -350,7 +350,7 @@ export function ImpactBreakdown({ impact, info, compact = false }: BreakdownProp
   }
 
   return (
-    <ul className={`${styles.breakdown} ${compact ? styles.compact : ''}`}>
+    <ul className={styles.breakdown}>
       {criteria.map((criterion) => (
         <CriterionRow
           key={criterion.id}
@@ -360,34 +360,6 @@ export function ImpactBreakdown({ impact, info, compact = false }: BreakdownProp
         />
       ))}
     </ul>
-  );
-}
-
-export function ImpactToggle({ impact, info }: BreakdownProps) {
-  const [open, setOpen] = useState(false);
-  const id = useId();
-
-  return (
-    <div className={styles.toggleWrap}>
-      <button
-        type="button"
-        className={styles.toggle}
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen((value) => !value)}
-      >
-        Влияние по критериям
-        <ChevronDownMIcon
-          className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
-          aria-hidden="true"
-        />
-      </button>
-      {open && (
-        <div id={id} className={styles.panel}>
-          <ImpactBreakdown impact={impact} info={info} compact />
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -454,8 +426,7 @@ export function CriteriaTable({ impact, info }: BreakdownProps) {
           Как скажется на бизнесе
         </h2>
         <span className={styles.total}>
-          {impact.title} · итог {formatSigned(impact.score)}
-          {impact.scale !== 'levels' && ' из ±100'}
+          {impact.title}
           {impact.confidence === 'low' && ' · оценка неточная'}
         </span>
       </div>

@@ -127,7 +127,7 @@ function Statements({ ids, context }: { ids: string[]; context: Context }) {
 
 function Statement({ row, context }: { row: LabeledStatement; context: Context }) {
   const { statement } = row;
-  const assumption = statement.support === 'assumption';
+  const assumption = statement.support === 'assumption' || statement.confidence === 'low';
   const text = context.rewrites.get(statement.id) ?? statement.text;
   const details = [
     'horizon' in statement && statement.horizon ? HORIZON[statement.horizon] : null,
@@ -146,7 +146,6 @@ function Statement({ row, context }: { row: LabeledStatement; context: Context }
             предположение
           </span>
         )}
-        {statement.confidence === 'low' && <span className={styles.kind}>уверенность низкая</span>}
       </div>
       <p className={styles.text}>
         <span

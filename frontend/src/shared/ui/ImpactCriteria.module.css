@@ -207,33 +207,6 @@
   color: var(--c-text-secondary);
 }
 
-.toggleWrap {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: var(--gap-8);
-}
-
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-self: start;
-  gap: var(--gap-4);
-  padding: 0;
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 500;
-  color: var(--c-text-link-a11y);
-  background: none;
-  border: 0;
-  border-radius: var(--radius-8);
-  cursor: pointer;
-}
-
-.toggle:hover {
-  text-decoration: underline;
-}
-
 .chevron {
   width: 20px;
   height: 20px;
@@ -242,36 +215,6 @@
 
 .chevronOpen {
   transform: rotate(180deg);
-}
-
-.panel {
-  padding: var(--gap-8) var(--gap-16);
-  border: 1px solid var(--c-border-secondary);
-  border-radius: var(--radius-12);
-  cursor: default;
-}
-
-.compact .criterionHead {
-  grid-template-columns: minmax(0, 1fr) 112px;
-  gap: 2px var(--gap-12);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.compact .criterionLevel {
-  grid-column: 1;
-  grid-row: 2;
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.compact .bar {
-  grid-row: 1;
-  grid-column: 2;
-}
-
-.compact .count {
-  display: none;
 }
 
 .table {
@@ -476,8 +419,7 @@
 }
 
 @media (max-width: 767px) {
-  .criterionHead,
-  .compact .criterionHead {
+  .criterionHead {
     grid-template-columns: minmax(0, 1fr) 96px;
     gap: var(--gap-4) var(--gap-12);
   }
@@ -487,10 +429,6 @@
     grid-column: 1 / -1;
     font-size: 13px;
     line-height: 18px;
-  }
-
-  .panel {
-    padding: var(--gap-8) var(--gap-12);
   }
 }
 
