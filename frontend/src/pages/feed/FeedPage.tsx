@@ -39,7 +39,7 @@ function periodTitle(days: number): string {
 }
 
 export function FeedPage() {
-  const { company, role, setRole, user, current } = useShell();
+  const { company, role, setRole, user } = useShell();
   const [params, setParams] = useSearchParams();
   const feedFilters = useFeedFilters();
   const openId = params.get('open');
@@ -59,14 +59,9 @@ export function FeedPage() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <div className={styles.heading}>
-          <Typography.Title tag="h1" view="medium">
-            Новости для бизнеса
-          </Typography.Title>
-          {current?.profile?.legend?.name && (
-            <p className={styles.company}>{current.profile.legend.name}</p>
-          )}
-        </div>
+        <Typography.Title tag="h1" view="medium">
+          Новости для бизнеса
+        </Typography.Title>
         <label className={styles.role}>
           <span className={styles.roleLabel}>Должность</span>
           <select
@@ -141,7 +136,8 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
   const feed = useCachedApi<Feed>(
     feedPath(company, role, { days: filters.days, all: filters.all }),
   );
-  const feedData = feed.data;
+  const feedData = feed.data ?? (feed.loading ? feed.previous : undefined);
+  const refreshing = feed.loading && feedData !== undefined;
   const items = feedData?.items ?? [];
   const visible = applyFilters(items, filters);
   const opened = items.find((item) => item.news_id === analysis?.newsId);
@@ -238,7 +234,9 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
               />
             )}
           </div>
-          {feed.loading && (
+          {refreshing && <p className={styles.refreshing}>Обновляем ленту…</p>}
+          {feedData?.verified === false && <UnverifiedNotice warnings={feedData.warnings ?? []} />}
+          {feed.loading && !feedData && (
             <div className={styles.plate}>
               <p className={styles.hint}>
                 Подбираем события для вашей компании. В первый раз это может занять пару минут.
@@ -269,9 +267,28 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
             />
           )}
         </div>
-        {feedData && <FeedOverview items={items} period={periodTitle(filters.days)} />}
+        {feedData && (
+          <FeedOverview
+            items={items.filter((item) => item.importance.level !== 'background')}
+            period={periodTitle(filters.days)}
+          />
+        )}
       </div>
     </>
+  );
+}
+
+function UnverifiedNotice({ warnings }: { warnings: string[] }) {
+  const budget = warnings.some((warning) => warning.includes('бюджет'));
+  return (
+    <div className={styles.notice} role="status">
+      <p className={styles.noticeTitle}>Лента собрана без проверки моделью</p>
+      <p>
+        События отобраны и оценены по правилам: важных может оказаться больше, чем на самом деле, а
+        оценки влияния приблизительные.
+        {budget && ' Дневной лимит запросов к модели исчерпан, он обновится в 3:00 МСК.'}
+      </p>
+    </div>
   );
 }
 

@@ -9,10 +9,9 @@ import styles from './ImpactMeter.module.css';
 type Props = {
   impact: FeedItem['impact'];
   size?: 'l' | 'm' | 's';
-  bare?: boolean;
 };
 
-export function ImpactMeter({ impact, size = 'm', bare = false }: Props) {
+export function ImpactMeter({ impact, size = 'm' }: Props) {
   const score = Math.min(Math.max(impact.score, -100), 100);
   const tone = score < 0 ? styles.negative : score > 0 ? styles.positive : '';
   const uncertain = impact.confidence === 'low';
@@ -28,12 +27,10 @@ export function ImpactMeter({ impact, size = 'm', bare = false }: Props) {
       aria-label={label}
       title={uncertain ? `${impact.title}, оценка неуверенная` : impact.title}
     >
-      {!bare && (
-        <span className={styles.value} aria-hidden="true">
-          {Arrow && <Arrow className={styles.arrow} />}
-          {formatSigned(score)}
-        </span>
-      )}
+      <span className={styles.value} aria-hidden="true">
+        {Arrow && <Arrow className={styles.arrow} />}
+        {formatSigned(score)}
+      </span>
       <span className={styles.track} aria-hidden="true">
         <span
           className={styles.fill}
@@ -44,7 +41,7 @@ export function ImpactMeter({ impact, size = 'm', bare = false }: Props) {
         />
         <span className={styles.zero} />
       </span>
-      {size === 's' && !bare && (
+      {size === 's' && (
         <span className={styles.caption} aria-hidden="true">
           {uncertain ? 'оценка неточная' : impact.title}
         </span>

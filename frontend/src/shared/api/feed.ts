@@ -10,7 +10,10 @@ export function feedPath(company: string, role: Role | null, options: FeedOption
   const query = new URLSearchParams();
   if (options.days && options.days !== 7) query.set('days', String(options.days));
   if (role) query.set('role', role);
-  if (options.all) query.set('min_importance', '0');
+  if (options.all) {
+    query.set('min_importance', '0');
+    query.set('limit', '50');
+  }
   const search = query.toString();
   return `/companies/${encodeURIComponent(company)}/feed${search ? `?${search}` : ''}`;
 }

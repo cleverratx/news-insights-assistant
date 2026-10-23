@@ -10,18 +10,23 @@ export type ApiState<T> = {
   data?: T;
   error?: string;
   loading: boolean;
+  previous?: T;
   retry: () => void;
 };
 
 export function useLoader<T>(key: string | null, load: Loader<T>): ApiState<T> {
   const [snapshot, setSnapshot] = useState<Snapshot<T>>({ key: null });
   const [attempt, setAttempt] = useState(0);
+  const [last, setLast] = useState<T>();
 
   useEffect(() => {
     if (key === null) return;
     const controller = new AbortController();
     load(key, controller.signal).then(
-      (data) => setSnapshot({ key, data }),
+      (data) => {
+        setSnapshot({ key, data });
+        setLast(data);
+      },
       (error: unknown) => {
         if (!isAbort(error)) setSnapshot({ key, error: errorMessage(error) });
       },
@@ -39,6 +44,7 @@ export function useLoader<T>(key: string | null, load: Loader<T>): ApiState<T> {
     data: current.data,
     error: current.error,
     loading: key !== null && current.data === undefined && current.error === undefined,
+    previous: last,
     retry,
   };
 }

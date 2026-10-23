@@ -12,18 +12,6 @@
   gap: var(--gap-16);
 }
 
-.heading {
-  display: grid;
-  gap: var(--gap-4);
-  min-width: 0;
-}
-
-.company {
-  font-size: 16px;
-  line-height: 24px;
-  color: var(--c-text-secondary);
-}
-
 .role {
   display: grid;
   gap: var(--gap-4);
@@ -104,6 +92,28 @@
   line-height: 24px;
   background: var(--c-bg-plate);
   border-radius: var(--radius-20);
+}
+
+.refreshing {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}
+
+.notice {
+  display: grid;
+  gap: var(--gap-4);
+  padding: var(--gap-16) var(--gap-20);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-primary);
+  background: var(--c-attention-muted);
+  border-radius: var(--radius-16);
+}
+
+.noticeTitle {
+  font-weight: 700;
+  color: var(--c-attention-text-a11y);
 }
 
 .hint {

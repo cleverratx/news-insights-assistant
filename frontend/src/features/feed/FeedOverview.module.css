@@ -81,22 +81,3 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-
-.sample {
-  display: flex;
-  align-items: center;
-  gap: var(--gap-12);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.rings {
-  display: inline-flex;
-  gap: var(--gap-4);
-  flex: none;
-}
-
-.meter {
-  flex: none;
-  width: 104px;
-}

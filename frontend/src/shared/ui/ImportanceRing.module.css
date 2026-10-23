@@ -24,11 +24,6 @@
   height: 48px;
 }
 
-.s {
-  width: 32px;
-  height: 32px;
-}
-
 .track,
 .value {
   fill: none;
@@ -59,9 +54,4 @@
 .m .score {
   font-size: 14px;
   line-height: 20px;
-}
-
-.s .score {
-  font-size: 10px;
-  line-height: 12px;
 }
