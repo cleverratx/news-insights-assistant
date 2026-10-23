@@ -1,0 +1,87 @@
+:root {
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Helvetica, sans-serif;
+
+  --c-accent: #ef3124;
+  --c-accent-hover: #e32a17;
+  --c-accent-press: #d72505;
+  --c-dark: #212124;
+  --c-dark-hover: #2f2f32;
+
+  --c-bg-page: #f2f3f5;
+  --c-bg-plate: #fff;
+  --c-bg-tertiary: #e7e8ea;
+  --c-bg-control: rgba(15, 25, 55, 0.1);
+  --c-bg-control-hover: rgba(5, 12, 41, 0.14);
+  --c-bg-overlay: rgba(0, 0, 0, 0.65);
+
+  --c-text-primary: rgba(3, 3, 6, 0.88);
+  --c-text-secondary: rgba(4, 4, 19, 0.55);
+  --c-text-tertiary: rgba(5, 8, 29, 0.38);
+  --c-text-disabled: rgba(5, 11, 44, 0.18);
+  --c-text-link: #2a77ef;
+  --c-text-inverted: rgba(255, 255, 255, 0.94);
+
+  --c-border-primary: #d5d6dc;
+  --c-border-secondary: #e7e8ec;
+  --c-border-tertiary: #f2f3f5;
+
+  --c-positive: #0cc44d;
+  --c-positive-text: #0d9336;
+  --c-positive-muted: #dff8e5;
+  --c-negative: #ff4837;
+  --c-negative-text: #ec2d20;
+  --c-negative-muted: #ffebeb;
+  --c-attention: #fa9313;
+  --c-attention-text: #ea8313;
+  --c-attention-muted: #ffefd9;
+  --c-info: #2288fa;
+  --c-info-text: #2a77ef;
+  --c-info-muted: #e4f0ff;
+  --c-graphic-secondary: #898991;
+
+  --c-ai: #7a63f1;
+  --c-ai-muted: #efedfd;
+
+  --c-text-link-a11y: #1d5fcf;
+  --c-negative-text-a11y: #c41400;
+  --c-positive-text-a11y: #0a7a2c;
+  --c-attention-text-a11y: #9e5400;
+  --c-info-text-a11y: #1d5fcf;
+  --c-ai-text: #5f47d9;
+
+  --gap-4: 4px;
+  --gap-8: 8px;
+  --gap-12: 12px;
+  --gap-16: 16px;
+  --gap-20: 20px;
+  --gap-24: 24px;
+  --gap-32: 32px;
+  --gap-40: 40px;
+  --gap-48: 48px;
+  --gap-64: 64px;
+
+  --radius-8: 8px;
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-16: 16px;
+  --radius-20: 20px;
+  --radius-pill: 99px;
+
+  --size-32: 32px;
+  --size-40: 40px;
+  --size-48: 48px;
+  --size-56: 56px;
+
+  --shadow-xs: 0 4px 8px rgba(0, 0, 0, 0.04), 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-s:
+    0 12px 16px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.04), 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-m:
+    0 20px 24px rgba(0, 0, 0, 0.08), 0 12px 16px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.04),
+    0 0 1px rgba(0, 0, 0, 0.04);
+
+  --focus-ring: 0 0 0 2px var(--c-bg-plate), 0 0 0 4px var(--c-info);
+
+  --sidebar-width: 248px;
+  --header-height: 64px;
+  --content-max: 1232px;
+}

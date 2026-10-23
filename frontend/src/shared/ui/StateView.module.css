@@ -1,0 +1,40 @@
+.skeleton {
+  display: grid;
+  gap: var(--gap-12);
+}
+
+.line {
+  display: block;
+  height: 16px;
+  background: var(--c-bg-tertiary);
+  border-radius: var(--radius-8);
+}
+
+.line:first-child {
+  width: 60%;
+  height: 24px;
+}
+
+.line:last-child:not(:first-child) {
+  width: 40%;
+}
+
+.error {
+  display: grid;
+  justify-items: start;
+  gap: var(--gap-8);
+}
+
+.title {
+  font-weight: 500;
+}
+
+.message {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}
+
+.message + * {
+  margin-top: var(--gap-8);
+}

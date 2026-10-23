@@ -56,7 +56,17 @@ npm ci
 npm run dev
 ```
 
-Dev-сервер фронтенда проксирует `/api` на `localhost:8000`, так что бэкенд можно держать в Docker, а фронтенд — локально.
+Dev-сервер фронтенда проксирует `/api` на `localhost:8000`, так что бэкенд можно держать в Docker, а фронтенд — локально. Другой адрес бэкенда задаётся `API_PROXY_TARGET`. Список организаций в шапке по умолчанию — демо-компании из [demo-companies.md](demo-companies.md); на синтетических выгрузках из `data/samples` его меняет `VITE_DEMO_COMPANIES`:
+
+```
+API_PROXY_TARGET=http://localhost:8001 VITE_DEMO_COMPANIES=U_900001,U_900002,U_900003 npm run dev
+```
+
+Типы ответов API лежат в `frontend/src/shared/api/schema.d.ts` и генерируются из OpenAPI бэкенда. После изменения контрактов их пересобирают при запущенном бэкенде:
+
+```
+npx openapi-typescript http://localhost:8000/api/openapi.json -o src/shared/api/schema.d.ts
+```
 
 ## Проверки
 

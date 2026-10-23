@@ -1,0 +1,14 @@
+.plate {
+  display: grid;
+  justify-items: start;
+  gap: var(--gap-12);
+  padding: var(--gap-24);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+}
+
+.text {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}

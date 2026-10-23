@@ -1,0 +1,135 @@
+.page {
+  display: grid;
+  gap: var(--gap-24);
+}
+
+.plate {
+  display: grid;
+  gap: var(--gap-16);
+  padding: var(--gap-24);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--gap-16);
+}
+
+.field {
+  display: grid;
+  gap: var(--gap-4);
+  font-size: 13px;
+  line-height: 16px;
+}
+
+.field select {
+  height: var(--size-40);
+  padding: 0 var(--gap-12);
+  font-size: 14px;
+  background: var(--c-bg-plate);
+  border: 1px solid var(--c-border-primary);
+  border-radius: var(--radius-10);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+  min-height: var(--size-40);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.warning {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-attention-text-a11y);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--gap-16);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-12);
+  min-width: 0;
+  padding: var(--gap-24);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 360px;
+}
+
+.card img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-12);
+}
+
+.cardTitle {
+  font-size: 20px;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap-16);
+  margin-top: auto;
+  font-size: 14px;
+}
+
+.text {
+  max-width: 75ch;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.negative {
+  color: var(--c-negative-text-a11y);
+}
+
+.positive {
+  color: var(--c-positive-text-a11y);
+}
+
+.block {
+  display: grid;
+  gap: var(--gap-8);
+}
+
+.blockTitle {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.source summary {
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.source blockquote {
+  margin: var(--gap-8) 0;
+  padding-left: var(--gap-16);
+  font-size: 14px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  border-left: 2px solid var(--c-border-primary);
+}
+
+.steps {
+  margin: 0;
+  padding-left: var(--gap-20);
+  font-size: 14px;
+  line-height: 20px;
+}

@@ -15,6 +15,11 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@alfalab/core-components-button": "^13.2.4",
+    "@alfalab/core-components-select": "^19.2.11",
+    "@alfalab/core-components-themes": "^15.2.1",
+    "@alfalab/core-components-typography": "^6.0.13",
+    "@alfalab/icons-glyph": "^2.293.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router": "^7.1.1"
@@ -28,6 +33,7 @@
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "globals": "^15.14.0",
+    "openapi-typescript": "^7.13.0",
     "prettier": "^3.4.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.2",
