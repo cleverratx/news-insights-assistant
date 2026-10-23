@@ -9,6 +9,7 @@ from app.agent.context import AnalysisContext
 from app.agent.critic import HEADLINE, Evidence, evidence
 from app.contracts.generation import GeneratedInsight
 from app.contracts.insight import (
+    ActionKind,
     Basis,
     Insight,
     Origin,
@@ -51,6 +52,7 @@ SECTIONS: tuple[Section, ...] = (
     "actions",
     "bank_view",
 )
+CONSEQUENCES: frozenset[Section] = frozenset({"risks", "opportunities"})
 QUOTE_LIMIT = 300
 
 
@@ -115,18 +117,27 @@ def basis_of(
     return found
 
 
-def support_of(origin: Origin, basis: list[Basis]) -> Support:
+def support_of(statement: Statement, section: Section, basis: list[Basis]) -> Support:
+    """Факт, позиция банка и данные компании подтверждаются своим источником. Вывод модели о
+    последствиях — гипотеза, если он не связывает событие с компанией: опирается только на
+    новость или аналитику (верно для отрасли, но не обязательно для этой компании) либо только
+    на признак компании (без подтверждения, что событие до неё дойдёт). Гипотеза и то, в чём
+    модель сама не уверена (confidence=low), и сценарий «что если»."""
     kinds = {item.type for item in basis}
     documents = kinds - {SourceType.PROFILE_FEATURE}
+    company = SourceType.PROFILE_FEATURE in kinds
+    origin = statement.origin
     if origin is Origin.BANK:
         return Support.SOURCE if SourceType.BANK_ANALYTICS in kinds else Support.ASSUMPTION
     if origin is Origin.FACT:
         return Support.SOURCE if documents else Support.ASSUMPTION
     if origin is Origin.CLIENT_DATA:
-        return Support.COMPANY_DATA if SourceType.PROFILE_FEATURE in kinds else Support.ASSUMPTION
-    if documents:
-        return Support.SOURCE
-    return Support.COMPANY_DATA if kinds else Support.ASSUMPTION
+        return Support.COMPANY_DATA if company else Support.ASSUMPTION
+    if not kinds or getattr(statement, "kind", None) is ActionKind.SCENARIO:
+        return Support.ASSUMPTION
+    if section in CONSEQUENCES and (statement.confidence == "low" or not (documents and company)):
+        return Support.ASSUMPTION
+    return Support.SOURCE if documents else Support.COMPANY_DATA
 
 
 def ground(insight: Insight, context: AnalysisContext) -> Insight:
@@ -142,7 +153,7 @@ def ground(insight: Insight, context: AnalysisContext) -> Insight:
             basis = basis_of(statement, sources, actual, labels)
             items.append(
                 statement.model_copy(
-                    update={"basis": basis, "support": support_of(statement.origin, basis)}
+                    update={"basis": basis, "support": support_of(statement, section, basis)}
                 )
             )
         update[section] = items
