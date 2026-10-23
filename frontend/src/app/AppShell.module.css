@@ -120,7 +120,23 @@ a.itemActive:hover {
 }
 
 .itemTitle {
+  flex: 1;
   min-width: 0;
+}
+
+.badge {
+  flex: none;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 var(--gap-8);
+  font-size: 13px;
+  line-height: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--c-text-inverted);
+  background: var(--c-accent-press);
+  border-radius: var(--radius-pill);
 }
 
 .overlay {

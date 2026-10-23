@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { ButtonDesktop } from '@alfalab/core-components-button/desktop';
 import { Typography } from '@alfalab/core-components-typography';
 
@@ -12,8 +13,11 @@ import type {
   InsightRequest,
   RelatedFeed,
 } from '@/shared/api/types';
+import { useCachedApi } from '@/shared/api/cache';
+import { feedPath } from '@/shared/api/feed';
 import { useApi } from '@/shared/api/useApi';
 import { isRole, ROLE_TITLES, type Role } from '@/shared/lib/demo';
+import { markSeen } from '@/shared/lib/seen';
 import { ErrorState, Skeleton } from '@/shared/ui/StateView';
 
 import styles from './FeedPage.module.css';
@@ -34,32 +38,66 @@ const IMPACT_CLASS: Record<FeedItem['impact']['color'], string> = {
 };
 
 export function FeedPage() {
-  const { company, role, setRole } = useShell();
+  const { company, role, setRole, user } = useShell();
+  const [params, setParams] = useSearchParams();
+  const openId = params.get('open');
+  const onOpened = useCallback(
+    () =>
+      setParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.delete('open');
+          return next;
+        },
+        { replace: true },
+      ),
+    [setParams],
+  );
   return (
     <div className={styles.page}>
       <Typography.Title tag="h1" view="medium">
         Новости для бизнеса
       </Typography.Title>
-      <FeedView key={`${company}:${role ?? ''}`} company={company} role={role} onRole={setRole} />
+      <FeedView
+        key={`${company}:${role ?? ''}`}
+        company={company}
+        role={role}
+        login={user.login}
+        openId={openId}
+        onRole={setRole}
+        onOpened={onOpened}
+      />
     </div>
   );
 }
 
-type FeedViewProps = { company: string; role: Role | null; onRole: (role: Role | null) => void };
+type FeedViewProps = {
+  company: string;
+  role: Role | null;
+  login: string;
+  openId: string | null;
+  onRole: (role: Role | null) => void;
+  onOpened: () => void;
+};
 
-function FeedView({ company, role, onRole }: FeedViewProps) {
+function reveal(element: HTMLElement | null) {
+  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  requestAnimationFrame(() =>
+    element?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }),
+  );
+}
+
+function FeedView({ company, role, login, openId, onRole, onOpened }: FeedViewProps) {
   const [view, setView] = useState<View>('feed');
   const [background, setBackground] = useState(false);
   const [analysis, setAnalysis] = useState<Analysis>({ busy: false });
   const controller = useRef<AbortController | null>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => () => controller.current?.abort(), []);
 
-  const query = new URLSearchParams();
-  if (role) query.set('role', role);
-  if (background) query.set('min_importance', '0');
   const base = `/companies/${encodeURIComponent(company)}`;
-  const feed = useApi<Feed>(view === 'feed' ? `${base}/feed?${query}` : null);
+  const feed = useCachedApi<Feed>(view === 'feed' ? feedPath(company, role, background) : null);
   const related = useApi<RelatedFeed>(view === 'related' ? `${base}/related-feed` : null);
   const current = view === 'feed' ? feed : related;
   const entries: Entry[] = current.data?.items ?? [];
@@ -75,20 +113,62 @@ function FeedView({ company, role, onRole }: FeedViewProps) {
       setAnalysis((state) => ({ ...state, busy: false, error: errorMessage(error) }));
   };
 
-  const open = (entry: Entry) => {
-    const signal = start();
-    setAnalysis({ busy: true });
-    const body: InsightRequest = {
+  const runInsight = useCallback(
+    (body: InsightRequest) => {
+      controller.current?.abort();
+      const current = new AbortController();
+      controller.current = current;
+      setAnalysis({ busy: true });
+      reveal(panel.current);
+      apiPost<GeneratedInsight>(
+        `/companies/${encodeURIComponent(company)}/insights`,
+        body,
+        current.signal,
+      ).then(
+        (insight) => {
+          setAnalysis({ insight, busy: false });
+          reveal(panel.current);
+        },
+        (error: unknown) => {
+          if (!isAbort(error)) setAnalysis({ busy: false, error: errorMessage(error) });
+        },
+      );
+    },
+    [company],
+  );
+
+  const feedData = feed.data;
+
+  useEffect(() => {
+    if (feedData)
+      markSeen(
+        login,
+        company,
+        (feedData.items ?? []).map((item) => item.news_id),
+      );
+  }, [feedData, login, company]);
+
+  useEffect(() => {
+    if (!openId || !feedData) return;
+    onOpened();
+    const entry = feedData.items?.find((item) => item.news_id === openId);
+    if (entry) {
+      runInsight({
+        news_ids: [entry.news_id],
+        role,
+        feed_snapshot_id: feedData.snapshot_id,
+        refresh: false,
+      });
+    }
+  }, [openId, feedData, role, runInsight, onOpened]);
+
+  const open = (entry: Entry) =>
+    runInsight({
       news_ids: [entry.news_id],
       role,
       feed_snapshot_id: view === 'feed' ? feed.data?.snapshot_id : null,
       refresh: false,
-    };
-    apiPost<GeneratedInsight>(`${base}/insights`, body, signal).then(
-      (insight) => setAnalysis({ insight, busy: false }),
-      fail,
-    );
-  };
+    });
 
   const showTrace = (insightId: string) => {
     const signal = start();
@@ -197,7 +277,7 @@ function FeedView({ company, role, onRole }: FeedViewProps) {
         ))}
       </div>
 
-      <div aria-live="polite">
+      <div ref={panel} className={styles.panel} aria-live="polite">
         {analysis.busy && !analysis.insight && (
           <div className={styles.plate}>
             <p className={styles.text}>Разбираем событие…</p>

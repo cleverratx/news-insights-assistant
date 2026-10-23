@@ -15,18 +15,20 @@ import { WalletMIcon } from '@alfalab/icons-glyph/WalletMIcon';
 import { OrgSwitcher } from '@/app/OrgSwitcher';
 import { signOut, useSession } from '@/app/session';
 import type { ShellContext } from '@/app/shell-context';
+import { freshImportant, useFeed } from '@/shared/api/feed';
 import { useProfiles } from '@/shared/api/profiles';
 import { DEMO_COMPANIES, ROLE_TITLES, type DemoUser } from '@/shared/lib/demo';
-import { initials } from '@/shared/lib/format';
+import { initials, plural } from '@/shared/lib/format';
+import { clearSeen, useSeen } from '@/shared/lib/seen';
 import { useDemoContext } from '@/shared/lib/url-state';
 
 import styles from './AppShell.module.css';
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
-const SECTIONS: { to: string; title: string; icon: Icon; end?: boolean }[] = [
+const SECTIONS: { to: string; title: string; icon: Icon; end?: boolean; news?: boolean }[] = [
   { to: '/', title: 'Главная', icon: HouseMIcon, end: true },
-  { to: '/feed', title: 'Новости для бизнеса', icon: BulbMIcon },
+  { to: '/feed', title: 'Новости для бизнеса', icon: BulbMIcon, news: true },
 ];
 
 const STUBS: { title: string; icon: Icon }[] = [
@@ -48,9 +50,17 @@ export function AppShell() {
   return <ShellLayout user={user} />;
 }
 
+function exit() {
+  clearSeen();
+  signOut();
+}
+
 function ShellLayout({ user }: { user: DemoUser }) {
   const demo = useDemoContext(user.role);
   const profiles = useProfiles(DEMO_COMPANIES);
+  const feed = useFeed(demo.company, demo.role);
+  const seen = useSeen(user.login, demo.company);
+  const fresh = freshImportant(feed.data, seen);
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPath, setMenuPath] = useState(location.pathname);
@@ -74,6 +84,8 @@ function ShellLayout({ user }: { user: DemoUser }) {
     user,
     profiles,
     current: profiles.data?.find((result) => result.id === demo.company),
+    feed,
+    fresh,
   };
 
   return (
@@ -93,7 +105,7 @@ function ShellLayout({ user }: { user: DemoUser }) {
         </div>
         <nav aria-label="Разделы">
           <ul className={styles.menu}>
-            {SECTIONS.map(({ to, title, icon: SectionIcon, end }) => (
+            {SECTIONS.map(({ to, title, icon: SectionIcon, end, news }) => (
               <li key={to}>
                 <NavLink
                   to={{ pathname: to, search: demo.search }}
@@ -104,6 +116,18 @@ function ShellLayout({ user }: { user: DemoUser }) {
                 >
                   <SectionIcon className={styles.itemIcon} aria-hidden="true" />
                   <span className={styles.itemTitle}>{title}</span>
+                  {news && fresh.length > 0 && (
+                    <span
+                      className={styles.badge}
+                      aria-label={`${fresh.length} ${plural(fresh.length, {
+                        one: 'новое важное событие',
+                        few: 'новых важных события',
+                        many: 'новых важных событий',
+                      })}`}
+                    >
+                      {fresh.length}
+                    </span>
+                  )}
                 </NavLink>
               </li>
             ))}
@@ -158,7 +182,7 @@ function ShellLayout({ user }: { user: DemoUser }) {
               <span className={styles.personName}>{user.name}</span>
               <span className={styles.personRole}>{ROLE_TITLES[user.role]}</span>
             </span>
-            <button type="button" className={styles.signOut} aria-label="Выйти" onClick={signOut}>
+            <button type="button" className={styles.signOut} aria-label="Выйти" onClick={exit}>
               <LogOutMIcon aria-hidden="true" />
               <span className={styles.signOutText}>Выйти</span>
             </button>
