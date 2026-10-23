@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 import type { Feed, FeedItem } from '@/shared/api/types';
 import { formatScore } from '@/shared/lib/format';
 
@@ -7,13 +9,6 @@ type Props = {
   importance: FeedItem['importance'];
   scale?: Feed['importance_scale'];
   size?: 'l' | 'm';
-};
-
-const LEVEL_CLASS: Record<FeedItem['importance']['level'], string> = {
-  critical: styles.critical,
-  important: styles.important,
-  info: styles.info,
-  background: styles.background,
 };
 
 const RADIUS = 20;
@@ -26,7 +21,8 @@ export function ImportanceRing({ importance, scale, size = 'm' }: Props) {
 
   return (
     <span
-      className={`${styles.ring} ${styles[size]} ${LEVEL_CLASS[importance.level]}`}
+      className={`${styles.ring} ${styles[size]}`}
+      style={{ '--share': share } as CSSProperties}
       role="img"
       aria-label={`Важность ${score} из 10, ${importance.title.toLowerCase()}`}
       title={level?.description ? `${importance.title}: ${level.description}` : importance.title}

@@ -171,7 +171,7 @@ function NewsRow({ item, feed, isFresh, to, lead = false }: RowProps) {
           ))}
         </span>
       </span>
-      <ImpactMeter impact={item.impact} bands={feed.impact_scale} size={size} />
+      <ImpactMeter impact={item.impact} size={size} />
       <ChevronRightMIcon className={styles.chevron} aria-hidden="true" />
     </Link>
   );

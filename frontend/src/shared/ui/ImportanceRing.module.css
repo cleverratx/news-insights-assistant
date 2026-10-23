@@ -35,7 +35,7 @@
 }
 
 .value {
-  stroke: var(--ring-color);
+  stroke: color-mix(in oklch, var(--c-attention) calc(var(--share) * 100%), var(--c-positive));
   stroke-linecap: round;
 }
 
@@ -54,17 +54,4 @@
 .m .score {
   font-size: 14px;
   line-height: 20px;
-}
-
-.critical {
-  --ring-color: var(--c-attention);
-}
-
-.important {
-  --ring-color: var(--c-info);
-}
-
-.info,
-.background {
-  --ring-color: var(--c-graphic-secondary);
 }
