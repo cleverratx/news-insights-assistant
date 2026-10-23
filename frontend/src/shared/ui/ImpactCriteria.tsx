@@ -1,23 +1,29 @@
+import { useId, useState } from 'react';
 import { ArrowDownSIcon } from '@alfalab/icons-glyph/ArrowDownSIcon';
 import { ArrowUpSIcon } from '@alfalab/icons-glyph/ArrowUpSIcon';
+import { ChevronDownMIcon } from '@alfalab/icons-glyph/ChevronDownMIcon';
 
-import type { FeedItem } from '@/shared/api/types';
+import type { Feed, FeedItem } from '@/shared/api/types';
 import { formatSigned } from '@/shared/lib/format';
 
 import styles from './ImpactCriteria.module.css';
 
-type Criterion = FeedItem['impact']['criteria'][number];
+type Impact = FeedItem['impact'];
+type Criterion = Impact['criteria'][number];
+type Answer = NonNullable<Impact['answers']>[number];
+type CriteriaInfo = Feed['impact_criteria'];
 
 const LEVEL_WORDS: Record<number, string> = {
   [-2]: 'существенно хуже',
   [-1]: 'заметно хуже',
+  0: 'не затронуто',
   1: 'заметно лучше',
   2: 'существенно лучше',
 };
 
 const SOURCE_WORDS = { source: 'назван в материале', estimate: 'оценка ИИ' } as const;
 
-export function affectedCriteria(impact: FeedItem['impact']): Criterion[] {
+export function affectedCriteria(impact: Impact): Criterion[] {
   return impact.criteria
     .filter((criterion) => criterion.level !== 0)
     .sort((a, b) => Math.abs(b.points) - Math.abs(a.points));
@@ -27,6 +33,10 @@ function levelWords(level: number): string {
   return LEVEL_WORDS[Math.max(-2, Math.min(2, level))] ?? '';
 }
 
+function toneClass(level: number): string {
+  return level < 0 ? styles.downText : level > 0 ? styles.upText : styles.zeroText;
+}
+
 function Arrow({ level }: { level: number }) {
   const Icon = level < 0 ? ArrowDownSIcon : ArrowUpSIcon;
   return (
@@ -34,13 +44,7 @@ function Arrow({ level }: { level: number }) {
   );
 }
 
-export function CriteriaLine({
-  impact,
-  limit = 3,
-}: {
-  impact: FeedItem['impact'];
-  limit?: number;
-}) {
+export function CriteriaLine({ impact, limit = 3 }: { impact: Impact; limit?: number }) {
   const criteria = affectedCriteria(impact);
   if (criteria.length === 0) return null;
   const shown = criteria.slice(0, limit);
@@ -52,10 +56,7 @@ export function CriteriaLine({
           <Arrow level={criterion.level} />
           <span>
             <span className={styles.title}>{criterion.title}</span>
-            <span className={criterion.level < 0 ? styles.downText : styles.upText}>
-              {' '}
-              — {levelWords(criterion.level)}
-            </span>
+            <span className={toneClass(criterion.level)}> — {levelWords(criterion.level)}</span>
             {criterion.timing_title && (
               <span className={styles.meta}> · {criterion.timing_title}</span>
             )}
@@ -72,9 +73,138 @@ export function CriteriaLine({
   );
 }
 
-export function CriteriaTable({ impact }: { impact: FeedItem['impact'] }) {
-  const criteria = affectedCriteria(impact);
+function Bar({ level }: { level: number }) {
+  const value = Math.max(-2, Math.min(2, level));
+  return (
+    <span className={styles.bar} aria-hidden="true">
+      {value !== 0 && (
+        <span
+          className={`${styles.fill} ${value < 0 ? styles.fillDown : styles.fillUp}`}
+          style={{ width: `${(Math.abs(value) / 2) * 50}%` }}
+        />
+      )}
+      <span className={styles.zero} />
+    </span>
+  );
+}
 
+function Timing({ item }: { item: Pick<Criterion, 'timing_title' | 'timing_source'> }) {
+  if (!item.timing_title && !item.timing_source) return null;
+  return (
+    <span className={styles.chips}>
+      {item.timing_title && <span className={styles.chip}>{item.timing_title}</span>}
+      {item.timing_source && (
+        <span
+          className={`${styles.chip} ${
+            item.timing_source === 'estimate' ? styles.estimate : styles.sourced
+          }`}
+        >
+          срок: {SOURCE_WORDS[item.timing_source]}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function Answers({ criterion, answers }: { criterion: Criterion; answers: Answer[] }) {
+  if (answers.length === 0) {
+    if (!criterion.reason) return null;
+    return (
+      <div className={styles.answers}>
+        <div className={styles.answer}>
+          <Timing item={criterion} />
+          <p className={styles.reason}>{criterion.reason}</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <ul className={styles.answers}>
+      {answers.map((answer) => (
+        <li key={answer.question_id} className={styles.answer}>
+          <p className={styles.question}>
+            {answer.question}{' '}
+            <span className={toneClass(answer.level)}>{levelWords(answer.level)}</span>
+          </p>
+          <Timing item={answer} />
+          <p className={styles.reason}>{answer.reason}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+type BreakdownProps = { impact: Impact; info?: CriteriaInfo; compact?: boolean };
+
+export function ImpactBreakdown({ impact, info, compact = false }: BreakdownProps) {
+  const descriptions = new Map((info ?? []).map((item) => [item.id, item.description]));
+  const answers = impact.answers ?? [];
+  const criteria = [...impact.criteria].sort(
+    (a, b) =>
+      Number(b.level !== 0) - Number(a.level !== 0) || Math.abs(b.points) - Math.abs(a.points),
+  );
+
+  return (
+    <ul className={`${styles.breakdown} ${compact ? styles.compact : ''}`}>
+      {criteria.map((criterion) => {
+        const own = answers
+          .filter((answer) => answer.criterion === criterion.id)
+          .sort((a, b) => Math.abs(b.level) - Math.abs(a.level) || a.level - b.level);
+        return (
+          <li
+            key={criterion.id}
+            className={`${styles.criterion} ${criterion.level === 0 ? styles.idle : ''}`}
+          >
+            <div className={styles.criterionHead}>
+              <span className={styles.criterionTitle} title={descriptions.get(criterion.id)}>
+                {criterion.title}
+              </span>
+              <Bar level={criterion.level} />
+              {(!compact || criterion.level !== 0) && (
+                <span className={`${styles.criterionLevel} ${toneClass(criterion.level)}`}>
+                  {criterion.level === 0
+                    ? levelWords(0)
+                    : `${levelWords(criterion.level)} · ${formatSigned(criterion.points)}`}
+                </span>
+              )}
+            </div>
+            {criterion.level !== 0 && <Answers criterion={criterion} answers={own} />}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export function ImpactToggle({ impact, info }: BreakdownProps) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+
+  return (
+    <div className={styles.toggleWrap}>
+      <button
+        type="button"
+        className={styles.toggle}
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((value) => !value)}
+      >
+        Влияние по критериям
+        <ChevronDownMIcon
+          className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
+          aria-hidden="true"
+        />
+      </button>
+      {open && (
+        <div id={id} className={styles.panel}>
+          <ImpactBreakdown impact={impact} info={info} compact />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CriteriaTable({ impact, info }: BreakdownProps) {
   return (
     <section className={styles.table} aria-labelledby="criteria-title">
       <div className={styles.tableHead}>
@@ -86,41 +216,14 @@ export function CriteriaTable({ impact }: { impact: FeedItem['impact'] }) {
           {impact.confidence === 'low' && ' · оценка неточная'}
         </span>
       </div>
-      {criteria.length === 0 ? (
+      {affectedCriteria(impact).length === 0 && (
         <p className={styles.none}>{impact.rationale || 'Заметного влияния на показатели нет.'}</p>
-      ) : (
-        <ul className={styles.rows}>
-          {criteria.map((criterion) => (
-            <li key={criterion.id} className={styles.row}>
-              <div className={styles.rowHead}>
-                <Arrow level={criterion.level} />
-                <span className={styles.rowTitle}>{criterion.title}</span>
-                <span className={criterion.level < 0 ? styles.downText : styles.upText}>
-                  {levelWords(criterion.level)}
-                </span>
-                <span className={styles.points}>{formatSigned(criterion.points)}</span>
-              </div>
-              {(criterion.timing_title || criterion.timing_source) && (
-                <div className={styles.chips}>
-                  {criterion.timing_title && (
-                    <span className={styles.chip}>{criterion.timing_title}</span>
-                  )}
-                  {criterion.timing_source && (
-                    <span
-                      className={`${styles.chip} ${
-                        criterion.timing_source === 'estimate' ? styles.estimate : styles.sourced
-                      }`}
-                    >
-                      срок: {SOURCE_WORDS[criterion.timing_source]}
-                    </span>
-                  )}
-                </div>
-              )}
-              {criterion.reason && <p className={styles.reason}>{criterion.reason}</p>}
-            </li>
-          ))}
-        </ul>
       )}
+      <ImpactBreakdown impact={impact} info={info} />
+      <p className={styles.note}>
+        Уровень критерия — самое сильное влияние среди вопросов его группы, поэтому один эффект не
+        считается дважды.
+      </p>
     </section>
   );
 }

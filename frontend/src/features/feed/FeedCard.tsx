@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import type { Feed, FeedItem } from '@/shared/api/types';
 import { formatAgo, plural } from '@/shared/lib/format';
 import { MARKER_TITLES } from '@/shared/lib/markers';
-import { CriteriaLine } from '@/shared/ui/ImpactCriteria';
+import { CriteriaLine, ImpactToggle } from '@/shared/ui/ImpactCriteria';
 import { ImpactMeter } from '@/shared/ui/ImpactMeter';
 import { ImportanceRing } from '@/shared/ui/ImportanceRing';
 
@@ -50,6 +50,7 @@ export function FeedCard({ item, feed, isFresh, to }: Props) {
           </p>
         )}
         <CriteriaLine impact={item.impact} />
+        <ImpactToggle impact={item.impact} info={feed.impact_criteria} />
         <div className={styles.footer}>
           {item.kind === 'bank_analytics' && (
             <span className={`${styles.chip} ${styles.bank}`}>Аналитика Альфа-Банка</span>

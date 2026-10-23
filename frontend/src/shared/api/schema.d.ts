@@ -1531,6 +1531,35 @@ export interface components {
       magnitude?: components['schemas']['Significance'] | null;
     };
     /**
+     * ImpactAnswer
+     * @description Ответ на один из общих вопросов о том, через что событие доходит до бизнеса компании.
+     */
+    ImpactAnswer: {
+      /**
+       * Question Id
+       * @description Идентификатор вопроса, например costs.suppliers
+       */
+      question_id: string;
+      /**
+       * Question
+       * @description Вопрос словами для сводки по клику
+       */
+      question: string;
+      criterion: components['schemas']['ImpactCriterionId'];
+      /**
+       * Level
+       * @description −2 существенно хуже … +2 существенно лучше
+       */
+      level: number;
+      /** Reason */
+      reason: string;
+      timing?: components['schemas']['ImpactTiming'] | null;
+      /** Timing Title */
+      timing_title?: string | null;
+      /** Timing Source */
+      timing_source?: ('source' | 'estimate') | null;
+    };
+    /**
      * ImpactAssessment
      * @description Оценка влияния события на бизнес компании: балл от −100 до +100, цвет и обоснование.
      *     Балл равен сумме вкладов критериев, ограниченной ±100.
@@ -1567,6 +1596,11 @@ export interface components {
       confidence: 'low' | 'medium' | 'high';
       /** Model */
       model?: string | null;
+      /**
+       * Answers
+       * @description Вопросы с влиянием; уровень критерия — самый сильный ответ его группы
+       */
+      answers?: components['schemas']['ImpactAnswer'][];
     };
     /**
      * ImpactBand

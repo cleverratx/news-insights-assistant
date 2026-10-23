@@ -82,7 +82,7 @@ export function InsightPage() {
         )}
       </header>
 
-      {impact && <CriteriaTable impact={impact} />}
+      {impact && <CriteriaTable impact={impact} info={feed.data?.impact_criteria} />}
 
       <div aria-live="polite" className={styles.body}>
         {insight.loading && <InsightLoading key={insight.key} onCancel={insight.cancel} />}
