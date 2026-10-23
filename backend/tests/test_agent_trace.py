@@ -17,6 +17,7 @@ from app.api.feed import get_llm
 from app.contracts.trace import AgentTrace
 from app.main import create_app
 from tests.test_agent_builtin_tools import Database
+from tests.test_agent_fallback import UNCHANGED
 from tests.test_agent_insight import finish
 from tests.test_agent_tools import Replies
 from tests.test_data_loader import database as database
@@ -318,6 +319,8 @@ async def test_api_generation_runs_tools_critic_and_persists_their_evidence(clie
         ],
         finish(db),
         '{"issues":[]}',
+        UNCHANGED,
+        UNCHANGED,
     )
     http._transport.app.dependency_overrides[get_llm] = lambda: replies
     response = await http.post(
@@ -333,4 +336,4 @@ async def test_api_generation_runs_tools_critic_and_persists_their_evidence(clie
     assert len(trace["observations"]) == 4
     assert trace["checks"][-1]["passed"]
     assert trace["used_sources"] == payload["insight"]["sources"]
-    assert len(replies.messages) == 6
+    assert len(replies.messages) == 8
