@@ -40,14 +40,30 @@ def answer(*items: dict[str, Any]) -> str:
     return json.dumps({"assessments": list(items)}, ensure_ascii=False)
 
 
+FIRST_QUESTION = {
+    "revenue": "q1",
+    "costs": "q7",
+    "cost_of_money": "q14",
+    "liquidity": "q19",
+    "fx": "q24",
+    "counterparties": "q28",
+    "competition": "q33",
+    "market_access": "q38",
+    "regulatory": "q43",
+    "unknown": "q99",
+}
+
+
 def judged(key: str, **levels: tuple[str | int, ...]) -> dict[str, Any]:
-    impacts = []
+    """Ответ модели: имя критерия или номер вопроса (q8) → уровень, причина, срок."""
+    answers = []
     for name, value in levels.items():
-        impact: dict[str, Any] = {"criterion": name, "level": value[0], "reason": value[1]}
+        number = FIRST_QUESTION.get(name, name)
+        answer: dict[str, Any] = {"q": number, "level": value[0], "reason": value[1]}
         if len(value) == 4:
-            impact.update(when=value[2], when_from=value[3])
-        impacts.append(impact)
-    return {"id": key, "impacts": impacts, "rationale": f"Итог {key}", "confidence": "high"}
+            answer.update(when=value[2], when_from=value[3])
+        answers.append(answer)
+    return {"id": key, "answers": answers, "rationale": f"Итог {key}", "confidence": "high"}
 
 
 def test_score_is_sum_of_criteria_and_capped() -> None:
@@ -217,7 +233,7 @@ async def test_cached_assessment_skips_model() -> None:
 
 def test_prompt_lists_criteria_and_marks_news_as_data() -> None:
     text = system_prompt()
-    assert all(key.value in text for key in C)
+    assert all(f"{info.title}:" in text for info in criteria_info())
     assert "игнорируй" in text
     user = prompt(profile(), cards(1))
     assert "Почему отобрана: Совпала отрасль" in user
@@ -314,3 +330,72 @@ async def test_news_figures_without_a_date_are_not_a_stated_term() -> None:
     impact = (await assess(day, profile(), priced(title))).impacts["n:0"]
     [moved] = [c for c in impact.criteria if c.level]
     assert moved.timing_source == "source"
+
+
+async def test_questions_in_one_group_are_not_double_counted() -> None:
+    llm = FakeLLM(
+        answer(
+            judged(
+                "n1",
+                q14=(-1, "Долг подорожает"),
+                q15=(-1, "Лизинг подорожает"),
+                q16=(-1, "Новые кредиты дороже"),
+                q24=(1, "Импорт дешевле"),
+            )
+        )
+    )
+    found = (await assess(llm, profile(), cards(1))).impacts["n:0"]
+    levels = {c.id: c.level for c in found.criteria if c.level}
+    assert levels == {C.COST_OF_MONEY: -1, C.FX: 1}
+    assert found.score == 0
+    assert [a.question_id for a in found.answers] == [
+        "money.debt",
+        "money.leasing",
+        "money.funding",
+        "fx.imports",
+    ]
+    assert found.answers[0].question.startswith("Как событие скажется через")
+
+
+async def test_strongest_answer_sets_the_criterion_and_risk_wins_a_tie() -> None:
+    llm = FakeLLM(answer(judged("n1", q7=(1, "Сырьё дешевле"), q9=(-1, "Логистика дороже"))))
+    found = (await assess(llm, profile(), cards(1))).impacts["n:0"]
+    [costs] = [c for c in found.criteria if c.level]
+    assert (costs.id, costs.level, costs.reason) == (C.COSTS, -1, "Логистика дороже")
+
+
+def test_contract_rejects_criterion_that_ignores_its_answers() -> None:
+    from app.contracts.rank import ImpactAnswer
+
+    answers = [
+        ImpactAnswer(
+            question_id="costs.logistics",
+            question="Как событие скажется через логистику и транспорт?",
+            criterion=C.COSTS,
+            level=-2,
+            reason="Тарифы РЖД +12%",
+        )
+    ]
+    good = assessment({C.COSTS: Effect(-2, "Тарифы РЖД +12%")}, "—", "llm", "high", None, answers)
+    data = good.model_dump()
+    data["criteria"] = [
+        {**c, "level": -1, "points": -20} if c["id"] == "costs" else c for c in data["criteria"]
+    ]
+    data["score"] = -20
+    with pytest.raises(ValueError, match="самому сильному ответу"):
+        ImpactAssessment.model_validate(data)
+
+
+async def test_unknown_question_numbers_are_dropped() -> None:
+    llm = FakeLLM(answer(judged("n1", q51=(-2, "лишний"), q8=(-1, "Поставщик поднял цены"))))
+    found = (await assess(llm, profile(), cards(1))).impacts["n:0"]
+    assert [a.question_id for a in found.answers] == ["costs.suppliers"]
+
+
+def test_prompt_lists_all_fifty_general_questions() -> None:
+    from app.rank.sentiment import QUESTIONS
+
+    text = system_prompt()
+    assert len(QUESTIONS) == 50 and len({q for q, _, _ in QUESTIONS}) == 50
+    assert all(f"q{index}. " in text for index in range(1, 51))
+    assert {criterion for _, criterion, _ in QUESTIONS} == set(C)
