@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.contracts.news import NewsItem, Topic
 from app.contracts.rank import RoleAdjustment
+from app.core.words import decimal
 from app.rank.score import Scored
 
 Weight = Annotated[float, Field(ge=0.2, le=2, allow_inf_nan=False)]
@@ -91,9 +92,9 @@ def apply_role(scored: Scored, news: NewsItem, weights: RoleWeights) -> Scored:
     ratio = relevance / scored.relevance if scored.relevance else 1.0
     final = round(scored.final * ratio, 4)
     detail = (
-        f"Роль «{weights.title}»: вес тем {topic_weight:.2f}, "
-        f"вес признаков {feature_weight:.2f}; множитель связи {multiplier:.2f} "
-        f"(предел 1 для связи сохраняется)"
+        f"Роль «{weights.title}»: вес тем {decimal(topic_weight)}, "
+        f"вес признаков {decimal(feature_weight)}; множитель связи {decimal(multiplier)}, "
+        "связь с компанией по-прежнему не выше 100%"
     )
     return replace(
         scored,

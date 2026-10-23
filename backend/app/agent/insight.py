@@ -186,7 +186,9 @@ def present(insight: Insight, relation: Relation | None = None) -> InsightPresen
                 source_ids=statement.source_ids,
             )
         )
-    bank_empty = "Подходящая позиция банка не найдена; вывод ИИ не подменяет её"
+    bank_empty = (
+        "Аналитики Альфа-Банка по этой теме не нашлось. Выводы выше — оценка ИИ, а не позиция банка"
+    )
     blocks = []
     sections: list[tuple[BlockId, str, Sequence[Statement]]] = [
         (
@@ -376,7 +378,7 @@ async def generate_with_trace(
     context = AnalysisContext(profile=profile, news=list(news), objective=objective, started_at=now)
     run_id = context.run_id
     execution: ExecutionStatus = "unavailable"
-    reason: str | None = "LLM недоступна; проверенный персональный вывод не сформирован"
+    reason: str | None = "Языковая модель недоступна: персональный вывод не сформирован"
     check = SelfCheck(
         passed=False,
         iterations=1,
@@ -423,7 +425,7 @@ async def generate_with_trace(
                 )
                 reason = None
             except ValidationError:
-                reason = "Проверенный ответ не удалось привести к контракту инсайта"
+                reason = "Проверенный ответ не удалось оформить как разбор"
         else:
             reason = run.error or "Не удалось получить проверенный ответ"
         if status is not InsightStatus.READY:
@@ -464,7 +466,7 @@ async def generate_with_trace(
     except ValidationError:
         execution = "check_failed"
         status = InsightStatus.INSUFFICIENT_DATA
-        reason = "Ответ не прошёл финальную проверку контракта; неподтверждённые блоки скрыты"
+        reason = "Ответ модели не прошёл финальную проверку: неподтверждённые блоки скрыты"
         insight = Insight(
             **metadata,
             status=status,
@@ -492,7 +494,9 @@ async def generate_with_trace(
     if status is not InsightStatus.READY:
         warnings.append(reason or "Вывод не проверен")
     if status is InsightStatus.READY and not insight.bank_view:
-        warnings.append("Позиция банка не найдена; это не означает согласия банка с выводами ИИ")
+        warnings.append(
+            "Аналитики Альфа-Банка по этой теме не нашлось: выводы ИИ не являются позицией банка"
+        )
     result = GeneratedInsight(
         insight=insight,
         presentation=present(insight, relation),

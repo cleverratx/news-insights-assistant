@@ -130,3 +130,19 @@ def test_multiple_feature_weights_redistribute_contributions() -> None:
         before["feature:region"] / before["feature:industry"]
     )
     assert sum(after.values()) == pytest.approx(adjusted.final, abs=0.001)
+
+
+def test_plural_forms_and_decimal_comma() -> None:
+    from app.core.words import decimal, plural
+
+    forms = ("компания", "компании", "компаний")
+    assert [plural(n, *forms) for n in (1, 2, 5, 11, 21, 22, 111)] == [
+        "компания",
+        "компании",
+        "компаний",
+        "компаний",
+        "компания",
+        "компании",
+        "компаний",
+    ]
+    assert decimal(1.6) == "1,60"

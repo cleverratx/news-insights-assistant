@@ -21,6 +21,7 @@ from app.contracts.profile import (
     ProfileFeature,
     RelatedCompany,
 )
+from app.core.words import plural
 from app.profile.okved import SEGMENTS, resolve
 from app.profile.row import CompanyRow, source_field
 
@@ -222,7 +223,8 @@ def link_profile(row: CompanyRow, links: CompanyLinks) -> LinkProfile:
         add(
             "group",
             FeatureKind.GROUP,
-            f"Входит в группу из {result.group.companies_count} компаний",
+            f"Входит в группу из {result.group.companies_count} "
+            f"{plural(result.group.companies_count, 'компании', 'компаний', 'компаний')}",
             result.group.companies_count,
             [source_field("group_id")],
         )
@@ -308,7 +310,8 @@ def link_profile(row: CompanyRow, links: CompanyLinks) -> LinkProfile:
         add(
             "person_links",
             FeatureKind.GROUP,
-            f"Через общих физлиц связана ещё с {links.shared_person_total} компаниями",
+            f"Через общих физлиц связана ещё с {links.shared_person_total} "
+            f"{plural(links.shared_person_total, 'компанией', 'компаниями', 'компаниями')}",
             links.shared_person_total,
             PERSON_FIELDS,
         )

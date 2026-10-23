@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 
 from app.contracts.feed import Polarity
 from app.contracts.news import NewsItem, Topic
+from app.core.words import plural
 
 MAX_RUN = 2
 WINDOW = 5
@@ -103,7 +104,8 @@ def diversify(
         if blocked and choice is allowed[0]:
             notes.append(
                 f"«{pending[0].title or pending[0].id}» сдвинут ниже: "
-                f"{max_run} материала подряд уже об этом событии"
+                f"{max_run} {plural(max_run, 'материал', 'материала', 'материалов')} подряд "
+                "уже об этом событии"
             )
         order.append(choice)
         pending.remove(choice)

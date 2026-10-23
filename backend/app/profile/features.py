@@ -138,7 +138,7 @@ def base_features(row: CompanyRow) -> BaseFeatures:
     if employees is None and row.employees_spark is not None:
         employees, employees_source = row.employees_spark, "employees_spark"
     if row.employees_fns and row.employees_spark and row.employees_fns != row.employees_spark:
-        warnings.append("Численность по ФНС и СПАРК расходится, взята ФНС")
+        warnings.append("Численность по данным ФНС и СПАРК расходится, взята по ФНС")
     if employees is not None:
         origin = "ФНС" if employees_source == "employees_fns" else "СПАРК"
         add(
