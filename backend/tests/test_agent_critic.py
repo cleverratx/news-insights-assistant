@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -166,12 +167,39 @@ async def test_semantic_contradiction_is_recorded_and_cannot_be_marked_resolved_
 
 @pytest.mark.parametrize(
     "reply",
-    ["not JSON", "{}", '{"issues":[{"statement_id":"unknown","problem":"other","detail":"x"}]}'],
+    ["not JSON", "{}"],
 )
 async def test_invalid_semantic_reply_is_not_a_pass(reply: str) -> None:
     db = Database()
-    report = await InsightCritic(Replies(reply)).review(context(db), draft(db))
+    llm = Replies(reply, reply)
+    report = await InsightCritic(llm).review(context(db), draft(db))
     assert not report.passed and report.unavailable and report.cost_rub > 0
+    assert len(llm.messages) == 2
+    assert "Ответ не прошёл проверку" in llm.messages[1][-1].content
+
+
+async def test_semantic_reply_is_repaired_once() -> None:
+    db = Database()
+    llm = Replies("not JSON", '{"issues":[]}')
+    report = await InsightCritic(llm).review(context(db), draft(db))
+    assert report.passed and report.semantic_checked and not report.unavailable
+    assert report.cost_rub == Decimal("0.10")
+    assert llm.messages[1][-2].content == "not JSON"
+
+
+async def test_fenced_semantic_reply_is_accepted() -> None:
+    db = Database()
+    reply = '```json\n{"issues":[]}\n```'
+    report = await InsightCritic(Replies(reply)).review(context(db), draft(db))
+    assert report.passed and report.semantic_checked
+
+
+async def test_issue_with_unknown_statement_is_kept_as_general() -> None:
+    db = Database()
+    reply = '{"issues":[{"statement_id":"unknown","problem":"other","detail":"Нет связи"}]}'
+    report = await InsightCritic(Replies(reply)).review(context(db), draft(db))
+    assert not report.passed and report.semantic_checked and not report.unavailable
+    assert report.issues[0].statement_id is None and report.issues[0].detail == "Нет связи"
 
 
 async def test_failed_review_triggers_original_lookup_and_then_rechecks_draft() -> None:
@@ -300,7 +328,7 @@ async def test_common_deadline_also_cancels_semantic_critic() -> None:
 async def test_duplicate_semantic_json_keys_cannot_hide_a_problem() -> None:
     db = Database()
     reply = '{"issues":[{"problem":"contradiction","detail":"x"}],"issues":[]}'
-    report = await InsightCritic(Replies(reply)).review(context(db), draft(db))
+    report = await InsightCritic(Replies(reply, reply)).review(context(db), draft(db))
     assert report.unavailable and not report.passed and report.cost_rub > 0
 
 
