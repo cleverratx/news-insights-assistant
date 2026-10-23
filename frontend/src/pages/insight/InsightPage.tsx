@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ArrowLeftMIcon } from '@alfalab/icons-glyph/ArrowLeftMIcon';
 import { DocumentMIcon } from '@alfalab/icons-glyph/DocumentMIcon';
 import { InformationCircleLineMIcon } from '@alfalab/icons-glyph/InformationCircleLineMIcon';
 
 import { useShell } from '@/app/shell-context';
+import { AskPanel } from '@/features/ask/AskPanel';
 import { InsightLoading } from '@/features/insight/InsightLoading';
 import { InsightView } from '@/features/insight/InsightView';
 import { StatusNotice } from '@/features/insight/StatusNotice';
@@ -32,6 +33,7 @@ export function InsightPage() {
   const snapshot = params.get('snapshot');
   const basisOpen = params.get('basis') === '1';
   const [focus, setFocus] = useState<number | null>(null);
+  const question = useRef<HTMLDivElement>(null);
   const toggleBasis = (open: boolean) =>
     setParams(
       (current) => {
@@ -118,10 +120,27 @@ export function InsightPage() {
             </p>
           )}
           {result && (
-            <button type="button" className={styles.basisLink} onClick={showBasis}>
-              <DocumentMIcon className={styles.basisIcon} aria-hidden="true" />
-              На чём основан вывод
-            </button>
+            <div className={styles.headerActions}>
+              <button type="button" className={styles.basisLink} onClick={showBasis}>
+                <DocumentMIcon className={styles.basisIcon} aria-hidden="true" />
+                На чём основан вывод
+              </button>
+              <button
+                type="button"
+                className={styles.basisLink}
+                onClick={() => {
+                  question.current?.querySelector('textarea')?.focus({ preventScroll: true });
+                  question.current?.scrollIntoView({
+                    block: 'start',
+                    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                      ? 'auto'
+                      : 'smooth',
+                  });
+                }}
+              >
+                Задать вопрос
+              </button>
+            </div>
           )}
         </div>
         {importance && impact && (
@@ -162,6 +181,12 @@ export function InsightPage() {
               <p>{result.disclaimer || DISCLAIMER}</p>
             </aside>
             <BasisPanel result={result} open={basisOpen} focus={focus} onToggle={toggleBasis} />
+            <div ref={question} className={styles.question}>
+              <AskPanel
+                key={`${result.insight.company_id}:${result.insight.id}:${result.role ?? ''}`}
+                result={result}
+              />
+            </div>
             <CacheLine result={result} onRebuild={insight.rebuild} />
           </>
         )}

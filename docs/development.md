@@ -82,10 +82,15 @@ uv run pytest
 cd ../frontend
 npm run lint
 npm run typecheck
+npm test
 npm run build
 ```
 
 ## Дополнительные проверки
+
+Уточняющий диалог по инсайту (A6-06) использует поле `focus` существующего API разборов.
+Как открыть чат, какие данные сохраняются в контексте и как проверить его без платных
+вызовов LLM — в [frontend/src/features/ask/README.md](../frontend/src/features/ask/README.md).
 
 Интеграционные тесты бюджета требуют `TEST_REDIS_URL` отдельного тестового Redis;
 без него они пропускаются. В CI Redis запускается автоматически, поэтому эти тесты
