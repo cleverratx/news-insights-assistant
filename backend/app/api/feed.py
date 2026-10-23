@@ -53,6 +53,7 @@ MAX_LIMIT = 50
 MAX_REASONS = 2
 OTHER_EVENT = "Прочее"
 IMPACT_SIGN = 15
+WEIGHTED_SIGN = 10
 SIGNIFICANCE = {
     ImportanceLevel.CRITICAL: Significance.HIGH,
     ImportanceLevel.IMPORTANT: Significance.HIGH,
@@ -117,7 +118,8 @@ def explanation(ranked: RankedItem) -> str:
 
 
 def impact_polarity(impact: ImpactAssessment) -> Polarity:
-    sign = 1 if impact.scale == "levels" else IMPACT_SIGN
+    signs = {"weighted": WEIGHTED_SIGN, "levels": 1, "points": IMPACT_SIGN}
+    sign = signs[impact.scale]
     if impact.score <= -sign:
         return Polarity.RISK
     return Polarity.OPPORTUNITY if impact.score >= sign else Polarity.NEUTRAL
