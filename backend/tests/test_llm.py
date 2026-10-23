@@ -185,9 +185,9 @@ async def test_budget_blocks_http_call(settings: Settings) -> None:
         await run(settings, handler, RecordingBudget(allowed=False))
 
 
-@pytest.mark.parametrize("failure", [httpx.ReadTimeout, httpx.ConnectError])
+@pytest.mark.parametrize("failure", [httpx.ConnectError, httpx.RemoteProtocolError])
 async def test_transport_failure_has_bounded_retries_and_safe_error(
-    settings: Settings, failure: type[httpx.RequestError]
+    settings: Settings, failure: type[httpx.TransportError]
 ) -> None:
     budget = RecordingBudget()
 
@@ -199,8 +199,69 @@ async def test_transport_failure_has_bounded_retries_and_safe_error(
     assert "test-only-secret-key" not in str(error.value)
     assert error.value.__suppress_context__
     assert len(budget.reservations) == 3
-    expected = budget.reservations[0].amount if failure is httpx.ReadTimeout else 0
+    expected = budget.reservations[0].amount if failure is httpx.RemoteProtocolError else 0
     assert budget.charges == [expected] * 3
+
+
+async def test_read_timeout_is_charged_once_without_retry(settings: Settings) -> None:
+    budget = RecordingBudget()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("test-only-secret-key", request=request)
+
+    with pytest.raises(LLMProviderError) as error:
+        await run(settings, handler, budget)
+    assert not error.value.retryable
+    assert len(budget.reservations) == 1
+    assert budget.charges == [budget.reservations[0].amount]
+
+
+async def test_reservation_follows_request_size_not_model_window(settings: Settings) -> None:
+    budget = RecordingBudget()
+    await run(settings, lambda _: httpx.Response(200, json=completion()), budget, Task.INTERPRET)
+    model = settings.llm_models[AllowedModel.GLM]
+    window = cost_units(Usage(prompt_tokens=1048576, completion_tokens=100), model)
+    small = cost_units(Usage(prompt_tokens=1024, completion_tokens=100), model)
+    assert budget.reservations[0].amount < small < window
+    assert budget.charges[0] <= budget.reservations[0].amount
+
+
+async def test_reservation_covers_cyrillic_prompt_tokens(settings: Settings) -> None:
+    budget = RecordingBudget()
+    text = "Ключевая ставка сохранена, кредиты остаются дорогими. " * 200
+    prompt_tokens = len(text)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        usage = {"prompt_tokens": prompt_tokens, "completion_tokens": 100}
+        return httpx.Response(200, json=completion(usage=usage))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        client = LLMClient(settings, http, budget)
+        await client.complete(Task.INTERPRET, [Message(role="user", content=text)])
+    assert budget.charges[0] <= budget.reservations[0].amount
+
+
+@pytest.mark.parametrize("task", list(Task))
+async def test_reasoning_is_disabled_unless_task_is_listed(settings: Settings, task: Task) -> None:
+    bodies: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, json=completion())
+
+    await run(settings, handler, RecordingBudget(), task)
+    settings.llm_reasoning_tasks = frozenset({task})
+    await run(settings, handler, RecordingBudget(), task)
+    assert bodies[0]["reasoning"] == {"enabled": False}
+    assert "reasoning" not in bodies[1]
+
+
+def test_reasoning_tasks_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_REASONING_TASKS", '["interpret", "research"]')
+    assert Settings(_env_file=None).llm_reasoning_tasks == {Task.INTERPRET, Task.RESEARCH}
+    monkeypatch.setenv("LLM_REASONING_TASKS", '["unknown"]')
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
 
 
 @pytest.mark.parametrize("body", [{}, {"usage": {"prompt_tokens": -1, "completion_tokens": 1}}])

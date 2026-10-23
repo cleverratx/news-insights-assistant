@@ -38,10 +38,20 @@ from app.llm.usage import open_budget
 
 logger = structlog.get_logger(__name__)
 FAST_TASKS = frozenset({Task.CLASSIFY, Task.EXTRACT, Task.SUMMARIZE})
+PROMPT_OVERHEAD_TOKENS = 512
+MESSAGE_OVERHEAD_TOKENS = 16
 
 
 def price(model: ModelConfig) -> Decimal:
     return model.input_rub_per_million + model.output_rub_per_million
+
+
+def prompt_ceiling(input_bytes: int, messages: int, model: ModelConfig) -> int:
+    """Потолок входных токенов по размеру запроса: токен не короче байта, служебная разметка
+    чата — сверху. Резерв по окну модели (до 1 млн токенов) списывался целиком на каждом
+    таймауте и за день выбирал дневной лимит при копеечном фактическом расходе."""
+    overhead = PROMPT_OVERHEAD_TOKENS + MESSAGE_OVERHEAD_TOKENS * messages
+    return min(model.max_input_tokens, input_bytes + overhead)
 
 
 class LLMClient:
@@ -128,7 +138,7 @@ class LLMClient:
         name, model = self.select_model(task, economy)
         reservation = cost_units(
             Usage(
-                prompt_tokens=model.max_input_tokens,
+                prompt_tokens=prompt_ceiling(input_bytes, len(payload), model),
                 completion_tokens=self.settings.llm_max_output_tokens,
             ),
             model,
@@ -161,18 +171,21 @@ class LLMClient:
         status = "неопределённый расход"
         started = monotonic()
         authorization = f"Bearer {self.settings.llm_api_key.get_secret_value()}"
+        body: dict[str, object] = {
+            "model": model.provider_id,
+            "messages": messages,
+            "max_tokens": self.settings.llm_max_output_tokens,
+            "stream": False,
+        }
+        if task not in self.settings.llm_reasoning_tasks:
+            body["reasoning"] = {"enabled": False}
         try:
             try:
                 async with asyncio.timeout(self.settings.llm_request_timeout_seconds):
                     response = await self.http.post(
                         self.endpoint,
                         headers={"Authorization": authorization},
-                        json={
-                            "model": model.provider_id,
-                            "messages": messages,
-                            "max_tokens": self.settings.llm_max_output_tokens,
-                            "stream": False,
-                        },
+                        json=body,
                         timeout=self.settings.llm_request_timeout_seconds,
                         follow_redirects=False,
                     )
@@ -180,7 +193,10 @@ class LLMClient:
                 charge = 0
                 status = "соединение не установлено"
                 raise LLMProviderError(retryable=True) from None
-            except (httpx.HTTPError, TimeoutError):
+            except (httpx.TimeoutException, TimeoutError):
+                status = "ответ не дождались: списан потолок резерва"
+                raise LLMProviderError(retryable=False) from None
+            except httpx.HTTPError:
                 raise LLMProviderError(retryable=True) from None
             if response.is_error or response.is_redirect:
                 if self._provider_budget_exceeded(response):
