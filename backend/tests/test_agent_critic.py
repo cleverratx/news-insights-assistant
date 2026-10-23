@@ -438,3 +438,17 @@ async def test_generation_critic_names_what_to_fix() -> None:
     details = {i.statement_id: i.detail for i in report.issues}
     assert db.bank.id in details[None] and db.news.id in details[None]
     assert "bank_view" in details["risk"]
+
+
+async def test_date_of_found_bank_document_is_not_an_invented_figure() -> None:
+    from app.agent.tools import Observation
+
+    db = Database()
+    ctx = context(db, bank=False)
+    found = bank_search(db).model_dump(mode="json")
+    ctx.remember("search_bank_analytics", {"query": "ставка"}, Observation(data=found), 1, True)
+    value = draft(db)
+    value["bank_view"] = []
+    value["sources"] = value["sources"][:2]
+    value["risks"][0]["text"] = f"Аналитика банка от {db.bank.published_at:%d.%m.%Y} устарела"
+    assert (await InsightCritic(Replies('{"issues":[]}')).review(ctx, value)).passed

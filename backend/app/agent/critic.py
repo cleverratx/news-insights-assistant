@@ -186,6 +186,28 @@ def document(known: Evidence, anchor: str) -> str:
     return full[start : start + DOCUMENT_CHARS]
 
 
+def observed(context: AnalysisContext) -> list[str]:
+    """Заголовки и даты документов, найденных поиском и get_original: агент вправе написать
+    «аналитика банка от 31.07.2026», а проверка цифр считала такую дату выдуманной."""
+    found: list[str] = []
+    for entry in context.observations.values():
+        data = entry.observation.data
+        if entry.tool in {"search_news", "search_bank_analytics"}:
+            try:
+                hits = SearchResult.model_validate(data).hits
+            except ValidationError:
+                continue
+            found += [text for hit in hits for text in (hit.title, f"{hit.published_at:%d.%m.%Y}")]
+        elif entry.tool == "get_original":
+            try:
+                original = SourceExcerpt.model_validate(data)
+            except ValidationError:
+                continue
+            if original.published_at is not None:
+                found.append(f"{original.published_at:%d.%m.%Y}")
+    return found
+
+
 def checks(context: AnalysisContext, draft: Draft) -> tuple[list[CheckIssue], dict[str, str]]:
     problems = []
     actual = evidence(context)
@@ -357,6 +379,7 @@ def checks(context: AnalysisContext, draft: Draft) -> tuple[list[CheckIssue], di
             *(text for found in actual.values() for _, text in found.chunks),
             *(news.title for news in context.news),
             *(f"{news.published_at:%d.%m.%Y}" for news in context.news),
+            *observed(context),
             f"{context.started_at:%d.%m.%Y}",
             context.profile.model_dump_json(),
         ]
