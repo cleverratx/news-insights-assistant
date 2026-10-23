@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ArrowLeftMIcon } from '@alfalab/icons-glyph/ArrowLeftMIcon';
+import { InformationCircleLineMIcon } from '@alfalab/icons-glyph/InformationCircleLineMIcon';
 
 import { useShell } from '@/app/shell-context';
 import { InsightLoading } from '@/features/insight/InsightLoading';
@@ -103,13 +104,15 @@ export function InsightPage() {
           <>
             <StatusNotice result={result} />
             <InsightView result={result} />
+            <aside className={styles.disclaimer} aria-label="Важно знать">
+              <InformationCircleLineMIcon className={styles.disclaimerIcon} aria-hidden="true" />
+              <p>{result.disclaimer || DISCLAIMER}</p>
+            </aside>
             <TraceSteps insightId={result.insight.id} />
             <CacheLine result={result} onRebuild={insight.rebuild} />
           </>
         )}
       </div>
-
-      <p className={styles.disclaimer}>{DISCLAIMER}</p>
     </div>
   );
 }

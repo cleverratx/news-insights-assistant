@@ -46,7 +46,7 @@
 
 .model {
   color: var(--c-ai-text);
-  background: var(--c-ai-muted);
+  background: var(--c-plate-on-ai, var(--c-ai-muted));
 }
 
 .model .dot {

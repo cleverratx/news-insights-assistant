@@ -1,6 +1,6 @@
 import type { components } from '@/shared/api/schema';
 import type { GeneratedInsight, LabeledStatement } from '@/shared/api/types';
-import { OriginMark, ORIGIN_TITLES, type Origin } from '@/shared/ui/OriginMark';
+import { OriginMark, type Origin } from '@/shared/ui/OriginMark';
 
 import { OfferCard } from './OfferCard';
 import styles from './InsightView.module.css';
@@ -74,24 +74,10 @@ export function InsightView({ result }: { result: GeneratedInsight }) {
     ),
   };
   const risks = new Set((insight.risks ?? []).map((item) => item.id));
-  const origins = new Set(all.map((row) => row.statement.origin));
-  const hasBank = (presentation.bank_position ?? []).length > 0;
 
   return (
     <div className={styles.view}>
-      <div className={styles.legend}>
-        <span className={styles.legendTitle}>Откуда утверждения:</span>
-        {(Object.keys(ORIGIN_TITLES) as Origin[])
-          .filter((origin) => origins.has(origin))
-          .map((origin) => (
-            <OriginMark key={origin} origin={origin} />
-          ))}
-        {!hasBank && (
-          <p className={styles.notBank}>
-            Это не официальная позиция банка: выводы сформированы моделью по открытым источникам.
-          </p>
-        )}
-      </div>
+      <Legend />
       {presentation.blocks.map((block) => (
         <section key={block.id} className={styles.block} aria-labelledby={`block-${block.id}`}>
           <h2 id={`block-${block.id}`} className={styles.blockTitle}>
@@ -111,6 +97,54 @@ export function InsightView({ result }: { result: GeneratedInsight }) {
         </section>
       ))}
     </div>
+  );
+}
+
+const LEGEND: { origin: Origin; text: string }[] = [
+  { origin: 'fact', text: 'Взято из новости или документа. Номер ведёт к оригиналу.' },
+  {
+    origin: 'bank',
+    text: 'Из аналитики Альфа-Банка. Встречается только в разделе «Позиция Альфа-Банка».',
+  },
+  { origin: 'client_data', text: 'Из профиля компании в банке и ваших ответов.' },
+  { origin: 'model', text: 'Сформулировал ИИ по фактам выше и проверил по источникам.' },
+];
+
+function Legend() {
+  return (
+    <section className={styles.legend} aria-labelledby="legend-title">
+      <h2 id="legend-title" className={styles.legendTitle}>
+        Как читать разбор
+      </h2>
+      <dl className={styles.legendList}>
+        {LEGEND.map(({ origin, text }) => (
+          <div
+            key={origin}
+            className={`${styles.legendItem} ${origin === 'model' ? styles.aiStatement : ''}`}
+          >
+            <dt>
+              <OriginMark origin={origin} />
+            </dt>
+            <dd>{text}</dd>
+          </div>
+        ))}
+        <div className={styles.legendItem}>
+          <dt>
+            <span className={styles.assumption}>предположение</span>
+          </dt>
+          <dd>
+            <span className={styles.assumed}>Пунктиром</span> — вывод логичен, но прямо в источниках
+            не подтверждён.
+          </dd>
+        </div>
+        <div className={styles.legendItem}>
+          <dt>
+            <span className={styles.refSample}>1</span>
+          </dt>
+          <dd>Номер источника: нажмите, чтобы увидеть, на чём основано утверждение.</dd>
+        </div>
+      </dl>
+    </section>
   );
 }
 
@@ -148,7 +182,9 @@ function Statement({ row, context }: { row: LabeledStatement; context: Context }
   ].filter(Boolean);
 
   return (
-    <div className={styles.statement}>
+    <div
+      className={`${styles.statement} ${statement.origin === 'model' ? styles.aiStatement : ''}`}
+    >
       <div className={styles.marks}>
         <OriginMark origin={statement.origin} />
         {'kind' in statement && <span className={styles.kind}>{ACTION_KIND[statement.kind]}</span>}

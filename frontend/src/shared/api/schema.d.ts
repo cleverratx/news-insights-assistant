@@ -596,6 +596,11 @@ export interface components {
        * @description Связь каждого утверждения с фрагментами документов
        */
       claims?: components['schemas']['TraceClaim'][];
+      /**
+       * Rejected
+       * @description Оспоренные проверкой утверждения черновиков: текст модели и замечания
+       */
+      rejected?: components['schemas']['TraceRejection'][];
     };
     /**
      * AllowedModel
@@ -1441,6 +1446,12 @@ export interface components {
        * @default false
        */
       cache_hit: boolean;
+      /**
+       * Disclaimer
+       * @description Обязательная пометка под разбором: кто составил и что это не рекомендация
+       * @default Разбор подготовил ИИ по материалам ленты и аналитике Альфа-Банка. Позиция банка — только в разделе «Позиция Альфа-Банка», остальные выводы не являются официальной позицией банка. Не является инвестиционной рекомендацией.
+       */
+      disclaimer: string;
     };
     /** GenerationUsage */
     GenerationUsage: {
@@ -2882,6 +2893,29 @@ export interface components {
       url?: string | null;
       /** Chunks */
       chunks: components['schemas']['TraceChunk'][];
+    };
+    /**
+     * TraceRejection
+     * @description Утверждение черновика, которое проверка оспорила: что именно написала модель и почему
+     *     это не показано как есть. Пользователь видит только число скрытых выводов и причины.
+     */
+    TraceRejection: {
+      /** Check Index */
+      check_index: number;
+      /** Statement Id */
+      statement_id: string;
+      /** Section */
+      section: components['schemas']['Section'] | 'headline';
+      origin?: components['schemas']['Origin'] | null;
+      /** Text */
+      text: string;
+      /** Problems */
+      problems: string[];
+      /**
+       * Shown
+       * @description Тот же текст попал в итоговый вывод после исправлений
+       */
+      shown: boolean;
     };
     /** TraceStep */
     TraceStep: {

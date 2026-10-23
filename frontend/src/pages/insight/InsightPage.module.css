@@ -158,10 +158,22 @@
 }
 
 .disclaimer {
-  padding: var(--gap-8) var(--gap-4) 0;
-  font-size: 13px;
-  line-height: 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap-12);
+  padding: var(--gap-16) var(--gap-20);
+  font-size: 15px;
+  line-height: 22px;
   color: var(--c-text-primary);
+  background: var(--c-negative-muted);
+  border-radius: var(--radius-16);
+}
+
+.disclaimerIcon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  color: var(--c-negative-text-a11y);
 }
 
 @media (max-width: 767px) {
