@@ -1,0 +1,84 @@
+.loading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gap-12);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-12);
+  padding: var(--gap-16) var(--gap-20);
+  font-size: 16px;
+  line-height: 24px;
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-16);
+}
+
+.pulse {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  background: var(--c-accent);
+  border-radius: 50%;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.stage {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+
+.timer {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text-secondary);
+}
+
+.cancel {
+  flex: none;
+  height: var(--size-32);
+  padding: 0 var(--gap-12);
+  font-size: 14px;
+  background: var(--c-bg-control);
+  border: 0;
+  border-radius: var(--radius-8);
+  cursor: pointer;
+}
+
+.cancel:hover {
+  background: var(--c-bg-control-hover);
+}
+
+.hint {
+  padding: 0 var(--gap-4);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-primary);
+}
+
+.block {
+  display: grid;
+  gap: var(--gap-12);
+  padding: var(--gap-20) var(--gap-24);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+}
+
+.title {
+  font-size: 20px;
+  line-height: 24px;
+  color: var(--c-text-tertiary);
+}

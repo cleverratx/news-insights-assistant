@@ -75,14 +75,6 @@
   gap: var(--gap-12);
 }
 
-.panel {
-  scroll-margin-top: calc(var(--header-height) + var(--gap-16));
-}
-
-.panel:empty {
-  display: none;
-}
-
 .plate {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

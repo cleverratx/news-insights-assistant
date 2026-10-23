@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useEffect, useState } from 'react';
 import { Typography } from '@alfalab/core-components-typography';
 
 import { useShell } from '@/app/shell-context';
@@ -7,18 +6,11 @@ import { FeedCard } from '@/features/feed/FeedCard';
 import { FeedFiltersBar } from '@/features/feed/FeedFilters';
 import { FeedOverview } from '@/features/feed/FeedOverview';
 import { applyFilters, useFeedFilters, type FeedFilters } from '@/features/feed/filters';
-import { InsightPanel, type Analysis } from '@/features/feed/InsightPanel';
 import { RelatedList } from '@/features/feed/RelatedList';
+import { newsLink } from '@/features/insight/link';
 import { useCachedApi } from '@/shared/api/cache';
-import { apiGet, apiPost, errorMessage, isAbort } from '@/shared/api/client';
 import { feedPath } from '@/shared/api/feed';
-import type {
-  AgentTrace,
-  Feed,
-  FeedItem,
-  GeneratedInsight,
-  InsightRequest,
-} from '@/shared/api/types';
+import type { Feed, FeedItem } from '@/shared/api/types';
 import { isRole, ROLE_TITLES, type Role } from '@/shared/lib/demo';
 import { plural } from '@/shared/lib/format';
 import { markSeen, useSeen } from '@/shared/lib/seen';
@@ -26,35 +18,14 @@ import { ErrorState, Skeleton } from '@/shared/ui/StateView';
 
 import styles from './FeedPage.module.css';
 
-function reveal(element: HTMLElement | null) {
-  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  requestAnimationFrame(() =>
-    element?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }),
-  );
-}
-
 function periodTitle(days: number): string {
   if (days === 1) return 'За сутки';
   return `За ${days} ${plural(days, { one: 'день', few: 'дня', many: 'дней' })}`;
 }
 
 export function FeedPage() {
-  const { company, role, setRole, user } = useShell();
-  const [params, setParams] = useSearchParams();
+  const { company, role, setRole, user, search } = useShell();
   const feedFilters = useFeedFilters();
-  const openId = params.get('open');
-  const onOpened = useCallback(
-    () =>
-      setParams(
-        (currentParams) => {
-          const next = new URLSearchParams(currentParams);
-          next.delete('open');
-          return next;
-        },
-        { replace: true },
-      ),
-    [setParams],
-  );
 
   return (
     <div className={styles.page}>
@@ -105,8 +76,7 @@ export function FeedPage() {
           company={company}
           role={role}
           login={user.login}
-          openId={openId}
-          onOpened={onOpened}
+          search={search}
           feedFilters={feedFilters}
         />
       )}
@@ -118,20 +88,14 @@ type FeedViewProps = {
   company: string;
   role: Role | null;
   login: string;
-  openId: string | null;
-  onOpened: () => void;
+  search: string;
   feedFilters: ReturnType<typeof useFeedFilters>;
 };
 
-function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedViewProps) {
+function FeedView({ company, role, login, search, feedFilters }: FeedViewProps) {
   const { filters } = feedFilters;
-  const [analysis, setAnalysis] = useState<Analysis | null>(null);
-  const controller = useRef<AbortController | null>(null);
-  const panel = useRef<HTMLDivElement>(null);
   const seen = useSeen(login, company);
   const [seenOnOpen] = useState(seen);
-
-  useEffect(() => () => controller.current?.abort(), []);
 
   const feed = useCachedApi<Feed>(feedPath(company, role, { days: filters.days }));
   const extra = useCachedApi<Feed>(
@@ -143,31 +107,13 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
   const baseIds = new Set(baseItems.map((item) => item.news_id));
   const extraItems = (extra.data?.items ?? []).filter((item) => !baseIds.has(item.news_id));
   const items = [...baseItems, ...extraItems];
-  const snapshotFor = (newsId: string) =>
-    baseIds.has(newsId) ? feedData?.snapshot_id : extra.data?.snapshot_id;
   const visible = applyFilters(items, filters);
-  const opened = items.find((item) => item.news_id === analysis?.newsId);
-
-  const runInsight = useCallback(
-    (newsId: string, body: InsightRequest) => {
-      controller.current?.abort();
-      const current = new AbortController();
-      controller.current = current;
-      setAnalysis({ newsId, busy: true });
-      reveal(panel.current);
-      apiPost<GeneratedInsight>(
-        `/companies/${encodeURIComponent(company)}/insights`,
-        body,
-        current.signal,
-      ).then(
-        (insight) => setAnalysis({ newsId, insight, busy: false }),
-        (error: unknown) => {
-          if (!isAbort(error)) setAnalysis({ newsId, busy: false, error: errorMessage(error) });
-        },
-      );
-    },
-    [company],
-  );
+  const linkFor = (item: FeedItem) =>
+    newsLink(
+      search,
+      item.news_id,
+      baseIds.has(item.news_id) ? feedData?.snapshot_id : extra.data?.snapshot_id,
+    );
 
   useEffect(() => {
     if (feedData)
@@ -177,46 +123,6 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
         (feedData.items ?? []).map((item) => item.news_id),
       );
   }, [feedData, login, company]);
-
-  useEffect(() => {
-    if (!openId || !feedData) return;
-    onOpened();
-    if (feedData.items?.some((item) => item.news_id === openId)) {
-      runInsight(openId, {
-        news_ids: [openId],
-        role,
-        feed_snapshot_id: feedData.snapshot_id,
-        refresh: false,
-      });
-    }
-  }, [openId, feedData, role, runInsight, onOpened]);
-
-  const open = (item: FeedItem) =>
-    runInsight(item.news_id, {
-      news_ids: [item.news_id],
-      role,
-      feed_snapshot_id: snapshotFor(item.news_id),
-      refresh: false,
-    });
-
-  const showTrace = (insightId: string) => {
-    controller.current?.abort();
-    const current = new AbortController();
-    controller.current = current;
-    setAnalysis((state) => state && { ...state, busy: true, error: undefined });
-    apiGet<AgentTrace>(`/insights/${encodeURIComponent(insightId)}/trace`, current.signal).then(
-      (trace) => setAnalysis((state) => state && { ...state, trace, busy: false }),
-      (error: unknown) => {
-        if (!isAbort(error))
-          setAnalysis((state) => state && { ...state, busy: false, error: errorMessage(error) });
-      },
-    );
-  };
-
-  const close = () => {
-    controller.current?.abort();
-    setAnalysis(null);
-  };
 
   return (
     <>
@@ -230,16 +136,6 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
       />
       <div className={styles.layout}>
         <div className={styles.main}>
-          <div ref={panel} className={styles.panel} aria-live="polite">
-            {analysis && (
-              <InsightPanel
-                analysis={analysis}
-                title={opened?.card.title}
-                onTrace={showTrace}
-                onClose={close}
-              />
-            )}
-          </div>
           {refreshing && <p className={styles.refreshing}>Обновляем ленту…</p>}
           {feed.loading && !feedData && (
             <div className={styles.plate}>
@@ -266,8 +162,7 @@ function FeedView({ company, role, login, openId, onOpened, feedFilters }: FeedV
               filters={filters}
               extraLoading={extra.loading}
               seen={seenOnOpen}
-              activeId={analysis?.newsId}
-              onOpen={open}
+              linkFor={linkFor}
               onReset={feedFilters.reset}
               onShowAll={() => feedFilters.setAll(true)}
             />
@@ -286,8 +181,7 @@ type FeedListProps = {
   filters: FeedFilters;
   extraLoading: boolean;
   seen: ReadonlySet<string>;
-  activeId?: string;
-  onOpen: (item: FeedItem) => void;
+  linkFor: (item: FeedItem) => { pathname: string; search: string };
   onReset: () => void;
   onShowAll: () => void;
 };
@@ -299,8 +193,7 @@ function FeedList({
   filters,
   extraLoading,
   seen,
-  activeId,
-  onOpen,
+  linkFor,
   onReset,
   onShowAll,
 }: FeedListProps) {
@@ -337,8 +230,7 @@ function FeedList({
                 item={item}
                 feed={feed}
                 isFresh={!seen.has(item.news_id)}
-                active={item.news_id === activeId}
-                onOpen={onOpen}
+                to={linkFor(item)}
               />
             </li>
           ))}

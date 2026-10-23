@@ -3,6 +3,7 @@ import { ArrowDownSIcon } from '@alfalab/icons-glyph/ArrowDownSIcon';
 import { ArrowUpSIcon } from '@alfalab/icons-glyph/ArrowUpSIcon';
 import { ChevronRightMIcon } from '@alfalab/icons-glyph/ChevronRightMIcon';
 
+import { newsLink } from '@/features/insight/link';
 import { isImportant } from '@/shared/api/feed';
 import type { Feed, FeedItem } from '@/shared/api/types';
 import type { ApiState } from '@/shared/api/useApi';
@@ -26,10 +27,6 @@ function feedLink(search: string, extra: Record<string, string> = {}) {
   const params = new URLSearchParams(search);
   Object.entries(extra).forEach(([key, value]) => params.set(key, value));
   return { pathname: '/feed', search: `?${params}` };
-}
-
-function analyzeLink(search: string, newsId: string) {
-  return feedLink(search, { open: newsId });
 }
 
 export function NewsWidget({ feed, fresh, search }: Props) {
@@ -85,7 +82,7 @@ export function NewsWidget({ feed, fresh, search }: Props) {
               item={lead}
               feed={data}
               isFresh={freshIds.has(lead.news_id)}
-              to={analyzeLink(search, lead.news_id)}
+              to={newsLink(search, lead.news_id, data.snapshot_id)}
               lead
             />
           </li>
@@ -95,7 +92,7 @@ export function NewsWidget({ feed, fresh, search }: Props) {
                 item={item}
                 feed={data}
                 isFresh={freshIds.has(item.news_id)}
-                to={analyzeLink(search, item.news_id)}
+                to={newsLink(search, item.news_id, data.snapshot_id)}
               />
             </li>
           ))}

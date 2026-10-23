@@ -3,22 +3,27 @@ import { ArrowUpSIcon } from '@alfalab/icons-glyph/ArrowUpSIcon';
 
 import type { FeedItem } from '@/shared/api/types';
 import { formatSigned } from '@/shared/lib/format';
+import { impactShare, scaleLabels } from '@/shared/lib/impact';
 
 import styles from './ImpactMeter.module.css';
 
 type Props = {
-  impact: FeedItem['impact'];
+  impact: Pick<FeedItem['impact'], 'score' | 'scale' | 'title' | 'confidence'>;
   size?: 'l' | 'm' | 's';
 };
 
 export function ImpactMeter({ impact, size = 'm' }: Props) {
   const score = Math.min(Math.max(impact.score, -100), 100);
+  const half = impactShare(impact) * 50;
   const tone = score < 0 ? styles.negative : score > 0 ? styles.positive : '';
   const uncertain = impact.confidence === 'low';
   const Arrow = score < 0 ? ArrowDownSIcon : score > 0 ? ArrowUpSIcon : null;
-  const label = `Влияние ${formatSigned(score)} по шкале от −100 до +100: ${impact.title.toLowerCase()}${
+  const scaleText =
+    impact.scale === 'levels' ? 'сумма оценок по вопросам' : 'по шкале от −100 до +100';
+  const label = `Влияние ${formatSigned(score)}, ${scaleText}: ${impact.title.toLowerCase()}${
     uncertain ? ', оценка неуверенная' : ''
   }`;
+  const [left, middle, right] = scaleLabels(impact);
 
   return (
     <span
@@ -34,10 +39,7 @@ export function ImpactMeter({ impact, size = 'm' }: Props) {
       <span className={styles.track} aria-hidden="true">
         <span
           className={styles.fill}
-          style={{
-            left: `${50 + Math.min(score, 0) / 2}%`,
-            width: `${Math.abs(score) / 2}%`,
-          }}
+          style={{ left: `${score < 0 ? 50 - half : 50}%`, width: `${half}%` }}
         />
         <span className={styles.zero} />
       </span>
@@ -48,9 +50,9 @@ export function ImpactMeter({ impact, size = 'm' }: Props) {
       )}
       {size === 'l' && (
         <span className={styles.scale} aria-hidden="true">
-          <span>−100</span>
-          <span>0</span>
-          <span>+100</span>
+          <span>{left}</span>
+          <span>{middle}</span>
+          <span>{right}</span>
         </span>
       )}
     </span>
