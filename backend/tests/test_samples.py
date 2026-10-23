@@ -53,6 +53,9 @@ def test_samples_exercise_every_cleaning_rule() -> None:
         ("companies", "отрицательное значение"),
         ("companies", "заглушка 1000 ₽ вместо выручки, считаем неизвестной"),
         ("companies", "дубликат, оставлена полная строка"),
+        ("companies", "один идентификатор у разных компаний, все строки отброшены"),
+        ("persons", "идентификатор разных компаний, строка отброшена"),
+        ("payments", "идентификатор разных компаний, строка отброшена"),
         ("payments", "нет суммы, строка отброшена"),
         ("payments", "платёж самому себе, строка отброшена"),
         ("persons", "нет идентификатора, строка отброшена"),
@@ -114,6 +117,7 @@ async def test_noisy_companies_answer_not_fail(
     assert response.status_code == 200, response.text
 
 
-async def test_rejected_row_is_not_found(database: asyncpg.Connection) -> None:
+@pytest.mark.parametrize("company_id", ["U_900419", "U_900421"])
+async def test_rejected_row_is_not_found(database: asyncpg.Connection, company_id: str) -> None:
     await store(database, read_case(COMPANIES, LINKS))
-    assert (await call(database, "/api/companies/U_900419/profile")).status_code == 404
+    assert (await call(database, f"/api/companies/{company_id}/profile")).status_code == 404
