@@ -353,6 +353,29 @@
           ],
           "default": null,
           "title": "Timing Source"
+        },
+        "points": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": -100,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Вклад ответа в итог (scale=weighted): сила с учётом срока и того, подтверждён ли канал данными компании",
+          "title": "Points"
+        },
+        "features": {
+          "description": "Признаки компании, через которые канал у неё есть; пусто — канал данными компании не подтверждён",
+          "items": {
+            "$ref": "#/$defs/ImpactFeature"
+          },
+          "title": "Features",
+          "type": "array"
         }
       },
       "required": [
@@ -367,7 +390,7 @@
     },
     "ImpactAssessment": {
       "additionalProperties": false,
-      "description": "Оценка влияния события на бизнес компании: балл от −100 до +100, цвет и обоснование.\nБалл равен сумме вкладов критериев, ограниченной ±100.",
+      "description": "Оценка влияния события на бизнес компании: балл от −100 до +100, цвет и обоснование.\nБалл равен сумме вкладов критериев, ограниченной ±100; при scale=weighted — разнице\nвозможностей и рисков.",
       "properties": {
         "score": {
           "maximum": 100,
@@ -432,7 +455,7 @@
           "title": "Model"
         },
         "answers": {
-          "description": "Вопросы с влиянием: каждый от −2 до +2, итог — их сумма",
+          "description": "Вопросы с влиянием: уровень от −2 до +2 и вклад в итог",
           "items": {
             "$ref": "#/$defs/ImpactAnswer"
           },
@@ -442,13 +465,44 @@
         },
         "scale": {
           "default": "points",
-          "description": "levels — итог равен сумме уровней всех ответов (50 вопросов × ±2 = ±100); points — прежний подсчёт ±20/±50 у сохранённых раньше оценок",
+          "description": "weighted — вклад ответа зависит от уровня, срока и подтверждения данными компании, риски и возможности накапливаются с насыщением до 100; levels и points — прежние подсчёты у сохранённых раньше оценок",
           "enum": [
+            "weighted",
             "levels",
             "points"
           ],
           "title": "Scale",
           "type": "string"
+        },
+        "risk": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сила рисков 0–100 (scale=weighted)",
+          "title": "Risk"
+        },
+        "opportunity": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Сила возможностей 0–100 (scale=weighted)",
+          "title": "Opportunity"
         }
       },
       "required": [
@@ -646,6 +700,30 @@
         "description"
       ],
       "title": "ImpactCriterionInfo",
+      "type": "object"
+    },
+    "ImpactFeature": {
+      "additionalProperties": false,
+      "description": "Признак компании, через который канал влияния у неё есть: кредиты, импорт, контрагент.",
+      "properties": {
+        "id": {
+          "description": "ProfileFeature.id",
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "ImpactFeature",
       "type": "object"
     },
     "ImpactTiming": {
