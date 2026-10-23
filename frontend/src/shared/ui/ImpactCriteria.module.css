@@ -78,26 +78,11 @@
 
 .criterionHead {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 160px 220px 20px;
+  grid-template-columns: minmax(0, 1fr) 160px 220px;
   align-items: center;
   gap: var(--gap-16);
-  width: 100%;
-  margin: calc(-1 * var(--gap-4)) 0;
-  padding: var(--gap-4) var(--gap-8);
-  font: inherit;
   font-size: 15px;
   line-height: 22px;
-  text-align: left;
-  color: inherit;
-  background: none;
-  border: 0;
-  border-radius: var(--radius-8);
-  cursor: pointer;
-  transition: background-color var(--transition);
-}
-
-.criterionHead:hover {
-  background: var(--c-bg-page);
 }
 
 .criterionTitle {
@@ -267,7 +252,7 @@
 }
 
 .compact .criterionHead {
-  grid-template-columns: minmax(0, 1fr) 112px 20px;
+  grid-template-columns: minmax(0, 1fr) 112px;
   gap: 2px var(--gap-12);
   font-size: 14px;
   line-height: 20px;
@@ -283,11 +268,6 @@
 .compact .bar {
   grid-row: 1;
   grid-column: 2;
-}
-
-.compact .chevron {
-  grid-row: 1;
-  grid-column: 3;
 }
 
 .compact .count {
@@ -438,7 +418,7 @@
 @media (max-width: 767px) {
   .criterionHead,
   .compact .criterionHead {
-    grid-template-columns: minmax(0, 1fr) 96px 20px;
+    grid-template-columns: minmax(0, 1fr) 96px;
     gap: var(--gap-4) var(--gap-12);
   }
 
@@ -454,6 +434,70 @@
   }
 }
 
-.criterionHead .chevron {
+.score {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: var(--gap-8);
+  padding: 0 var(--gap-4) 0 var(--gap-8);
+  font: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--c-bg-plate);
+  border: 1px solid var(--c-border-primary);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+
+.score:hover {
+  border-color: currentColor;
+}
+
+.scoreChevron {
+  width: 18px;
+  height: 18px;
+  transition: transform 150ms ease;
+}
+
+.calc {
+  padding: var(--gap-12) var(--gap-16);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-8);
+}
+
+.calcTable {
+  width: 100%;
+  font-size: 14px;
+  line-height: 20px;
+  border-collapse: collapse;
+}
+
+.calcTitle {
+  padding-bottom: var(--gap-8);
+  font-weight: 500;
+  text-align: left;
+}
+
+.calcTable th {
+  padding: 3px var(--gap-16) 3px 0;
+  font-weight: 400;
+  text-align: left;
   color: var(--c-text-secondary);
+}
+
+.calcTable td {
+  padding: 3px 0;
+  color: var(--c-text-primary);
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.calcSum th,
+.calcSum td {
+  padding-top: var(--gap-8);
+  font-weight: 700;
+  color: var(--c-text-primary);
+  border-top: 1px solid var(--c-border-secondary);
 }

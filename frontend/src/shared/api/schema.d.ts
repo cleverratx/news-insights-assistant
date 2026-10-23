@@ -1568,6 +1568,8 @@ export interface components {
        * @description Признаки компании, через которые канал у неё есть; пусто — канал данными компании не подтверждён
        */
       features?: components['schemas']['ImpactFeature'][];
+      /** @description Расчёт вклада ответа по шагам (scale=weighted) */
+      weight?: components['schemas']['ImpactWeight'] | null;
     };
     /**
      * ImpactAssessment
@@ -1727,6 +1729,49 @@ export interface components {
      * @enum {string}
      */
     ImpactTiming: 'now' | 'quarter' | 'year' | 'later';
+    /**
+     * ImpactWeight
+     * @description Как получен вклад ответа: сила до сведения — база уровня, умноженная на срок,
+     *     подтверждение канала данными компании и пересечение с другими ответами критерия; затем
+     *     сила стороны (рисков или возможностей) делится между ответами пропорционально силе.
+     */
+    ImpactWeight: {
+      /**
+       * Base
+       * @description «Заметно» — 30, «существенно» — 60
+       */
+      base: number;
+      /**
+       * Timing
+       * @description Множитель срока
+       */
+      timing: number;
+      /**
+       * Exposure
+       * @description 1 — канал подтверждён данными компании
+       */
+      exposure: number;
+      /**
+       * Overlap
+       * @description 0,5 — не первый ответ того же знака в критерии
+       */
+      overlap: number;
+      /**
+       * Strength
+       * @description Сила до сведения
+       */
+      strength: number;
+      /**
+       * Side Strength
+       * @description Сумма сил всех ответов той же стороны
+       */
+      side_strength: number;
+      /**
+       * Side
+       * @description Сила стороны после насыщения
+       */
+      side: number;
+    };
     /**
      * Importance
      * @description Степень важности материала для компании: 0–10, уровень и вклад каждого фактора.

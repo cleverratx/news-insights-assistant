@@ -150,12 +150,125 @@ function Exposure({ answer }: { answer: Answer }) {
   );
 }
 
-type AnswersProps = { id: string; criterion: Criterion; answers: Answer[]; scored: boolean };
+const decimal = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
 
-function Answers({ id, criterion, answers, scored }: AnswersProps) {
+type Weight = NonNullable<Answer['weight']>;
+
+function factorRows(answer: Answer, weight: Weight, criterion: string): [string, string][] {
+  return [
+    [`Уровень «${levelWords(answer.level)}»`, decimal.format(weight.base)],
+    [`Срок: ${answer.timing_title ?? 'не назван'}`, `× ${decimal.format(weight.timing)}`],
+    [
+      weight.exposure === 1
+        ? 'Канал подтверждён вашими данными'
+        : 'Ваши данные этот канал не подтверждают',
+      `× ${decimal.format(weight.exposure)}`,
+    ],
+    [
+      weight.overlap === 1
+        ? `Главный вопрос критерия «${criterion}» с этим знаком`
+        : `Пересекается с более сильным вопросом критерия «${criterion}»`,
+      `× ${decimal.format(weight.overlap)}`,
+    ],
+  ];
+}
+
+function Calculation({ id, answer, criterion }: { id: string; answer: Answer; criterion: string }) {
+  const weight = answer.weight;
+  if (!weight) return null;
+  const negative = answer.level < 0;
+  const side = negative ? 'рисков' : 'возможностей';
+  const alone = Math.abs(weight.side_strength - weight.strength) < 0.01;
+  const points = answer.points ?? 0;
+
+  return (
+    <div id={id} className={styles.calc}>
+      <table className={styles.calcTable}>
+        <caption className={styles.calcTitle}>Как получилось {formatSigned(points)}</caption>
+        <tbody>
+          {factorRows(answer, weight, criterion).map(([label, value]) => (
+            <tr key={label}>
+              <th scope="row">{label}</th>
+              <td>{value}</td>
+            </tr>
+          ))}
+          <tr className={styles.calcSum}>
+            <th scope="row">Сила вопроса</th>
+            <td>{decimal.format(weight.strength)}</td>
+          </tr>
+          {!alone && (
+            <tr>
+              <th scope="row">
+                Сила всех {side} события: {decimal.format(weight.side_strength)}, с учётом
+                перекрытия — {weight.side} из 100
+              </th>
+              <td />
+            </tr>
+          )}
+          <tr className={styles.calcSum}>
+            <th scope="row">
+              {alone
+                ? `Единственный вопрос среди ${side}`
+                : `Доля вопроса: ${decimal.format(weight.strength)} из ${decimal.format(weight.side_strength)}`}
+            </th>
+            <td className={toneClass(answer.level)}>{formatSigned(points)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+type AnswerProps = { answer: Answer; criterion: string; scored: boolean };
+
+function AnswerItem({ answer, criterion, scored }: AnswerProps) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const explained = scored && answer.points != null && answer.weight != null;
+
+  return (
+    <li className={styles.answer}>
+      <p className={styles.question}>
+        {answer.question}{' '}
+        <span className={toneClass(answer.level)}>{levelWords(answer.level)}</span>
+        {explained ? (
+          <button
+            type="button"
+            className={`${styles.score} ${toneClass(answer.level)}`}
+            aria-expanded={open}
+            aria-controls={id}
+            title="Как посчитана оценка"
+            onClick={() => setOpen((current) => !current)}
+          >
+            {formatSigned(answer.points ?? 0)}
+            <ChevronDownMIcon
+              className={`${styles.scoreChevron} ${open ? styles.chevronOpen : ''}`}
+              aria-hidden="true"
+            />
+          </button>
+        ) : (
+          scored &&
+          answer.points != null && (
+            <span className={toneClass(answer.level)}> · {formatSigned(answer.points)}</span>
+          )
+        )}
+      </p>
+      {open && <Calculation id={id} answer={answer} criterion={criterion} />}
+      <span className={styles.chips}>
+        <Timing item={answer} />
+        {scored && <Exposure answer={answer} />}
+      </span>
+      <p className={styles.reason}>{answer.reason}</p>
+    </li>
+  );
+}
+
+type AnswersProps = { criterion: Criterion; answers: Answer[]; scored: boolean };
+
+function Answers({ criterion, answers, scored }: AnswersProps) {
   if (answers.length === 0) {
     return (
-      <div id={id} className={styles.answers}>
+      <div className={styles.answers}>
         <div className={styles.answer}>
           <span className={styles.chips}>
             <Timing item={criterion} />
@@ -166,22 +279,14 @@ function Answers({ id, criterion, answers, scored }: AnswersProps) {
     );
   }
   return (
-    <ul id={id} className={styles.answers}>
+    <ul className={styles.answers}>
       {answers.map((answer) => (
-        <li key={answer.question_id} className={styles.answer}>
-          <p className={styles.question}>
-            {answer.question}{' '}
-            <span className={toneClass(answer.level)}>
-              {levelWords(answer.level)}
-              {scored && answer.points != null && ` · ${formatSigned(answer.points)}`}
-            </span>
-          </p>
-          <span className={styles.chips}>
-            <Timing item={answer} />
-            {scored && <Exposure answer={answer} />}
-          </span>
-          <p className={styles.reason}>{answer.reason}</p>
-        </li>
+        <AnswerItem
+          key={answer.question_id}
+          answer={answer}
+          criterion={criterion.title}
+          scored={scored}
+        />
       ))}
     </ul>
   );
@@ -194,8 +299,6 @@ type RowProps = {
 };
 
 function CriterionRow({ impact, criterion, description }: RowProps) {
-  const [open, setOpen] = useState(false);
-  const id = useId();
   const scored = weighted(impact);
   const own = (impact.answers ?? [])
     .filter((answer) => answer.criterion === criterion.id)
@@ -216,18 +319,13 @@ function CriterionRow({ impact, criterion, description }: RowProps) {
 
   return (
     <li className={styles.criterion}>
-      <button
-        type="button"
-        className={styles.criterionHead}
-        aria-expanded={open}
-        aria-controls={id}
-        title={description}
-        onClick={() => setOpen((current) => !current)}
-      >
+      <div className={styles.criterionHead} title={description}>
         <span className={styles.criterionTitle}>
           {criterion.title}
           <span className={styles.count}>
-            {counted(count, { one: 'вопрос', few: 'вопроса', many: 'вопросов' })}
+            {count > 1
+              ? `сумма ${counted(count, { one: 'вопроса', few: 'вопросов', many: 'вопросов' })}`
+              : '1 вопрос'}
           </span>
         </span>
         <Bar value={value} share={share} />
@@ -236,12 +334,8 @@ function CriterionRow({ impact, criterion, description }: RowProps) {
             ? 'плюсы и минусы уравновесились'
             : `${levelWords(criterion.level)} · ${contribution}`}
         </span>
-        <ChevronDownMIcon
-          className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
-          aria-hidden="true"
-        />
-      </button>
-      {open && <Answers id={id} criterion={criterion} answers={own} scored={scored} />}
+      </div>
+      <Answers criterion={criterion} answers={own} scored={scored} />
     </li>
   );
 }
