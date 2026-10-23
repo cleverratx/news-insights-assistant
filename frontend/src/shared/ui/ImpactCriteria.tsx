@@ -4,14 +4,21 @@ import { ArrowUpSIcon } from '@alfalab/icons-glyph/ArrowUpSIcon';
 import { ChevronDownMIcon } from '@alfalab/icons-glyph/ChevronDownMIcon';
 
 import type { Feed, FeedItem } from '@/shared/api/types';
-import { formatSigned } from '@/shared/lib/format';
+import { formatSigned, plural } from '@/shared/lib/format';
 
 import styles from './ImpactCriteria.module.css';
+
+type Forms = { one: string; few: string; many: string };
+
+function counted(count: number, forms: Forms): string {
+  return `${count}\u00a0${plural(count, forms)}`;
+}
 
 type Impact = FeedItem['impact'];
 type Criterion = Impact['criteria'][number];
 type Answer = NonNullable<Impact['answers']>[number];
 type CriteriaInfo = Feed['impact_criteria'];
+type Timed = Pick<Criterion, 'timing_title' | 'timing_source'>;
 
 const LEVEL_WORDS: Record<number, string> = {
   [-2]: 'существенно хуже',
@@ -21,7 +28,16 @@ const LEVEL_WORDS: Record<number, string> = {
   2: 'существенно лучше',
 };
 
-const SOURCE_WORDS = { source: 'назван в материале', estimate: 'оценка ИИ' } as const;
+const SOURCE_WORDS = { source: 'срок из материала', estimate: 'оценка ИИ' } as const;
+
+const NOTES: Record<Impact['scale'], string> = {
+  weighted:
+    'Ответ «заметно» даёт до 30, «существенно» — до 60. Меньше, если скажется не скоро или ваши данные этот канал не подтверждают. Риски и возможности копятся до 100, итог — возможности минус риски.',
+  levels:
+    'Каждый вопрос оценивается от −2 до +2, итог — сумма всех оценок. Плюсы и минусы внутри критерия взаимно гасятся.',
+  points:
+    'Уровень критерия — самое сильное влияние среди вопросов его группы, поэтому один эффект не считается дважды.',
+};
 
 export function affectedCriteria(impact: Impact): Criterion[] {
   return impact.criteria
@@ -33,12 +49,28 @@ function levelWords(level: number): string {
   return LEVEL_WORDS[Math.max(-2, Math.min(2, level))] ?? '';
 }
 
-function toneClass(level: number): string {
-  return level < 0 ? styles.downText : level > 0 ? styles.upText : styles.zeroText;
+function toneClass(value: number): string {
+  return value < 0 ? styles.downText : value > 0 ? styles.upText : styles.zeroText;
 }
 
 function weighted(impact: Pick<Impact, 'scale'>): boolean {
   return impact.scale === 'weighted';
+}
+
+function touchedCriteria(impact: Impact): Criterion[] {
+  const answers = impact.answers ?? [];
+  return impact.criteria
+    .filter(
+      (criterion) =>
+        criterion.level !== 0 || answers.some((answer) => answer.criterion === criterion.id),
+    )
+    .sort((a, b) => Math.abs(b.points) - Math.abs(a.points));
+}
+
+function timingText(item: Timed): string {
+  return [item.timing_title, item.timing_source && SOURCE_WORDS[item.timing_source]]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 function Arrow({ level }: { level: number }) {
@@ -65,11 +97,8 @@ export function CriteriaLine({ impact, limit = 3 }: { impact: Impact; limit?: nu
               — {levelWords(criterion.level)}
               {weighted(impact) && ` ${formatSigned(criterion.points)}`}
             </span>
-            {criterion.timing_title && (
-              <span className={styles.meta}> · {criterion.timing_title}</span>
-            )}
-            {criterion.timing_source && (
-              <span className={styles.meta}> · {SOURCE_WORDS[criterion.timing_source]}</span>
+            {timingText(criterion) && (
+              <span className={styles.meta}> · {timingText(criterion)}</span>
             )}
           </span>
         </li>
@@ -81,12 +110,12 @@ export function CriteriaLine({ impact, limit = 3 }: { impact: Impact; limit?: nu
   );
 }
 
-function Bar({ sign, share }: { sign: number; share: number }) {
+function Bar({ value, share }: { value: number; share: number }) {
   return (
     <span className={styles.bar} aria-hidden="true">
-      {sign !== 0 && share > 0 && (
+      {value !== 0 && share > 0 && (
         <span
-          className={`${styles.fill} ${sign < 0 ? styles.fillDown : styles.fillUp}`}
+          className={`${styles.fill} ${value < 0 ? styles.fillDown : styles.fillUp}`}
           style={{ width: `${Math.min(share, 1) * 50}%` }}
         />
       )}
@@ -95,21 +124,15 @@ function Bar({ sign, share }: { sign: number; share: number }) {
   );
 }
 
-function Timing({ item }: { item: Pick<Criterion, 'timing_title' | 'timing_source'> }) {
-  if (!item.timing_title && !item.timing_source) return null;
+function Timing({ item }: { item: Timed }) {
+  const text = timingText(item);
+  if (!text) return null;
   return (
-    <>
-      {item.timing_title && <span className={styles.chip}>{item.timing_title}</span>}
-      {item.timing_source && (
-        <span
-          className={`${styles.chip} ${
-            item.timing_source === 'estimate' ? styles.estimate : styles.sourced
-          }`}
-        >
-          срок: {SOURCE_WORDS[item.timing_source]}
-        </span>
-      )}
-    </>
+    <span
+      className={`${styles.chip} ${item.timing_source === 'source' ? styles.sourced : styles.estimate}`}
+    >
+      {text}
+    </span>
   );
 }
 
@@ -127,24 +150,23 @@ function Exposure({ answer }: { answer: Answer }) {
   );
 }
 
-type AnswersProps = { criterion: Criterion; answers: Answer[]; scored: boolean };
+type AnswersProps = { id: string; criterion: Criterion; answers: Answer[]; scored: boolean };
 
-function Answers({ criterion, answers, scored }: AnswersProps) {
+function Answers({ id, criterion, answers, scored }: AnswersProps) {
   if (answers.length === 0) {
-    if (!criterion.reason) return null;
     return (
-      <div className={styles.answers}>
+      <div id={id} className={styles.answers}>
         <div className={styles.answer}>
           <span className={styles.chips}>
             <Timing item={criterion} />
           </span>
-          <p className={styles.reason}>{criterion.reason}</p>
+          {criterion.reason && <p className={styles.reason}>{criterion.reason}</p>}
         </div>
       </div>
     );
   }
   return (
-    <ul className={styles.answers}>
+    <ul id={id} className={styles.answers}>
       {answers.map((answer) => (
         <li key={answer.question_id} className={styles.answer}>
           <p className={styles.question}>
@@ -165,58 +187,84 @@ function Answers({ criterion, answers, scored }: AnswersProps) {
   );
 }
 
+type RowProps = {
+  impact: Impact;
+  criterion: Criterion;
+  description?: string;
+};
+
+function CriterionRow({ impact, criterion, description }: RowProps) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const scored = weighted(impact);
+  const own = (impact.answers ?? [])
+    .filter((answer) => answer.criterion === criterion.id)
+    .sort(
+      (a, b) =>
+        Math.abs(b.points ?? 0) - Math.abs(a.points ?? 0) ||
+        Math.abs(b.level) - Math.abs(a.level) ||
+        a.level - b.level,
+    );
+  const balanced = criterion.level === 0 && own.length > 0;
+  const value = criterion.points || criterion.level;
+  const share = scored ? Math.abs(criterion.points) / 100 : Math.abs(criterion.level) / 2;
+  const contribution =
+    impact.scale === 'levels'
+      ? `вклад ${formatSigned(criterion.points)}`
+      : formatSigned(criterion.points);
+  const count = own.length || 1;
+
+  return (
+    <li className={styles.criterion}>
+      <button
+        type="button"
+        className={styles.criterionHead}
+        aria-expanded={open}
+        aria-controls={id}
+        title={description}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className={styles.criterionTitle}>
+          {criterion.title}
+          <span className={styles.count}>
+            {counted(count, { one: 'вопрос', few: 'вопроса', many: 'вопросов' })}
+          </span>
+        </span>
+        <Bar value={value} share={share} />
+        <span className={`${styles.criterionLevel} ${toneClass(value)}`}>
+          {balanced
+            ? 'плюсы и минусы уравновесились'
+            : `${levelWords(criterion.level)} · ${contribution}`}
+        </span>
+        <ChevronDownMIcon
+          className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
+          aria-hidden="true"
+        />
+      </button>
+      {open && <Answers id={id} criterion={criterion} answers={own} scored={scored} />}
+    </li>
+  );
+}
+
 type BreakdownProps = { impact: Impact; info?: CriteriaInfo; compact?: boolean };
 
 export function ImpactBreakdown({ impact, info, compact = false }: BreakdownProps) {
   const descriptions = new Map((info ?? []).map((item) => [item.id, item.description]));
-  const answers = impact.answers ?? [];
-  const touched = (criterion: Criterion) =>
-    criterion.level !== 0 || answers.some((answer) => answer.criterion === criterion.id);
-  const criteria = [...impact.criteria].sort(
-    (a, b) => Number(touched(b)) - Number(touched(a)) || Math.abs(b.points) - Math.abs(a.points),
-  );
-  const scored = weighted(impact);
-  const contribution = (points: number) =>
-    impact.scale === 'levels' ? `вклад ${formatSigned(points)}` : formatSigned(points);
-  const share = (criterion: Criterion) =>
-    scored ? Math.abs(criterion.points) / 100 : Math.abs(criterion.level) / 2;
+  const criteria = touchedCriteria(impact);
+  if (criteria.length === 0) {
+    return <p className={styles.none}>Заметного влияния на показатели нет.</p>;
+  }
 
   return (
     <ul className={`${styles.breakdown} ${compact ? styles.compact : ''}`}>
-      {criteria.map((criterion) => {
-        const own = answers
-          .filter((answer) => answer.criterion === criterion.id)
-          .sort(
-            (a, b) =>
-              Math.abs(b.points ?? 0) - Math.abs(a.points ?? 0) ||
-              Math.abs(b.level) - Math.abs(a.level) ||
-              a.level - b.level,
-          );
-        const balanced = criterion.level === 0 && own.length > 0;
-        return (
-          <li
-            key={criterion.id}
-            className={`${styles.criterion} ${touched(criterion) ? '' : styles.idle}`}
-          >
-            <div className={styles.criterionHead}>
-              <span className={styles.criterionTitle} title={descriptions.get(criterion.id)}>
-                {criterion.title}
-              </span>
-              <Bar sign={Math.sign(criterion.points || criterion.level)} share={share(criterion)} />
-              {(!compact || touched(criterion)) && (
-                <span className={`${styles.criterionLevel} ${toneClass(criterion.level)}`}>
-                  {balanced
-                    ? 'плюсы и минусы уравновесились'
-                    : criterion.level === 0
-                      ? levelWords(0)
-                      : `${levelWords(criterion.level)} · ${contribution(criterion.points)}`}
-                </span>
-              )}
-            </div>
-            {touched(criterion) && <Answers criterion={criterion} answers={own} scored={scored} />}
-          </li>
-        );
-      })}
+      {criteria.map((criterion) => (
+        <CriterionRow
+          key={criterion.id}
+          impact={impact}
+          criterion={criterion}
+          description={descriptions.get(criterion.id)}
+        />
+      ))}
     </ul>
   );
 }
@@ -249,45 +297,62 @@ export function ImpactToggle({ impact, info }: BreakdownProps) {
   );
 }
 
-const NOTES: Record<Impact['scale'], string> = {
-  weighted:
-    'Ответ «заметно» даёт до 30, «существенно» — до 60. Меньше, если скажется не скоро или ваши данные этот канал не подтверждают. Риски и возможности копятся до 100, итог — возможности минус риски.',
-  levels:
-    'Каждый вопрос оценивается от −2 до +2, итог — сумма всех оценок. Плюсы и минусы внутри критерия взаимно гасятся.',
-  points:
-    'Уровень критерия — самое сильное влияние среди вопросов его группы, поэтому один эффект не считается дважды.',
-};
+function sideCounts(impact: Impact): [number, number] {
+  const parts = (impact.answers ?? []).length
+    ? (impact.answers ?? []).map((answer) => answer.points ?? answer.level)
+    : impact.criteria.map((criterion) => criterion.points);
+  return [parts.filter((part) => part < 0).length, parts.filter((part) => part > 0).length];
+}
 
-function Sides({ impact }: { impact: Impact }) {
+function Balance({ impact }: { impact: Impact }) {
   const risk = impact.risk ?? 0;
   const opportunity = impact.opportunity ?? 0;
+  const [risks, chances] = sideCounts(impact);
+  const score = impact.score;
+  const label =
+    `Риски ${risk} из 100 (${counted(risks, { one: 'ответ', few: 'ответа', many: 'ответов' })}), ` +
+    `возможности ${opportunity} из 100 (${counted(chances, { one: 'ответ', few: 'ответа', many: 'ответов' })}), ` +
+    `итог ${formatSigned(score)}`;
+
   return (
-    <div
-      className={styles.sides}
-      aria-label={`Риски ${risk} из 100, возможности ${opportunity} из 100`}
-    >
-      <span className={styles.side}>
-        <span>Риски</span>
-        <span className={styles.sideTrack} aria-hidden="true">
-          <span className={`${styles.sideFill} ${styles.sideDown}`} style={{ width: `${risk}%` }} />
-        </span>
-        <b className={styles.downText}>{risk > 0 ? formatSigned(-risk) : '0'}</b>
-      </span>
-      <span className={styles.side}>
-        <span>Возможности</span>
-        <span className={styles.sideTrack} aria-hidden="true">
+    <div className={styles.balance} role="img" aria-label={label}>
+      <span className={styles.balanceTrack} aria-hidden="true">
+        <span className={styles.riskSide} style={{ width: `${risk / 2}%` }} />
+        <span className={styles.chanceSide} style={{ width: `${opportunity / 2}%` }} />
+        {score !== 0 && (
           <span
-            className={`${styles.sideFill} ${styles.sideUp}`}
-            style={{ width: `${opportunity}%` }}
+            className={`${styles.net} ${score < 0 ? styles.netDown : styles.netUp}`}
+            style={{ width: `${Math.min(Math.abs(score), 100) / 2}%` }}
           />
+        )}
+        <span className={styles.zero} />
+      </span>
+      <span className={styles.balanceLegend} aria-hidden="true">
+        <span className={styles.legendRisk}>
+          <ArrowDownSIcon className={`${styles.arrow} ${styles.down}`} />
+          <b>{risk > 0 ? formatSigned(-risk) : '0'}</b>
+          <span>{counted(risks, { one: 'риск', few: 'риска', many: 'рисков' })}</span>
         </span>
-        <b className={styles.upText}>{formatSigned(opportunity)}</b>
+        <span className={`${styles.legendNet} ${toneClass(score)}`}>
+          итог <b>{formatSigned(score)}</b>
+        </span>
+        <span className={styles.legendChance}>
+          <span>
+            {counted(chances, { one: 'возможность', few: 'возможности', many: 'возможностей' })}
+          </span>
+          <b>{formatSigned(opportunity)}</b>
+          <ArrowUpSIcon className={`${styles.arrow} ${styles.up}`} />
+        </span>
       </span>
     </div>
   );
 }
 
 export function CriteriaTable({ impact, info }: BreakdownProps) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const criteria = touchedCriteria(impact);
+
   return (
     <section className={styles.table} aria-labelledby="criteria-title">
       <div className={styles.tableHead}>
@@ -300,12 +365,35 @@ export function CriteriaTable({ impact, info }: BreakdownProps) {
           {impact.confidence === 'low' && ' · оценка неточная'}
         </span>
       </div>
-      {weighted(impact) && <Sides impact={impact} />}
-      {(affectedCriteria(impact).length === 0 || impact.score === 0) && (
+      {weighted(impact) && <Balance impact={impact} />}
+      {criteria.length === 0 ? (
         <p className={styles.none}>{impact.rationale || 'Заметного влияния на показатели нет.'}</p>
+      ) : (
+        <>
+          <button
+            type="button"
+            className={styles.toggle}
+            aria-expanded={open}
+            aria-controls={id}
+            onClick={() => setOpen((value) => !value)}
+          >
+            {open ? 'Скрыть критерии' : 'Из чего складывается оценка'}
+            <span className={styles.toggleCount}>
+              {counted(criteria.length, { one: 'критерий', few: 'критерия', many: 'критериев' })}
+            </span>
+            <ChevronDownMIcon
+              className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
+              aria-hidden="true"
+            />
+          </button>
+          {open && (
+            <div id={id} className={styles.tableBody}>
+              <ImpactBreakdown impact={impact} info={info} />
+              <p className={styles.note}>{NOTES[impact.scale]}</p>
+            </div>
+          )}
+        </>
       )}
-      <ImpactBreakdown impact={impact} info={info} />
-      <p className={styles.note}>{NOTES[impact.scale]}</p>
     </section>
   );
 }

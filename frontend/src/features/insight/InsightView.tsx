@@ -1,6 +1,6 @@
 import type { components } from '@/shared/api/schema';
 import type { GeneratedInsight, LabeledStatement } from '@/shared/api/types';
-import { OriginMark, type Origin } from '@/shared/ui/OriginMark';
+import { OriginMark } from '@/shared/ui/OriginMark';
 
 import { OfferCard } from './OfferCard';
 import styles from './InsightView.module.css';
@@ -20,6 +20,8 @@ const MAGNITUDE: Record<Schemas['Significance'], string> = {
   medium: 'умеренное влияние',
   low: 'слабое влияние',
 };
+
+const ASSUMPTION_HINT = 'Вывод логичен, но прямо в источниках не подтверждён';
 
 const ACTION_KIND: Record<Schemas['ActionKind'], string> = {
   action: 'Действие',
@@ -77,7 +79,6 @@ export function InsightView({ result }: { result: GeneratedInsight }) {
 
   return (
     <div className={styles.view}>
-      <Legend />
       {presentation.blocks.map((block) => (
         <section key={block.id} className={styles.block} aria-labelledby={`block-${block.id}`}>
           <h2 id={`block-${block.id}`} className={styles.blockTitle}>
@@ -97,54 +98,6 @@ export function InsightView({ result }: { result: GeneratedInsight }) {
         </section>
       ))}
     </div>
-  );
-}
-
-const LEGEND: { origin: Origin; text: string }[] = [
-  { origin: 'fact', text: 'Взято из новости или документа. Номер ведёт к оригиналу.' },
-  {
-    origin: 'bank',
-    text: 'Из аналитики Альфа-Банка. Встречается только в разделе «Позиция Альфа-Банка».',
-  },
-  { origin: 'client_data', text: 'Из профиля компании в банке и ваших ответов.' },
-  { origin: 'model', text: 'Сформулировал ИИ по фактам выше и проверил по источникам.' },
-];
-
-function Legend() {
-  return (
-    <section className={styles.legend} aria-labelledby="legend-title">
-      <h2 id="legend-title" className={styles.legendTitle}>
-        Как читать разбор
-      </h2>
-      <dl className={styles.legendList}>
-        {LEGEND.map(({ origin, text }) => (
-          <div
-            key={origin}
-            className={`${styles.legendItem} ${origin === 'model' ? styles.aiStatement : ''}`}
-          >
-            <dt>
-              <OriginMark origin={origin} />
-            </dt>
-            <dd>{text}</dd>
-          </div>
-        ))}
-        <div className={styles.legendItem}>
-          <dt>
-            <span className={styles.assumption}>предположение</span>
-          </dt>
-          <dd>
-            <span className={styles.assumed}>Пунктиром</span> — вывод логичен, но прямо в источниках
-            не подтверждён.
-          </dd>
-        </div>
-        <div className={styles.legendItem}>
-          <dt>
-            <span className={styles.refSample}>1</span>
-          </dt>
-          <dd>Номер источника: нажмите, чтобы увидеть, на чём основано утверждение.</dd>
-        </div>
-      </dl>
-    </section>
   );
 }
 
@@ -188,11 +141,20 @@ function Statement({ row, context }: { row: LabeledStatement; context: Context }
       <div className={styles.marks}>
         <OriginMark origin={statement.origin} />
         {'kind' in statement && <span className={styles.kind}>{ACTION_KIND[statement.kind]}</span>}
-        {assumption && <span className={styles.assumption}>предположение</span>}
+        {assumption && (
+          <span className={styles.assumption} title={ASSUMPTION_HINT}>
+            предположение
+          </span>
+        )}
         {statement.confidence === 'low' && <span className={styles.kind}>уверенность низкая</span>}
       </div>
       <p className={styles.text}>
-        <span className={assumption ? styles.assumed : undefined}>{text}</span>
+        <span
+          className={assumption ? styles.assumed : undefined}
+          title={assumption ? ASSUMPTION_HINT : undefined}
+        >
+          {text}
+        </span>
         {[...new Map(row.source_ids.map((id) => [context.numbers.get(id), id])).entries()].map(
           ([number, id]) => {
             if (!number) return null;

@@ -43,6 +43,9 @@ export function InsightPage() {
   const headline =
     result?.role_view?.headline ?? result?.insight.headline ?? item?.card.title ?? 'Разбор события';
   const original = item?.card.title;
+  const originalUrl =
+    item?.card.url ??
+    result?.presentation.originals?.find((source) => source.type === 'news' && source.url)?.url;
 
   return (
     <div className={styles.page}>
@@ -70,7 +73,21 @@ export function InsightPage() {
               </span>
             </p>
           )}
-          <h1 className={styles.title}>{headline}</h1>
+          <h1 className={styles.title}>
+            {originalUrl ? (
+              <a
+                className={styles.titleLink}
+                href={originalUrl}
+                target="_blank"
+                rel="noreferrer"
+                title="Открыть оригинал новости"
+              >
+                {headline}
+              </a>
+            ) : (
+              headline
+            )}
+          </h1>
           {original && original !== headline && <p className={styles.original}>{original}</p>}
           {result?.role_view && (
             <p className={styles.role}>
