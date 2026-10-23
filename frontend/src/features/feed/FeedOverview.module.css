@@ -81,3 +81,54 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+.directions {
+  display: grid;
+  gap: var(--gap-8);
+  margin-top: var(--gap-8);
+  padding-top: var(--gap-16);
+  border-top: 1px solid var(--c-border-secondary);
+}
+
+.subtitle {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 700;
+}
+
+.directionList {
+  display: grid;
+  gap: var(--gap-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.directionList li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-8);
+}
+
+.arrow {
+  flex: none;
+  font-weight: 700;
+}
+
+.down {
+  color: var(--c-negative-text-a11y);
+}
+
+.up {
+  color: var(--c-positive-text-a11y);
+}
+
+.directionTitle {
+  min-width: 0;
+}
+
+.count {
+  color: var(--c-text-secondary);
+}

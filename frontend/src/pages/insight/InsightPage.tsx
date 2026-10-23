@@ -12,6 +12,7 @@ import { useInsight } from '@/features/insight/useInsight';
 import { useFeed } from '@/shared/api/feed';
 import type { GeneratedInsight } from '@/shared/api/types';
 import { formatAgo, formatDateTime, plural } from '@/shared/lib/format';
+import { CriteriaTable } from '@/shared/ui/ImpactCriteria';
 import { ImpactMeter } from '@/shared/ui/ImpactMeter';
 import { ImportanceRing } from '@/shared/ui/ImportanceRing';
 import { ErrorState } from '@/shared/ui/StateView';
@@ -80,6 +81,8 @@ export function InsightPage() {
           </div>
         )}
       </header>
+
+      {impact && <CriteriaTable impact={impact} />}
 
       <div aria-live="polite" className={styles.body}>
         {insight.loading && <InsightLoading key={insight.key} onCancel={insight.cancel} />}

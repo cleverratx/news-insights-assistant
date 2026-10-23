@@ -1544,7 +1544,10 @@ export interface components {
        * @description Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность
        */
       title: string;
-      /** Criteria */
+      /**
+       * Criteria
+       * @description Все критерии оценки; в сохранённых до расширения оценках их пять
+       */
       criteria: components['schemas']['ImpactCriterion'][];
       /**
        * Rationale
@@ -1609,12 +1612,33 @@ export interface components {
        * @description Почему такой уровень; пусто при 0
        */
       reason?: string | null;
+      /** @description Когда скажется на компании */
+      timing?: components['schemas']['ImpactTiming'] | null;
+      /**
+       * Timing Title
+       * @description Срок словами для карточки
+       */
+      timing_title?: string | null;
+      /**
+       * Timing Source
+       * @description source — срок назван в материале, estimate — оценка ИИ
+       */
+      timing_source?: ('source' | 'estimate') | null;
     };
     /**
      * ImpactCriterionId
      * @enum {string}
      */
-    ImpactCriterionId: 'revenue' | 'costs' | 'market_access' | 'cost_of_money' | 'regulatory';
+    ImpactCriterionId:
+      | 'revenue'
+      | 'costs'
+      | 'market_access'
+      | 'cost_of_money'
+      | 'regulatory'
+      | 'liquidity'
+      | 'fx'
+      | 'counterparties'
+      | 'competition';
     /** ImpactCriterionInfo */
     ImpactCriterionInfo: {
       id: components['schemas']['ImpactCriterionId'];
@@ -1623,6 +1647,11 @@ export interface components {
       /** Description */
       description: string;
     };
+    /**
+     * ImpactTiming
+     * @enum {string}
+     */
+    ImpactTiming: 'now' | 'quarter' | 'year' | 'later';
     /**
      * Importance
      * @description Степень важности материала для компании: 0–10, уровень и вклад каждого фактора.
