@@ -57,7 +57,7 @@ COMPANY_PARSERS: dict[str, Parser] = {
     "okved_code": clean.okved,
     "client_type": lambda cell: clean.choice(cell, CLIENT_TYPES),
     "customs_countries": clean.countries,
-    "revenue_rub": clean.amount,
+    "revenue_rub": clean.revenue,
 }
 
 SCHEMA = """

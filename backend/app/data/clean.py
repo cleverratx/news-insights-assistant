@@ -12,6 +12,7 @@ SPACES = re.compile(r"[\s   ]+")
 CURRENCY = re.compile(r"(руб\.?|₽|rub)$", re.IGNORECASE)
 COUNTRY_SEPARATORS = re.compile(r"[,;/]")
 MAX_EXAMPLE_LINES = 5
+REVENUE_STUB = Decimal("1000.00")
 
 
 @dataclass
@@ -107,6 +108,14 @@ def amount(cell: Cell) -> Decimal | None:
     if parsed == 0:
         cell.problem("нулевое значение")
     return parsed.quantize(Decimal("0.01"))
+
+
+def revenue(cell: Cell) -> Decimal | None:
+    parsed = amount(cell)
+    if parsed == REVENUE_STUB:
+        cell.problem("заглушка 1000 ₽ вместо выручки, считаем неизвестной")
+        return None
+    return parsed
 
 
 def count(cell: Cell) -> int | None:

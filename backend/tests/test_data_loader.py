@@ -102,6 +102,23 @@ def test_bad_amount_becomes_empty_with_issue(raw: str, problem: str) -> None:
     assert issues.summary()[0]["problem"] == problem
 
 
+@pytest.mark.parametrize("raw", ["1000", "1000.0", "1 000,00", "1000 руб."])
+def test_revenue_stub_becomes_empty_with_issue(raw: str) -> None:
+    issues = Issues()
+    assert clean.revenue(cell(raw, issues)) is None
+    assert issues.summary()[0]["problem"] == "заглушка 1000 ₽ вместо выручки, считаем неизвестной"
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("999", Decimal("999.00")), ("1000.5", Decimal("1000.50")), ("10000", Decimal("10000.00"))],
+)
+def test_revenue_near_stub_is_kept(raw: str, expected: Decimal) -> None:
+    issues = Issues()
+    assert clean.revenue(cell(raw, issues)) == expected
+    assert issues.summary() == []
+
+
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [("46.38", "46.38"), ("46,38", "46.38"), ("1.1", "01.1"), ("62.01.", "62.01"), ("X1", None)],
@@ -176,6 +193,31 @@ def test_noisy_companies_are_cleaned(tmp_path: Path) -> None:
     assert ("*", "лишние поля в строке, строка отброшена") in problems
     assert ("*", "не хватает полей в строке") in problems
     assert "Платежей нет" in report["warnings"][0]
+
+
+def test_revenue_stub_is_unknown_but_company_kept(tmp_path: Path) -> None:
+    companies = write(
+        tmp_path / "c.csv",
+        [HEADER, company_line(), company_line(SYNTHETIC_U="U_2", REVENUE_COMPANY="1000.0")],
+    )
+    links = write(
+        tmp_path / "l.csv",
+        [
+            "SYNTHETIC_F;CITY_NAME;RC_NAME;SYNTHETIC_U;BENEFICIARY;PAYER;PAY_AMT;PAY_CNT",
+            ";;;;U_1;U_2;1000;1",
+        ],
+    )
+    data = read_case(companies, links)
+    report = data.report()
+
+    assert data.companies["U_2"]["revenue_rub"] is None
+    assert data.companies["U_1"]["revenue_rub"] == Decimal("18200000000.00")
+    assert report["tables"]["companies"]["loaded"] == 2
+    assert data.payments[("U_2", "U_1")]["amount_rub"] == Decimal("1000.00")
+    stubs = [item for item in report["issues"] if item["column"] == "REVENUE_COMPANY"]
+    assert [(item["problem"], item["count"]) for item in stubs] == [
+        ("заглушка 1000 ₽ вместо выручки, считаем неизвестной", 1)
+    ]
 
 
 def test_report_has_no_raw_identifiers(tmp_path: Path) -> None:
