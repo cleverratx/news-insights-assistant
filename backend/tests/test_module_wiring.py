@@ -4,6 +4,7 @@ import pytest
 
 from app.api import feed as api
 from app.contracts.news import Topic
+from app.contracts.rank import ImpactCriterionId
 from app.rank.roles import Role, weights_for
 from tests.test_api_feed import material
 from tests.test_news_classify import NOW
@@ -36,6 +37,6 @@ async def test_role_feed_assesses_exactly_displayed_materials(
         [shown] = result.items
         assert shown.score.role is not None
         assert result.role == role.value
-        assert len(shown.impact.criteria) == 5
+        assert len(shown.impact.criteria) == len(ImpactCriterionId)
         assert -100 <= shown.impact.score <= 100
     assert len(calls) == 2

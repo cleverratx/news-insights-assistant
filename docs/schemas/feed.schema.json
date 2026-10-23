@@ -302,10 +302,11 @@
           "type": "string"
         },
         "criteria": {
+          "description": "Все критерии оценки; в сохранённых до расширения оценках их пять",
           "items": {
             "$ref": "#/$defs/ImpactCriterion"
           },
-          "maxItems": 5,
+          "maxItems": 9,
           "minItems": 5,
           "title": "Criteria",
           "type": "array"
@@ -451,6 +452,49 @@
           "default": null,
           "description": "Почему такой уровень; пусто при 0",
           "title": "Reason"
+        },
+        "timing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImpactTiming"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Когда скажется на компании"
+        },
+        "timing_title": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Срок словами для карточки",
+          "title": "Timing Title"
+        },
+        "timing_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "source",
+                "estimate"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "source — срок назван в материале, estimate — оценка ИИ",
+          "title": "Timing Source"
         }
       },
       "required": [
@@ -468,7 +512,11 @@
         "costs",
         "market_access",
         "cost_of_money",
-        "regulatory"
+        "regulatory",
+        "liquidity",
+        "fx",
+        "counterparties",
+        "competition"
       ],
       "title": "ImpactCriterionId",
       "type": "string"
@@ -497,6 +545,16 @@
       ],
       "title": "ImpactCriterionInfo",
       "type": "object"
+    },
+    "ImpactTiming": {
+      "enum": [
+        "now",
+        "quarter",
+        "year",
+        "later"
+      ],
+      "title": "ImpactTiming",
+      "type": "string"
     },
     "Importance": {
       "additionalProperties": false,
