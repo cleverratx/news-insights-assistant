@@ -11,6 +11,7 @@ from app.contracts.rank import (
     ImpactAssessment,
     ImpactColor,
     ImpactCriterionId,
+    ImpactFeature,
     ImpactTiming,
 )
 from app.llm.errors import BudgetExceededError
@@ -20,6 +21,7 @@ from app.rank.sentiment import (
     MAX_CARDS,
     RULES_NOTE,
     Effect,
+    Entry,
     assess,
     assessment,
     band_of,
@@ -54,56 +56,83 @@ FIRST_QUESTION = {
 }
 
 
-def judged(key: str, **levels: tuple[str | int, ...]) -> dict[str, Any]:
-    """Ответ модели: имя критерия или номер вопроса (q8) → уровень, причина, срок."""
+def judged(key: str, **levels: tuple[Any, ...]) -> dict[str, Any]:
+    """Ответ модели: имя критерия или номер вопроса (q8) → уровень, причина, срок, признаки."""
     answers = []
     for name, value in levels.items():
         number = FIRST_QUESTION.get(name, name)
         answer: dict[str, Any] = {"q": number, "level": value[0], "reason": value[1]}
-        if len(value) == 4:
+        if len(value) >= 4:
             answer.update(when=value[2], when_from=value[3])
+        if len(value) == 5:
+            answer.update(f=value[4])
         answers.append(answer)
     return {"id": key, "answers": answers, "rationale": f"Итог {key}", "confidence": "high"}
 
 
-def test_score_is_sum_of_criteria_and_capped() -> None:
-    one = assessment(
-        {C.COST_OF_MONEY: Effect(-2, "Ставка останется высокой")}, "Долг дорогой", "llm", "high"
-    )
-    assert one.score == -50 and one.color is ImpactColor.RED and one.title == "Сильный риск"
-    assert one.rationale.startswith("-50: стоимость денег существенно хуже (-50)")
-    assert len(one.criteria) == len(C)
-    assert {criterion.id for criterion in one.criteria if criterion.level == 0} == set(C) - {
-        C.COST_OF_MONEY
-    }
-    many = assessment(
-        {C.REVENUE: Effect(2, "a"), C.COSTS: Effect(2, "b"), C.MARKET_ACCESS: Effect(1, "c")},
+LOAN = (ImpactFeature(id="feature:loan", label="есть кредиты"),)
+
+
+def entry(
+    key: ImpactCriterionId,
+    level: int,
+    timing: ImpactTiming | None = ImpactTiming.NOW,
+    features: tuple[ImpactFeature, ...] = LOAN,
+    question: str | None = None,
+) -> Entry:
+    effect = Effect(level, "Причина", timing, "estimate" if timing else None, features)
+    return Entry(key, effect, question)
+
+
+def test_one_noticeable_confirmed_effect_is_a_risk_and_a_strong_one_is_strong() -> None:
+    one = assessment([entry(C.COST_OF_MONEY, -1)], "Долг дорогой", "llm", "high")
+    assert (one.score, one.risk, one.opportunity) == (-30, 30, 0)
+    assert one.color is ImpactColor.ORANGE and one.title == "Риск"
+    assert one.rationale.startswith("-30 (риски 30): стоимость денег -30")
+    assert one.scale == "weighted" and len(one.criteria) == len(C)
+    strong = assessment([entry(C.COST_OF_MONEY, -2)], "—", "llm", "high")
+    assert strong.score == -60 and strong.title == "Сильный риск"
+
+
+def test_distant_and_unconfirmed_effects_weigh_less() -> None:
+    now = assessment([entry(C.REVENUE, 1)], "—", "llm", "high").score
+    later = assessment([entry(C.REVENUE, 1, ImpactTiming.LATER)], "—", "llm", "high").score
+    bare = assessment([entry(C.REVENUE, 1, features=())], "—", "llm", "high").score
+    assert (now, later, bare) == (30, 14, 18)
+    assert band_of(later)[0] is ImpactColor.LIGHT_GREEN
+    tiny = assessment([entry(C.REVENUE, 1, ImpactTiming.LATER, ())], "—", "llm", "high")
+    assert tiny.score == 8 and tiny.color is ImpactColor.GRAY
+
+
+def test_effects_saturate_within_a_hundred() -> None:
+    many = [entry(key, -2) for key in C]
+    worst = assessment(many, "—", "llm", "high")
+    assert -100 <= worst.score < -99 + 2
+    assert sum(c.points for c in worst.criteria) == worst.score
+    channels = assessment(
+        [entry(C.COST_OF_MONEY, -1, question=q) for q in ("money.debt", "money.leasing")],
         "—",
         "llm",
         "high",
     )
-    assert many.score == 100 and many.color is ImpactColor.GREEN
-    three = assessment(
-        {C.COSTS: Effect(-1, "a"), C.FX: Effect(-1, "b"), C.LIQUIDITY: Effect(-1, "c")},
-        "—",
-        "llm",
-        "low",
-    )
-    assert three.score == -60
+    assert [a.points for a in channels.answers] == [-27, -13]
+    assert channels.score == -40
 
 
 @pytest.mark.parametrize(
     ("score", "color"),
     [
         (-100, ImpactColor.RED),
-        (-50, ImpactColor.RED),
-        (-49, ImpactColor.ORANGE),
-        (-15, ImpactColor.ORANGE),
-        (-14, ImpactColor.GRAY),
-        (14, ImpactColor.GRAY),
-        (15, ImpactColor.LIGHT_GREEN),
-        (49, ImpactColor.LIGHT_GREEN),
-        (50, ImpactColor.GREEN),
+        (-40, ImpactColor.RED),
+        (-39, ImpactColor.ORANGE),
+        (-10, ImpactColor.ORANGE),
+        (-9, ImpactColor.GRAY),
+        (0, ImpactColor.GRAY),
+        (9, ImpactColor.GRAY),
+        (10, ImpactColor.LIGHT_GREEN),
+        (39, ImpactColor.LIGHT_GREEN),
+        (40, ImpactColor.GREEN),
+        (100, ImpactColor.GREEN),
     ],
 )
 def test_color_bands(score: int, color: ImpactColor) -> None:
@@ -112,7 +141,7 @@ def test_color_bands(score: int, color: ImpactColor) -> None:
 
 def test_legend_covers_scale_and_criteria() -> None:
     bands = scale()
-    assert [band.min_score for band in bands] == [-100, -49, -14, 15, 50]
+    assert [band.min_score for band in bands] == [-100, -39, -9, 10, 40]
     assert all(band.hex.startswith("#") for band in bands)
     assert [info.title for info in criteria_info()] == [
         "Выручка и спрос",
@@ -128,10 +157,12 @@ def test_legend_covers_scale_and_criteria() -> None:
 
 
 def test_contract_rejects_inconsistent_score() -> None:
-    good = assessment({C.REVENUE: Effect(1, "Спрос растёт")}, "—", "llm", "medium")
+    good = assessment([entry(C.REVENUE, 1)], "—", "llm", "medium")
     data = good.model_dump()
-    with pytest.raises(ValueError, match="сумме вкладов"):
+    with pytest.raises(ValueError, match="разнице возможностей и рисков"):
         ImpactAssessment.model_validate({**data, "score": 90})
+    with pytest.raises(ValueError, match="силу рисков и возможностей"):
+        ImpactAssessment.model_validate({**data, "score": 40, "opportunity": 40})
 
 
 def test_rules_use_topic_and_sentiment() -> None:
@@ -140,7 +171,7 @@ def test_rules_use_topic_and_sentiment() -> None:
     found = {criterion.id: criterion for criterion in result_.criteria}
     assert found[C.COST_OF_MONEY].level == -1
     assert "ключевая ставка" in (found[C.COST_OF_MONEY].reason or "")
-    assert (result_.score, result_.method, result_.confidence) == (-20, "rules", "low")
+    assert (result_.score, result_.method, result_.confidence) == (-12, "rules", "low")
     assert RULES_NOTE in result_.rationale
 
 
@@ -187,7 +218,7 @@ async def test_level_without_reason_triggers_repair() -> None:
     good = answer(judged("n1", costs=(-1, "Закупки подорожают")))
     llm = FakeLLM(bad, good)
     result_ = await assess(llm, profile(), cards(1))
-    assert result_.impacts["n:0"].score == -20
+    assert result_.impacts["n:0"].score == -12
     assert "Нет причины" in llm.calls[1][-1].content
 
 
@@ -234,7 +265,7 @@ async def test_cached_assessment_skips_model() -> None:
 def test_prompt_lists_criteria_and_marks_news_as_data() -> None:
     text = system_prompt()
     assert all(f"{info.title}:" in text for info in criteria_info())
-    assert "игнорируй" in text
+    assert "игнорируй" in text and '"f": ["feature:loan"]' in text
     user = prompt(profile(), cards(1))
     assert "Почему отобрана: Совпала отрасль" in user
     assert user.endswith("НОВОСТИ>>>")
@@ -259,7 +290,7 @@ async def test_feed_card_carries_impact() -> None:
     llm = ByTask()
     feed = await build_feed(profile(), [oil], llm, now=NOW)
     card = feed.items[0]
-    assert (card.impact.score, card.impact.method) == (50, "llm")
+    assert (card.impact.score, card.impact.method) == (23, "llm")
     assert card.event.polarity is Polarity.OPPORTUNITY
     assert llm.tasks == [Task.RERANK, Task.INTERPRET]
     assert len(feed.impact_scale) == 5 and len(feed.impact_criteria) == len(C)
@@ -274,13 +305,13 @@ def priced(title: str) -> list[tuple[NewsItem, str]]:
 async def test_strong_level_needs_a_figure_from_news_or_company() -> None:
     bare = FakeLLM(answer(judged("n1", cost_of_money=(-2, "Кредиты подорожают"))))
     weak = (await assess(bare, profile(), priced("Ставка 14% сохранена"))).impacts["n:0"]
-    assert weak.score == -20
+    assert (weak.answers[0].level, weak.score) == (-1, -12)
     backed = FakeLLM(answer(judged("n1", cost_of_money=(-2, "Ставка 14% удержит дорогой долг"))))
     strong = (await assess(backed, profile(), priced("Ставка 14% сохранена"))).impacts["n:0"]
-    assert strong.score == -50
+    assert (strong.answers[0].level, strong.score) == (-2, -23)
     invented = FakeLLM(answer(judged("n1", cost_of_money=(-2, "Ставка 17% удорожит долг"))))
     capped = (await assess(invented, profile(), priced("Ставка 14% сохранена"))).impacts["n:0"]
-    assert capped.score == -20
+    assert capped.answers[0].level == -1
 
 
 async def test_model_answers_only_affected_criteria() -> None:
@@ -313,11 +344,19 @@ async def test_missing_timing_falls_back_to_news_horizon() -> None:
     assert (moved.timing, moved.timing_source) == (ImpactTiming.YEAR, "estimate")
 
 
-def test_contract_keeps_old_five_criteria_assessments_readable() -> None:
-    data = assessment({C.REVENUE: Effect(1, "Спрос растёт")}, "—", "llm", "medium").model_dump()
+def test_contract_keeps_old_points_assessments_readable() -> None:
+    data = assessment([entry(C.REVENUE, 1)], "—", "llm", "medium").model_dump()
+    for name in ("scale", "risk", "opportunity"):
+        data.pop(name)
     legacy = {"revenue", "costs", "market_access", "cost_of_money", "regulatory"}
-    old = [c for c in data["criteria"] if c["id"] in legacy]
-    assert ImpactAssessment.model_validate({**data, "criteria": old}).score == 20
+    old = [
+        {**c, "points": 20} if c["id"] == "revenue" else c
+        for c in data["criteria"]
+        if c["id"] in legacy
+    ]
+    old = [{**c, "timing": None, "timing_title": None, "timing_source": None} for c in old]
+    stored = ImpactAssessment.model_validate({**data, "criteria": old, "score": 20})
+    assert (stored.score, stored.scale) == (20, "points")
 
 
 async def test_news_figures_without_a_date_are_not_a_stated_term() -> None:
@@ -332,58 +371,56 @@ async def test_news_figures_without_a_date_are_not_a_stated_term() -> None:
     assert moved.timing_source == "source"
 
 
-async def test_questions_in_one_group_are_not_double_counted() -> None:
+async def test_channels_of_one_criterion_overlap_and_add_up_to_the_score() -> None:
     llm = FakeLLM(
         answer(
             judged(
                 "n1",
-                q14=(-1, "Долг подорожает"),
-                q15=(-1, "Лизинг подорожает"),
-                q16=(-1, "Новые кредиты дороже"),
-                q24=(1, "Импорт дешевле"),
+                q14=(-1, "Долг подорожает", "now", "estimate", ["feature:loan"]),
+                q15=(-1, "Лизинг подорожает", "now", "estimate", ["feature:loan"]),
+                q16=(-1, "Новые кредиты дороже", "now", "estimate", ["feature:loan"]),
+                q24=(1, "Импорт дешевле", "now", "estimate", ["feature:missing"]),
             )
         )
     )
     found = (await assess(llm, profile(), cards(1))).impacts["n:0"]
-    levels = {c.id: c.level for c in found.criteria if c.level}
-    assert levels == {C.COST_OF_MONEY: -1, C.FX: 1}
-    assert found.score == 0
-    assert [a.question_id for a in found.answers] == [
-        "money.debt",
-        "money.leasing",
-        "money.funding",
-        "fx.imports",
-    ]
+    assert [a.points for a in found.answers] == [-25, -12, -12, 18]
+    assert (found.risk, found.opportunity, found.score) == (49, 18, -31)
+    moved = {c.id: (c.points, c.level) for c in found.criteria if c.points}
+    assert moved == {C.COST_OF_MONEY: (-49, -1), C.FX: (18, 1)}
+    assert [f.id for f in found.answers[0].features] == ["feature:loan"]
+    assert found.answers[3].features == []
     assert found.answers[0].question.startswith("Как событие скажется через")
 
 
-async def test_strongest_answer_sets_the_criterion_and_risk_wins_a_tie() -> None:
-    llm = FakeLLM(answer(judged("n1", q7=(1, "Сырьё дешевле"), q9=(-1, "Логистика дороже"))))
-    found = (await assess(llm, profile(), cards(1))).impacts["n:0"]
-    [costs] = [c for c in found.criteria if c.level]
-    assert (costs.id, costs.level, costs.reason) == (C.COSTS, -1, "Логистика дороже")
+async def test_risks_and_opportunities_that_balance_are_called_mixed() -> None:
+    balanced = FakeLLM(answer(judged("n1", q7=(1, "Сырьё дешевле"), q9=(-1, "Логистика дороже"))))
+    found = (await assess(balanced, profile(), cards(1))).impacts["n:0"]
+    assert (found.score, found.risk, found.opportunity) == (0, 12, 12)
+    assert found.title == "Двоякое влияние" and "уравновешены" in found.rationale
+    assert all(c.points == 0 and c.reason is None for c in found.criteria)
+    tilted = FakeLLM(
+        answer(
+            judged(
+                "n1",
+                q7=(1, "Сырьё дешевле"),
+                q9=(-1, "Логистика дороже"),
+                q8=(-1, "Поставщик поднял цены"),
+            )
+        )
+    )
+    found = (await assess(tilted, profile(), cards(1))).impacts["n:0"]
+    [costs] = [c for c in found.criteria if c.points]
+    assert (costs.points, costs.reason) == (-5, "Логистика дороже")
 
 
 def test_contract_rejects_criterion_that_ignores_its_answers() -> None:
-    from app.contracts.rank import ImpactAnswer
-
-    answers = [
-        ImpactAnswer(
-            question_id="costs.logistics",
-            question="Как событие скажется через логистику и транспорт?",
-            criterion=C.COSTS,
-            level=-2,
-            reason="Тарифы РЖД +12%",
-        )
-    ]
-    good = assessment({C.COSTS: Effect(-2, "Тарифы РЖД +12%")}, "—", "llm", "high", None, answers)
-    data = good.model_dump()
-    data["criteria"] = [
-        {**c, "level": -1, "points": -20} if c["id"] == "costs" else c for c in data["criteria"]
-    ]
-    data["score"] = -20
-    with pytest.raises(ValueError, match="самому сильному ответу"):
-        ImpactAssessment.model_validate(data)
+    good = assessment(
+        [entry(C.COSTS, -2, question="costs.logistics")], "—", "llm", "high"
+    ).model_dump()
+    good["criteria"] = [{**c, "points": -30} if c["id"] == "costs" else c for c in good["criteria"]]
+    with pytest.raises(ValueError, match="сумме вкладов его вопросов"):
+        ImpactAssessment.model_validate(good)
 
 
 async def test_unknown_question_numbers_are_dropped() -> None:
@@ -399,3 +436,63 @@ def test_prompt_lists_all_fifty_general_questions() -> None:
     assert len(QUESTIONS) == 50 and len({q for q, _, _ in QUESTIONS}) == 50
     assert all(f"q{index}. " in text for index in range(1, 51))
     assert {criterion for _, criterion, _ in QUESTIONS} == set(C)
+
+
+async def test_refined_impact_replaces_batch_estimate_in_feed() -> None:
+    from app.rank.sentiment import refine
+
+    cache = MemoryCache()
+    news, why = cards(1)[0]
+    reply = answer(judged("n1", q14=(-1, "Ставка удержит долг дорогим")))
+    refined = await refine(
+        FakeLLM(reply), profile(), news, why, ["Ставка 14% держит долг дорогим"], cache
+    )  # type: ignore[arg-type]
+    assert refined is not None and refined.score == -12
+    down = FakeLLM(BudgetExceededError("Бюджет исчерпан"))
+    feed = await assess(down, profile(), [(news, why)], cache)  # type: ignore[arg-type]
+    assert down.calls == [] and feed.impacts[news.id] == refined
+
+
+def test_rules_count_exposure_from_profile_as_confirmed() -> None:
+    from app.contracts.profile import Exposure, ExposureDirection
+
+    rate = item(topics=[Topic.KEY_RATE], sentiment="negative")
+    exposed = profile(
+        exposures=[
+            Exposure(
+                topic=Topic.KEY_RATE,
+                direction=ExposureDirection.RISK,
+                reason="Кредиты в банке",
+                feature_ids=["feature:loan"],
+            )
+        ]
+    )
+    plain = rules_impact(rate, profile()).score
+    confirmed = rules_impact(rate, exposed).score
+    assert (plain, confirmed) == (-12, -20)
+
+
+async def test_each_answer_explains_its_points_step_by_step() -> None:
+    llm = FakeLLM(
+        answer(
+            judged(
+                "n1",
+                q14=(-1, "Долг подорожает", "quarter", "estimate", ["feature:loan"]),
+                q16=(-1, "Новые кредиты дороже", "quarter", "estimate", ["feature:loan"]),
+                q7=(-1, "Сырьё дороже", "year", "estimate"),
+            )
+        )
+    )
+    found = (await assess(llm, profile(), cards(1))).impacts["n:0"]
+    debt, funding, materials = found.answers
+    assert debt.weight is not None and funding.weight is not None
+    assert materials.weight is not None
+    assert (debt.weight.base, debt.weight.timing, debt.weight.exposure) == (30, 0.85, 1.0)
+    assert (debt.weight.overlap, funding.weight.overlap) == (1.0, 0.5)
+    assert (materials.weight.exposure, materials.weight.timing) == (0.6, 0.65)
+    assert debt.weight.strength == 25.5 and funding.weight.strength == 12.75
+    assert debt.weight.side == found.risk == 43
+    for reply in found.answers:
+        assert reply.weight is not None
+        share = reply.weight.side * reply.weight.strength / reply.weight.side_strength
+        assert abs(abs(reply.points or 0) - share) < 1

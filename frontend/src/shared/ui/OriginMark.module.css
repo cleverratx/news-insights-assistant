@@ -1,0 +1,54 @@
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px var(--gap-8);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  border-radius: var(--radius-pill);
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.fact {
+  color: var(--c-text-secondary);
+  background: var(--c-bg-page);
+}
+
+.fact .dot {
+  background: var(--c-graphic-secondary);
+}
+
+.bank {
+  color: var(--c-negative-text-a11y);
+  background: var(--c-negative-muted);
+}
+
+.bank .dot {
+  background: var(--c-accent);
+}
+
+.client {
+  color: var(--c-info-text-a11y);
+  background: var(--c-info-muted);
+}
+
+.client .dot {
+  background: var(--c-info);
+}
+
+.model {
+  color: var(--c-ai-text);
+  background: var(--c-plate-on-ai, var(--c-ai-muted));
+}
+
+.model .dot {
+  background: var(--c-ai);
+}

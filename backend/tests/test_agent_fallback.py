@@ -23,6 +23,7 @@ from tests.test_agent_critic import context, draft
 from tests.test_agent_tools import Replies
 from tests.test_rank_rules import feature, item, profile
 
+UNCHANGED = '{"assessments":[{"id":"n1","answers":[],"rationale":"Влияние прежнее"}]}'
 SOURCE = "Тарифы на перевозку выросли на 12,5%, выручка отрасли — 3,3 млрд руб. за квартал."
 
 
@@ -92,7 +93,7 @@ def with_bad_risk(db: Database) -> dict[str, Any]:
 async def test_figures_without_source_are_hidden_and_rest_is_verified() -> None:
     db = with_figures(Database())
     value = with_bad_risk(db)
-    llm = Replies(finish(value), finish(value), '{"issues":[]}')
+    llm = Replies(finish(value), finish(value), '{"issues":[]}', UNCHANGED, UNCHANGED)
     result, trace = await generate_with_trace(
         profile(), [db.news, db.bank], db, llm, limits=Limits(max_critic_reviews=2)
     )
@@ -104,7 +105,7 @@ async def test_figures_without_source_are_hidden_and_rest_is_verified() -> None:
     assert len(numbers) == 1 and not numbers[0].blocking
     assert result.insight.self_check.iterations == 3
     assert len(trace.checks) == 3 and trace.checks[-1].passed
-    assert len(llm.messages) == 3
+    assert len(llm.messages) == 5
 
 
 async def test_other_problems_are_not_salvaged() -> None:
@@ -263,7 +264,9 @@ DISPUTED = (
 async def test_disputed_statements_are_hidden_and_rest_is_verified() -> None:
     db = Database()
     value = with_second_risk(db)
-    llm = Replies(finish(value), DISPUTED, finish(value), DISPUTED, '{"issues":[]}')
+    llm = Replies(
+        finish(value), DISPUTED, finish(value), DISPUTED, '{"issues":[]}', UNCHANGED, UNCHANGED
+    )
     result = await generate(
         profile(), [db.news, db.bank], db, llm, limits=Limits(max_critic_reviews=2)
     )
@@ -274,7 +277,7 @@ async def test_disputed_statements_are_hidden_and_rest_is_verified() -> None:
     assert not gap.blocking and "Скрыто выводов: 1" in gap.consequence
     assert gap.details == ["Потеря покупателей не следует из источника"]
     assert not [g for g in result.gaps if g.kind is GapKind.NUMBERS and "Скрыто" in g.consequence]
-    assert len(llm.messages) == 5
+    assert len(llm.messages) == 7
 
 
 async def test_general_semantic_objection_is_not_salvaged() -> None:
@@ -348,7 +351,7 @@ async def test_statement_with_unknown_source_is_hidden_and_rest_is_verified() ->
     db = Database()
     value = with_second_risk(db)
     value["risks"][1]["source_ids"] = ["missing"]
-    llm = Replies(finish(value), finish(value), '{"issues":[]}')
+    llm = Replies(finish(value), finish(value), '{"issues":[]}', UNCHANGED, UNCHANGED)
     result = await generate(
         profile(), [db.news, db.bank], db, llm, limits=Limits(max_critic_reviews=2)
     )
@@ -356,7 +359,7 @@ async def test_statement_with_unknown_source_is_hidden_and_rest_is_verified() ->
     assert "risk2" not in {s.id for s in result.insight.statements()}
     [gap] = [g for g in result.gaps if g.kind is GapKind.VERIFICATION]
     assert "Утверждение ссылается на неизвестный источник" in gap.details
-    assert len(llm.messages) == 3
+    assert len(llm.messages) == 5
 
 
 async def test_trace_keeps_text_of_disputed_statements() -> None:

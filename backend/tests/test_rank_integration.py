@@ -163,7 +163,7 @@ async def test_remote_background_can_be_displayed_below_threshold():
     assert hidden.items == [] and hidden.hidden_below_threshold == 1
 
 
-async def test_ready_insight_keeps_feed_scores_without_another_impact_call():
+async def test_ready_insight_refines_impact_from_its_conclusions():
     from app.agent.tools import Decision
     from tests.test_agent_critic import draft
     from tests.test_agent_tools import Replies
@@ -178,7 +178,11 @@ async def test_ready_insight_keeps_feed_scores_without_another_impact_call():
         arguments={"doc_id": db.bank.id, "fragment_id": db.bank.fragments[1].id},
     ).model_dump_json()
     finish = Decision(action="finish", reason="Готово", output=draft(db)).model_dump_json()
-    llm = Replies(original, finish, '{"issues":[]}')
+    refined = (
+        '{"assessments":[{"id":"n1","answers":[{"q":"q14","level":-1,'
+        '"reason":"Ставка удержит долг дорогим"}],"rationale":"Долг дороже"}]}'
+    )
+    llm = Replies(original, finish, '{"issues":[]}', refined)
     result, trace = await generate_with_trace(
         company,
         [db.news],
@@ -191,6 +195,11 @@ async def test_ready_insight_keeps_feed_scores_without_another_impact_call():
     assert result.insight.status == "ready"
     assert result.insight.relevance == cards[0].score.final
     assert result.insight.significance == cards[0].significance
-    assert result.ranking[0].impact == cards[0].impact
+    impact = result.ranking[0].impact
+    assert impact != cards[0].impact
+    assert [(a.question_id, a.level) for a in impact.answers] == [("money.debt", -1)]
+    assert impact.score == impact.answers[0].points and impact.score < 0
+    assert impact.method == "llm"
+    assert "проверенные выводы разбора" in llm.messages[-1][1].content
     assert result.ranking == trace.ranking
-    assert result.usage.calls == len(llm.messages) == 3
+    assert result.usage.calls == len(llm.messages) == 4

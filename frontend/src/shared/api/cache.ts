@@ -1,9 +1,13 @@
+import { useSyncExternalStore } from 'react';
+
 import { apiGet } from '@/shared/api/client';
 import { useLoader, type ApiState } from '@/shared/api/useApi';
 
 const TTL_MS = 5 * 60 * 1000;
 
 const entries = new Map<string, { at: number; promise: Promise<unknown> }>();
+const listeners = new Set<() => void>();
+let version = 0;
 
 function cachedGet<T>(path: string): Promise<T> {
   const hit = entries.get(path);
@@ -14,12 +18,26 @@ function cachedGet<T>(path: string): Promise<T> {
   return promise;
 }
 
-async function loadCached<T>(path: string, signal: AbortSignal): Promise<T> {
-  const data = await cachedGet<T>(path);
+async function loadCached<T>(key: string, signal: AbortSignal): Promise<T> {
+  const data = await cachedGet<T>(key.slice(key.indexOf('|') + 1));
   signal.throwIfAborted();
   return data;
 }
 
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function invalidateCached(prefix: string) {
+  [...entries.keys()].filter((key) => key.startsWith(prefix)).forEach((key) => entries.delete(key));
+  version += 1;
+  listeners.forEach((listener) => listener());
+}
+
 export function useCachedApi<T>(path: string | null): ApiState<T> {
-  return useLoader<T>(path, loadCached);
+  const current = useSyncExternalStore(subscribe, () => version);
+  return useLoader<T>(path === null ? null : `${current}|${path}`, loadCached);
 }

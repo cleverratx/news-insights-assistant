@@ -2,9 +2,9 @@
   display: grid;
   min-width: 0;
   gap: var(--gap-20);
-  padding-top: var(--gap-24);
-  margin-top: var(--gap-8);
-  border-top: 1px solid var(--c-border-secondary);
+  padding: var(--gap-24);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
   scroll-margin-top: calc(var(--header-height) + var(--gap-24));
 }
 .heading {

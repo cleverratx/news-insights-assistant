@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router';
 import { AppShell } from '@/app/AppShell';
 import { FeedPage } from '@/pages/feed/FeedPage';
 import { HomePage } from '@/pages/home/HomePage';
+import { InsightPage } from '@/pages/insight/InsightPage';
 import { LoginPage } from '@/pages/login/LoginPage';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
 
@@ -13,6 +14,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'feed', element: <FeedPage /> },
+      { path: 'news/:newsId', element: <InsightPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

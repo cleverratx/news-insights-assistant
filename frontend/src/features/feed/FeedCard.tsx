@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router';
 
 import type { Feed, FeedItem } from '@/shared/api/types';
 import { formatAgo, plural } from '@/shared/lib/format';
 import { MARKER_TITLES } from '@/shared/lib/markers';
+import { CriteriaLine } from '@/shared/ui/ImpactCriteria';
 import { ImpactMeter } from '@/shared/ui/ImpactMeter';
 import { ImportanceRing } from '@/shared/ui/ImportanceRing';
 
@@ -12,16 +14,15 @@ type Props = {
   item: FeedItem;
   feed: Feed;
   isFresh: boolean;
-  active: boolean;
-  onOpen: (item: FeedItem) => void;
+  to: { pathname: string; search: string };
 };
 
-export function FeedCard({ item, feed, isFresh, active, onOpen }: Props) {
+export function FeedCard({ item, feed, isFresh, to }: Props) {
   const { card, event } = item;
   const markers = event.markers ?? [];
 
   return (
-    <article className={`${styles.card} ${active ? styles.active : ''}`}>
+    <article className={styles.card}>
       <div className={styles.scores}>
         <ImportanceRing importance={item.importance} scale={feed.importance_scale} />
         <ImpactMeter impact={item.impact} size="s" />
@@ -33,14 +34,14 @@ export function FeedCard({ item, feed, isFresh, active, onOpen }: Props) {
           <time dateTime={card.published_at}>{formatAgo(card.published_at)}</time>
         </p>
         <h2 className={styles.title}>
-          <button type="button" className={styles.open} onClick={() => onOpen(item)}>
+          <Link className={styles.open} to={to}>
             {isFresh && (
               <span className={styles.newDot}>
                 <span className={styles.srOnly}>Новое: </span>
               </span>
             )}
             {card.title}
-          </button>
+          </Link>
         </h2>
         {item.explanation && (
           <p className={styles.reason}>
@@ -48,6 +49,7 @@ export function FeedCard({ item, feed, isFresh, active, onOpen }: Props) {
             {item.explanation}
           </p>
         )}
+        <CriteriaLine impact={item.impact} />
         <div className={styles.footer}>
           {item.kind === 'bank_analytics' && (
             <span className={`${styles.chip} ${styles.bank}`}>Аналитика Альфа-Банка</span>

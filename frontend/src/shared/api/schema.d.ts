@@ -529,7 +529,7 @@ export interface components {
        * @description Заполняет сервер: фрагменты документов и признаки, подтверждающие текст
        */
       basis?: components['schemas']['Basis'][];
-      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — подтверждения нет, это предположение модели */
+      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — предположение модели: подтверждения нет, риск или возможность не связаны одновременно с событием и признаком компании, модель не уверена или это сценарий */
       support?: components['schemas']['Support'] | null;
       kind: components['schemas']['ActionKind'];
       product?: components['schemas']['BankProduct'] | null;
@@ -596,6 +596,11 @@ export interface components {
        * @description Связь каждого утверждения с фрагментами документов
        */
       claims?: components['schemas']['TraceClaim'][];
+      /**
+       * Rejected
+       * @description Оспоренные проверкой утверждения черновиков: текст модели и замечания
+       */
+      rejected?: components['schemas']['TraceRejection'][];
     };
     /**
      * AllowedModel
@@ -1441,6 +1446,12 @@ export interface components {
        * @default false
        */
       cache_hit: boolean;
+      /**
+       * Disclaimer
+       * @description Обязательная пометка под разбором: кто составил и что это не рекомендация
+       * @default Разбор подготовил ИИ по материалам ленты и аналитике Альфа-Банка. Позиция банка — только в разделе «Позиция Альфа-Банка», остальные выводы не являются официальной позицией банка. Не является инвестиционной рекомендацией.
+       */
+      disclaimer: string;
     };
     /** GenerationUsage */
     GenerationUsage: {
@@ -1513,16 +1524,58 @@ export interface components {
        * @description Заполняет сервер: фрагменты документов и признаки, подтверждающие текст
        */
       basis?: components['schemas']['Basis'][];
-      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — подтверждения нет, это предположение модели */
+      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — предположение модели: подтверждения нет, риск или возможность не связаны одновременно с событием и признаком компании, модель не уверена или это сценарий */
       support?: components['schemas']['Support'] | null;
       /** Horizon */
       horizon?: ('short' | 'medium' | 'long') | null;
       magnitude?: components['schemas']['Significance'] | null;
     };
     /**
+     * ImpactAnswer
+     * @description Ответ на один из общих вопросов о том, через что событие доходит до бизнеса компании.
+     */
+    ImpactAnswer: {
+      /**
+       * Question Id
+       * @description Идентификатор вопроса, например costs.suppliers
+       */
+      question_id: string;
+      /**
+       * Question
+       * @description Вопрос словами для сводки по клику
+       */
+      question: string;
+      criterion: components['schemas']['ImpactCriterionId'];
+      /**
+       * Level
+       * @description −2 существенно хуже … +2 существенно лучше
+       */
+      level: number;
+      /** Reason */
+      reason: string;
+      timing?: components['schemas']['ImpactTiming'] | null;
+      /** Timing Title */
+      timing_title?: string | null;
+      /** Timing Source */
+      timing_source?: ('source' | 'estimate') | null;
+      /**
+       * Points
+       * @description Вклад ответа в итог (scale=weighted): сила с учётом срока и того, подтверждён ли канал данными компании
+       */
+      points?: number | null;
+      /**
+       * Features
+       * @description Признаки компании, через которые канал у неё есть; пусто — канал данными компании не подтверждён
+       */
+      features?: components['schemas']['ImpactFeature'][];
+      /** @description Расчёт вклада ответа по шагам (scale=weighted) */
+      weight?: components['schemas']['ImpactWeight'] | null;
+    };
+    /**
      * ImpactAssessment
      * @description Оценка влияния события на бизнес компании: балл от −100 до +100, цвет и обоснование.
-     *     Балл равен сумме вкладов критериев, ограниченной ±100.
+     *     Балл равен сумме вкладов критериев, ограниченной ±100; при scale=weighted — разнице
+     *     возможностей и рисков.
      */
     ImpactAssessment: {
       /** Score */
@@ -1530,10 +1583,13 @@ export interface components {
       color: components['schemas']['ImpactColor'];
       /**
        * Title
-       * @description Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность
+       * @description Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность; Двоякое влияние — плюсы и минусы в сумме дали ноль
        */
       title: string;
-      /** Criteria */
+      /**
+       * Criteria
+       * @description Все критерии оценки; в сохранённых до расширения оценках их пять
+       */
       criteria: components['schemas']['ImpactCriterion'][];
       /**
        * Rationale
@@ -1553,6 +1609,28 @@ export interface components {
       confidence: 'low' | 'medium' | 'high';
       /** Model */
       model?: string | null;
+      /**
+       * Answers
+       * @description Вопросы с влиянием: уровень от −2 до +2 и вклад в итог
+       */
+      answers?: components['schemas']['ImpactAnswer'][];
+      /**
+       * Scale
+       * @description weighted — вклад ответа зависит от уровня, срока и подтверждения данными компании, риски и возможности накапливаются с насыщением до 100; levels и points — прежние подсчёты у сохранённых раньше оценок
+       * @default points
+       * @enum {string}
+       */
+      scale: 'weighted' | 'levels' | 'points';
+      /**
+       * Risk
+       * @description Сила рисков 0–100 (scale=weighted)
+       */
+      risk?: number | null;
+      /**
+       * Opportunity
+       * @description Сила возможностей 0–100 (scale=weighted)
+       */
+      opportunity?: number | null;
     };
     /**
      * ImpactBand
@@ -1590,7 +1668,7 @@ export interface components {
       level: number;
       /**
        * Points
-       * @description Вклад в балл: ±20 — заметно, ±50 — существенно
+       * @description Вклад в итог: сумма уровней ответов группы (scale=levels) или ±20/±50 в оценках до перехода на сумму (scale=points)
        */
       points: number;
       /**
@@ -1598,12 +1676,33 @@ export interface components {
        * @description Почему такой уровень; пусто при 0
        */
       reason?: string | null;
+      /** @description Когда скажется на компании */
+      timing?: components['schemas']['ImpactTiming'] | null;
+      /**
+       * Timing Title
+       * @description Срок словами для карточки
+       */
+      timing_title?: string | null;
+      /**
+       * Timing Source
+       * @description source — срок назван в материале, estimate — оценка ИИ
+       */
+      timing_source?: ('source' | 'estimate') | null;
     };
     /**
      * ImpactCriterionId
      * @enum {string}
      */
-    ImpactCriterionId: 'revenue' | 'costs' | 'market_access' | 'cost_of_money' | 'regulatory';
+    ImpactCriterionId:
+      | 'revenue'
+      | 'costs'
+      | 'market_access'
+      | 'cost_of_money'
+      | 'regulatory'
+      | 'liquidity'
+      | 'fx'
+      | 'counterparties'
+      | 'competition';
     /** ImpactCriterionInfo */
     ImpactCriterionInfo: {
       id: components['schemas']['ImpactCriterionId'];
@@ -1611,6 +1710,67 @@ export interface components {
       title: string;
       /** Description */
       description: string;
+    };
+    /**
+     * ImpactFeature
+     * @description Признак компании, через который канал влияния у неё есть: кредиты, импорт, контрагент.
+     */
+    ImpactFeature: {
+      /**
+       * Id
+       * @description ProfileFeature.id
+       */
+      id: string;
+      /** Label */
+      label: string;
+    };
+    /**
+     * ImpactTiming
+     * @enum {string}
+     */
+    ImpactTiming: 'now' | 'quarter' | 'year' | 'later';
+    /**
+     * ImpactWeight
+     * @description Как получен вклад ответа: сила до сведения — база уровня, умноженная на срок,
+     *     подтверждение канала данными компании и пересечение с другими ответами критерия; затем
+     *     сила стороны (рисков или возможностей) делится между ответами пропорционально силе.
+     */
+    ImpactWeight: {
+      /**
+       * Base
+       * @description «Заметно» — 30, «существенно» — 60
+       */
+      base: number;
+      /**
+       * Timing
+       * @description Множитель срока
+       */
+      timing: number;
+      /**
+       * Exposure
+       * @description 1 — канал подтверждён данными компании
+       */
+      exposure: number;
+      /**
+       * Overlap
+       * @description 0,5 — не первый ответ того же знака в критерии
+       */
+      overlap: number;
+      /**
+       * Strength
+       * @description Сила до сведения
+       */
+      strength: number;
+      /**
+       * Side Strength
+       * @description Сумма сил всех ответов той же стороны
+       */
+      side_strength: number;
+      /**
+       * Side
+       * @description Сила стороны после насыщения
+       */
+      side: number;
     };
     /**
      * Importance
@@ -2805,7 +2965,7 @@ export interface components {
        * @description Заполняет сервер: фрагменты документов и признаки, подтверждающие текст
        */
       basis?: components['schemas']['Basis'][];
-      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — подтверждения нет, это предположение модели */
+      /** @description Заполняет сервер: source — подтверждено фрагментом документа, company_data — данными компании, assumption — предположение модели: подтверждения нет, риск или возможность не связаны одновременно с событием и признаком компании, модель не уверена или это сценарий */
       support?: components['schemas']['Support'] | null;
     };
     /**
@@ -2882,6 +3042,29 @@ export interface components {
       url?: string | null;
       /** Chunks */
       chunks: components['schemas']['TraceChunk'][];
+    };
+    /**
+     * TraceRejection
+     * @description Утверждение черновика, которое проверка оспорила: что именно написала модель и почему
+     *     это не показано как есть. Пользователь видит только число скрытых выводов и причины.
+     */
+    TraceRejection: {
+      /** Check Index */
+      check_index: number;
+      /** Statement Id */
+      statement_id: string;
+      /** Section */
+      section: components['schemas']['Section'] | 'headline';
+      origin?: components['schemas']['Origin'] | null;
+      /** Text */
+      text: string;
+      /** Problems */
+      problems: string[];
+      /**
+       * Shown
+       * @description Тот же текст попал в итоговый вывод после исправлений
+       */
+      shown: boolean;
     };
     /** TraceStep */
     TraceStep: {
@@ -3916,6 +4099,13 @@ export interface operations {
       };
       /** @description Компания или материал не найдены */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Снимок ленты не относится к этой компании или материалам */
+      409: {
         headers: {
           [name: string]: unknown;
         };

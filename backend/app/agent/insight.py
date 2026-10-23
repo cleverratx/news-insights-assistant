@@ -1,6 +1,7 @@
 """A5-06/A5-07: генерация проверенного инсайта и явное разделение происхождения выводов."""
 
 import json
+import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from time import monotonic
@@ -18,6 +19,7 @@ from app.agent.related import Relation
 from app.agent.roles import role_view
 from app.agent.tools.builtin import create_tools
 from app.agent.trace import build_trace, ground
+from app.cache.store import LLMCache
 from app.contracts.common import Significance
 from app.contracts.critic import CriticReport
 from app.contracts.feed import FeedItem
@@ -55,7 +57,7 @@ from app.llm.models import LLMResult, Message, Task
 from app.rank.importance import importance
 from app.rank.roles import Role, apply_role, weights_for
 from app.rank.score import score
-from app.rank.sentiment import rules_impact
+from app.rank.sentiment import refine, rules_impact
 
 INSTRUCTION = (
     SYSTEM_PROMPT
@@ -73,7 +75,9 @@ why_it_matters, риски, возможности и действия — тв�
 Не выдавай мнение СМИ за позицию банка. Наличие документа банка не подтверждает любое мнение.
 Прогноз — не свершившийся факт. Не выдумывай оригинальные цитаты: копируй дословно.
 Для фактов и позиции банка источник — с fragment_id и короткой дословной цитатой абзаца.
-Вывод без подтверждающего фрагмента или признака компании будет показан как предположение.
+Риск или возможность — вывод, если связывает событие с компанией: ссылается и на источник
+события, и на признак компании. Иначе, при confidence=low и в сценариях это предположение,
+и пользователь увидит это. Ставь confidence=low, если вывод прямо из источников не следует.
 Пиши коротко: одна конкретная мысль на утверждение, короткие цитаты, без повторов и воды.
 Не добавляй банковский продукт, если его уместность не следует из данных.
 На раздел достаточно 1–2 утверждений; цитаты короткие (до 180 символов).
@@ -85,6 +89,7 @@ why_it_matters, риски, возможности и действия — тв�
 Нет нужной цифры — сформулируй качественно: сервис сам сообщит пользователю, чего не хватило.
 """
 )
+logger = logging.getLogger(__name__)
 ASSUMPTION_LABEL = "Предположение модели"
 OBJECTIVE = "Разобрать влияние события на компанию по шести вопросам с проверкой источников"
 
@@ -320,6 +325,43 @@ def neutral(
     ]
 
 
+async def refined_rankings(
+    llm: Completer,
+    profile: CompanyProfile,
+    news: Sequence[NewsItem],
+    insight: Insight,
+    rankings: list[InsightRanking],
+    ranking: Sequence[FeedItem] | None,
+    connection: Any,
+) -> list[InsightRanking]:
+    """Оценка влияния по выводам готового разбора, чтобы экран разбора и карточка ленты
+    говорили одно и то же."""
+    conclusions = [statement.text for statement in insight.statements()]
+    why = {card.news_id: card.explanation for card in ranking or []}
+    impacts = {}
+    for item in news:
+        try:
+            impact = await refine(
+                llm,
+                profile,
+                item,
+                why.get(item.id, "Выбрана для разбора"),
+                conclusions,
+                LLMCache(connection),
+            )
+        except Exception as error:
+            logger.warning("Оценка влияния %s после разбора не обновлена: %s", item.id, error)
+            continue
+        if impact is not None:
+            impacts[item.id] = impact
+    return [
+        rank.model_copy(update={"impact": impacts[rank.news_id]})
+        if rank.news_id in impacts
+        else rank
+        for rank in rankings
+    ]
+
+
 async def for_role(
     result: GeneratedInsight,
     profile: CompanyProfile,
@@ -485,6 +527,10 @@ async def generate_with_trace(
             ),
         )
     insight = ground(insight, context)
+    if status is InsightStatus.READY and recording is not None and relation is None:
+        rankings = await refined_rankings(
+            recording, profile, news, insight, rankings, ranking, connection
+        )
     view = await role_view(recording, insight, role, connection)
     if recording is not None:
         usage = recording.usage
