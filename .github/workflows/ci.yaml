@@ -114,3 +114,6 @@ jobs:
 
       - name: Сборка
         run: npm run build
+
+      - name: Тесты диалога и контекста
+        run: npm test

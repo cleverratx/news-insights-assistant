@@ -1,6 +1,8 @@
+import { useRef } from 'react';
 import { ButtonDesktop } from '@alfalab/core-components-button/desktop';
 import { Typography } from '@alfalab/core-components-typography';
 
+import { AskPanel } from '@/features/ask/AskPanel';
 import type { AgentTrace, GeneratedInsight } from '@/shared/api/types';
 import { ErrorState, Skeleton } from '@/shared/ui/StateView';
 
@@ -61,6 +63,7 @@ type InsightViewProps = {
 };
 
 function InsightView({ result, trace, busy, onTrace }: InsightViewProps) {
+  const question = useRef<HTMLDivElement>(null);
   const { insight, presentation } = result;
   const rows = [
     ...(presentation.facts ?? []),
@@ -75,6 +78,24 @@ function InsightView({ result, trace, busy, onTrace }: InsightViewProps) {
       <Typography.Title tag="h2" view="small">
         {insight.headline}
       </Typography.Title>
+      <div>
+        <ButtonDesktop
+          size={40}
+          view="secondary"
+          onClick={() => {
+            const field = question.current?.querySelector('textarea');
+            field?.focus({ preventScroll: true });
+            question.current?.scrollIntoView({
+              block: 'start',
+              behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                ? 'auto'
+                : 'smooth',
+            });
+          }}
+        >
+          Задать вопрос
+        </ButtonDesktop>
+      </div>
       {insight.status_reason && <p className={styles.text}>{insight.status_reason}</p>}
       {result.warnings?.map((warning) => (
         <p key={warning} className={styles.warning}>
@@ -135,6 +156,12 @@ function InsightView({ result, trace, busy, onTrace }: InsightViewProps) {
           ))}
         </ol>
       )}
+      <div ref={question} className={styles.question}>
+        <AskPanel
+          key={`${insight.company_id}:${insight.id}:${result.role ?? ''}`}
+          result={result}
+        />
+      </div>
     </>
   );
 }
