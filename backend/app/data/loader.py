@@ -1,6 +1,7 @@
 import json
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
+from itertools import combinations
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +52,9 @@ PAYMENT_FIELDS = {
 }
 
 Parser = Callable[[Cell], object]
+IDENTITY_FIELDS = ("org_type", "okved_code", "group_id", "city", "region", "revenue_rub")
+SHARED_ID = "один идентификатор у разных компаний, все строки отброшены"
+SHARED_ID_LINK = "идентификатор разных компаний"
 MARK_COLUMNS = {name for name in COMPANY_FIELDS if name.startswith("has_")}
 COMPANY_PARSERS: dict[str, Parser] = {
     **{name: clean.mark for name in MARK_COLUMNS},
@@ -141,6 +145,7 @@ class CaseData:
     )
     files: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    shared_ids: set[str] = field(default_factory=set)
 
     def report(self) -> dict[str, object]:
         for name, rows in (
@@ -188,11 +193,38 @@ def filled(record: Record) -> int:
     return sum(1 for value in record.values() if value not in (None, []))
 
 
+def conflicting(first: Record, second: Record) -> bool:
+    return any(
+        first[name] is not None and second[name] is not None and first[name] != second[name]
+        for name in IDENTITY_FIELDS
+    )
+
+
+def keep_company(company_id: str, records: list[Record], data: CaseData) -> None:
+    stats = data.stats["companies"]
+    if len(records) == 1:
+        data.companies[company_id] = records[0]
+        return
+    if any(conflicting(first, second) for first, second in combinations(records, 2)):
+        data.shared_ids.add(company_id)
+        stats.rejected += len(records)
+        for record in records:
+            data.issues.add("companies", "SYNTHETIC_U", SHARED_ID, record["source_line"])
+        return
+    stats.merged += len(records) - 1
+    for record in records[1:]:
+        data.issues.add(
+            "companies", "SYNTHETIC_U", "дубликат, оставлена полная строка", record["source_line"]
+        )
+    data.companies[company_id] = max(records, key=filled)
+
+
 def read_companies(csv_file: CsvFile, data: CaseData) -> None:
     if COMPANY_FIELDS["company_id"] not in csv_file.columns:
         raise CaseFileError(f"{csv_file.path.name}: нет столбца SYNTHETIC_U")
     note_missing_columns(csv_file, COMPANY_FIELDS, data)
     stats = data.stats["companies"]
+    rows: dict[str, list[Record]] = {}
     for row in csv_file.rows():
         stats.read += 1
         if not well_formed(row, csv_file, "companies", data):
@@ -212,15 +244,9 @@ def read_companies(csv_file: CsvFile, data: CaseData) -> None:
             continue
         if record["customs_countries"] and record["has_customs_records"] is False:
             cell("FTS_COUNTRY_NAME").problem("страны ФТС при FTS_FLAG = 0")
-        known = data.companies.get(company_id)
-        if known is not None:
-            stats.merged += 1
-            data.issues.add(
-                "companies", "SYNTHETIC_U", "дубликат, оставлена полная строка", row.line
-            )
-            if filled(record) <= filled(known):
-                continue
-        data.companies[company_id] = record
+        rows.setdefault(company_id, []).append(record)
+    for company_id, records in rows.items():
+        keep_company(company_id, records, data)
 
 
 def read_persons(csv_file: CsvFile, data: CaseData) -> None:
@@ -235,6 +261,12 @@ def read_persons(csv_file: CsvFile, data: CaseData) -> None:
         record: Record = {name: clean.text(cell(source)) for name, source in PERSON_FIELDS.items()}
         if record["person_id"] is None or record["company_id"] is None:
             data.issues.add("persons", "*", "нет идентификатора, строка отброшена", row.line)
+            stats.rejected += 1
+            continue
+        if record["company_id"] in data.shared_ids:
+            data.issues.add(
+                "persons", "SYNTHETIC_U", f"{SHARED_ID_LINK}, строка отброшена", row.line
+            )
             stats.rejected += 1
             continue
         key = (record["person_id"], record["company_id"])
@@ -262,6 +294,8 @@ def read_payments(csv_file: CsvFile, data: CaseData) -> None:
             problem = "нет плательщика или получателя"
         elif payer == beneficiary:
             problem = "платёж самому себе"
+        elif payer in data.shared_ids or beneficiary in data.shared_ids:
+            problem = SHARED_ID_LINK
         elif paid is None:
             problem = "нет суммы"
         if problem is not None:

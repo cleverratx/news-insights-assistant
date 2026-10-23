@@ -220,6 +220,99 @@ def test_revenue_stub_is_unknown_but_company_kept(tmp_path: Path) -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [
+        ("ORG_TYPE", "НКО"),
+        ("MAINOKVED_CODE", "41.20"),
+        ("GROUP_ID", "group_2_sb"),
+        ("CITY", "г. Казань"),
+        ("REGION", "Республика Татарстан"),
+        ("REVENUE_COMPANY", "5000000.0"),
+    ],
+)
+def test_same_id_on_different_companies_drops_all_rows(
+    tmp_path: Path, column: str, value: str
+) -> None:
+    companies = write(
+        tmp_path / "c.csv",
+        [HEADER, company_line(), company_line(SYNTHETIC_U="U_2"), company_line(**{column: value})],
+    )
+    data = read_case(companies, None)
+    report = data.report()
+
+    assert set(data.companies) == {"U_2"}
+    assert data.shared_ids == {"U_1"}
+    assert report["tables"]["companies"] == {"read": 3, "loaded": 1, "rejected": 2, "merged": 0}
+    shared = [item for item in report["issues"] if item["column"] == "SYNTHETIC_U"]
+    assert shared == [
+        {
+            "table": "companies",
+            "column": "SYNTHETIC_U",
+            "problem": "один идентификатор у разных компаний, все строки отброшены",
+            "count": 2,
+            "lines": [2, 4],
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [("CL_PRODUCT_LOA_MARK", "0.0"), ("ECO_MARK_LABEL", "Рождение"), ("FTS_COUNTRY_NAME", "")],
+)
+def test_duplicate_differing_outside_identity_is_merged(
+    tmp_path: Path, column: str, value: str
+) -> None:
+    companies = write(tmp_path / "c.csv", [HEADER, company_line(), company_line(**{column: value})])
+    data = read_case(companies, None)
+    assert set(data.companies) == {"U_1"}
+    assert data.shared_ids == set()
+    assert data.report()["tables"]["companies"]["merged"] == 1
+
+
+def test_fuller_duplicate_replaces_first_row(tmp_path: Path) -> None:
+    companies = write(
+        tmp_path / "c.csv",
+        [HEADER, company_line(REGION="", CITY="", GROUP_ID=""), company_line()],
+    )
+    data = read_case(companies, None)
+    assert data.companies["U_1"]["region"] == "Москва"
+    assert data.companies["U_1"]["source_line"] == 3
+
+
+def test_links_to_shared_id_are_dropped(tmp_path: Path) -> None:
+    companies = write(
+        tmp_path / "c.csv",
+        [
+            HEADER,
+            company_line(),
+            company_line(SYNTHETIC_U="U_5", MAINOKVED_CODE="41.20", GROUP_ID="group_a_sb"),
+            company_line(SYNTHETIC_U="U_5", MAINOKVED_CODE="68.20", GROUP_ID="group_b_sb"),
+        ],
+    )
+    links = write(
+        tmp_path / "l.csv",
+        [
+            "SYNTHETIC_F;CITY_NAME;RC_NAME;SYNTHETIC_U;BENEFICIARY;PAYER;PAY_AMT;PAY_CNT",
+            "F_1;Москва;МОСКОВСКИЙ;U_1;;;;",
+            "F_2;Самара;ПОВОЛЖСКИЙ;U_5;;;;",
+            ";;;;U_5;U_1;700;2",
+            ";;;;U_1;U_5;300;1",
+            ";;;;U_9;U_1;100;1",
+        ],
+    )
+    data = read_case(companies, links)
+    report = data.report()
+
+    assert list(data.persons) == [("F_1", "U_1")]
+    assert list(data.payments) == [("U_1", "U_9")]
+    assert report["tables"]["persons"] == {"read": 2, "loaded": 1, "rejected": 1, "merged": 0}
+    assert report["tables"]["payments"] == {"read": 3, "loaded": 1, "rejected": 2, "merged": 0}
+    problems = {(item["table"], item["problem"]): item["count"] for item in report["issues"]}
+    assert problems[("persons", "идентификатор разных компаний, строка отброшена")] == 1
+    assert problems[("payments", "идентификатор разных компаний, строка отброшена")] == 2
+
+
 def test_report_has_no_raw_identifiers(tmp_path: Path) -> None:
     companies = write(tmp_path / "c.csv", [HEADER, company_line(SYNTHETIC_U="U_777", CL_TYPE="?")])
     report = json.dumps(read_case(companies, None).report(), ensure_ascii=False)

@@ -267,6 +267,7 @@ NOISY = [
     ("U_900420", "заглушка 1000 ₽ вместо выручки", {"REVENUE_COMPANY": "1000.0"}),
 ]
 DUPLICATE = ("U_900001", "дубликат демо-компании с пустыми полями")
+SHARED_ID = ("U_900421", "один идентификатор у двух разных компаний")
 SHORT_ROW = "U_900418;КОММ_ОРГ;ЧАСТНАЯ СОБСТВЕННОСТЬ"
 LONG_ROW_ID = "U_900419"
 
@@ -280,9 +281,35 @@ def companies_csv(rng: random.Random) -> list[str]:
         noisy = Company(company_id, base.okved, base.revenue, overrides=overrides)
         rows.append(";".join(noisy.row()[column] for column in COMPANY_COLUMNS))
     duplicate = Company(
-        DUPLICATE[0], "46.38", "", products=(), overrides={"REGION": "", "CITY": ""}
+        DUPLICATE[0],
+        "46.38",
+        "",
+        products=(),
+        overrides={"REGION": "", "CITY": "", "GROUP_ID": ""},
     )
     rows.append(";".join(duplicate.row()[column] for column in COMPANY_COLUMNS))
+    for shared in (
+        Company(
+            SHARED_ID[0],
+            "41.20",
+            "236263.0",
+            city="г. Челябинск",
+            region="Челябинская область",
+            products=(),
+            client="PROSPECT",
+            group="group_900421_a_sb",
+        ),
+        Company(
+            SHARED_ID[0],
+            "68.20",
+            "27577.0",
+            products=(),
+            client="PROSPECT",
+            age="0-3",
+            group="group_900421_b_sb",
+        ),
+    ):
+        rows.append(";".join(shared.row()[column] for column in COMPANY_COLUMNS))
     rows.append(SHORT_ROW)
     long_row = Company(LONG_ROW_ID, base.okved, base.revenue).row()
     rows.append(";".join(long_row[column] for column in COMPANY_COLUMNS) + ";лишнее;поле")
@@ -297,6 +324,7 @@ PERSONS = [
     ("F_900004", "Челябинск", "УРАЛЬСКИЙ", "U_900003"),
     ("F_900004", "Челябинск", "УРАЛЬСКИЙ", "U_900003"),
     ("F_900005", "", "", ""),
+    ("F_900006", "Самара", "ПОВОЛЖСКИЙ", "U_900421"),
 ]
 # Получатель, плательщик, сумма, число платежей.
 PAYMENTS = [
@@ -317,6 +345,7 @@ PAYMENTS = [
     ("U_900001", "U_900201", "0", "1"),
     ("U_900001", "U_900001", "100.0", "1"),
     ("U_900001", "U_900999", "", "3"),
+    ("U_900421", "U_900002", "15000000.0", "3"),
 ]
 
 
