@@ -7,6 +7,7 @@
 
 import re
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any, Protocol
 
@@ -38,6 +39,7 @@ UNIT = re.compile(
 )
 SCALES = tuple(Decimal(10) ** power for power in (-9, -6, -3, 0, 3, 6, 9))
 SMALL = Decimal(10)
+HEADLINE = "headline"
 SECTIONS = ("what_happened", "why_it_matters", "risks", "opportunities", "actions", "bank_view")
 SHORT_TEXT = 600
 MAX_FACTS = 3
@@ -158,6 +160,15 @@ def numbers_only(review: CriticReview) -> list[str] | None:
     return list(dict.fromkeys(i.statement_id for i in issues if i.statement_id))
 
 
+def disputed(review: CriticReview) -> list[str] | None:
+    """Проверка оспорила отдельные утверждения, а не разбор целиком: без них остаток может
+    быть верным. Одно спорное утверждение не должно прятать пять проверенных."""
+    issues = review.report.issues
+    if not issues or any(i.statement_id is None for i in issues):
+        return None
+    return list(dict.fromkeys(i.statement_id for i in issues if i.statement_id))
+
+
 def prune(draft: JsonValue, statement_ids: Sequence[str]) -> dict[str, Any] | None:
     if not isinstance(draft, dict):
         return None
@@ -169,6 +180,8 @@ def prune(draft: JsonValue, statement_ids: Sequence[str]) -> dict[str, Any] | No
             pruned[section] = [
                 item for item in items if not (isinstance(item, dict) and item.get("id") in removed)
             ]
+    if HEADLINE in removed:
+        pruned["headline"] = None
     return pruned
 
 
@@ -239,6 +252,8 @@ def data_gaps(
     execution: ExecutionStatus,
     reviews: Sequence[CriticReview],
     pruned: Sequence[str] = (),
+    disputed: Sequence[str] = (),
+    reasons: Sequence[str] = (),
 ) -> list[DataGap]:
     result: list[DataGap] = []
     ready = insight.status is InsightStatus.READY
@@ -284,6 +299,18 @@ def data_gaps(
                 missing="Для части выводов в источниках нет цифр, которые назвала модель",
                 consequence=f"Скрыто выводов: {len(pruned)}; остальное прошло проверку",
                 blocking=False,
+            )
+        )
+    if disputed:
+        hidden = [statement for statement in disputed if statement != HEADLINE]
+        renamed = "; заголовок заменён заголовком материала" if HEADLINE in disputed else ""
+        result.append(
+            DataGap(
+                kind=GapKind.VERIFICATION,
+                missing="Часть выводов не подтвердила смысловая проверка",
+                consequence=f"Скрыто выводов: {len(hidden)}{renamed}; остальное прошло проверку",
+                blocking=False,
+                details=list(reasons)[:5],
             )
         )
     if ready and not quantitative(insight):
@@ -340,18 +367,31 @@ class Reviewer(Protocol):
     async def review(self, context: AnalysisContext, output: JsonValue) -> CriticReport: ...
 
 
-async def salvage(
-    context: AnalysisContext, reviewer: Reviewer
-) -> tuple[dict[str, Any], list[str]] | None:
-    """Последний черновик отклонён только из-за цифр без источника: убираем эти утверждения
-    и проверяем остаток заново, включая смысловую проверку."""
+@dataclass(frozen=True)
+class Salvaged:
+    draft: dict[str, Any]
+    removed: list[str]
+    by_numbers: bool
+    reasons: list[str] = field(default_factory=list)
+
+
+async def salvage(context: AnalysisContext, reviewer: Reviewer) -> Salvaged | None:
+    """Последний черновик отклонён только из-за отдельных утверждений — цифр без источника
+    или замечаний смысловой проверки к ним: убираем эти утверждения и проверяем остаток
+    заново, включая смысловую проверку. Общие замечания к разбору не спасаются."""
     if not context.critic_reviews:
         return None
     last = context.critic_reviews[-1]
+    by_numbers = True
     removed = numbers_only(last)
+    if removed is None:
+        by_numbers, removed = False, disputed(last)
     pruned = prune(last.draft, removed) if removed else None
     if removed is None or pruned is None:
         return None
     report = await reviewer.review(context.model_copy(deep=True), pruned)
     context.critic_reviews.append(CriticReview(draft=pruned, report=report))
-    return (pruned, removed) if report.passed else None
+    if not report.passed:
+        return None
+    reasons = list(dict.fromkeys(i.detail for i in last.report.issues))
+    return Salvaged(pruned, removed, by_numbers, reasons)

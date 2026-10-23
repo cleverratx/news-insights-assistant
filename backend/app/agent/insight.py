@@ -92,24 +92,29 @@ class GenerationCritic(InsightCritic):
             parsed = Draft.model_validate(output)
         except ValidationError:
             return await super().review(context, output)
-        outside_bank = [s for s in parsed.statements() if s not in parsed.bank_view]
-        if set(parsed.news_ids) != {n.id for n in context.news} or any(
-            s.origin is Origin.BANK for s in outside_bank
-        ):
-            return CriticReport(
-                passed=False,
-                semantic_checked=False,
-                issues=[
-                    CheckIssue(
-                        problem=CheckProblem.UNSUPPORTED,
-                        detail=(
-                            "Разбери все выбранные материалы; "
-                            "позицию банка помести только в bank_view"
-                        ),
-                        resolved=False,
-                    )
-                ],
+        expected = [n.id for n in context.news]
+        issues = []
+        if set(parsed.news_ids) != set(expected):
+            issues.append(
+                CheckIssue(
+                    problem=CheckProblem.UNSUPPORTED,
+                    detail=f"news_ids должен содержать ровно выбранные материалы: {expected}",
+                    resolved=False,
+                )
             )
+        bank_view = {s.id for s in parsed.bank_view}
+        issues += [
+            CheckIssue(
+                statement_id=s.id,
+                problem=CheckProblem.UNSUPPORTED,
+                detail="origin=bank допустим только в bank_view; здесь укажи origin=model",
+                resolved=False,
+            )
+            for s in parsed.statements()
+            if s.origin is Origin.BANK and s.id not in bank_view
+        ]
+        if issues:
+            return CriticReport(passed=False, semantic_checked=False, issues=issues)
         return await super().review(context, output)
 
 
@@ -385,7 +390,7 @@ async def generate_with_trace(
         "sources": [*event_sources(news), *fact_sources],
         "what_happened": facts,
     }
-    pruned: list[str] = []
+    rescued = None
     headline = news[0].title
     status = InsightStatus.INSUFFICIENT_DATA
     if llm is not None:
@@ -394,7 +399,7 @@ async def generate_with_trace(
         run = await Orchestrator(
             planner,
             create_tools(connection),
-            limits or Limits(timeout_seconds=180),
+            limits or Limits(timeout_seconds=180, max_critic_reviews=3),
             critic=GenerationCritic(recording),
         ).run(profile, news, objective)
         context = run.context
@@ -402,7 +407,7 @@ async def generate_with_trace(
         if run.status == "check_failed":
             rescued = await salvage(run.context, GenerationCritic(recording))
             if rescued is not None:
-                (output, pruned), execution = rescued, "completed"
+                output, execution = rescued.draft, "completed"
         usage = recording.usage
         if execution == "completed" and output is not None:
             try:
@@ -498,7 +503,9 @@ async def generate_with_trace(
             insight=insight,
             execution=execution,
             reviews=context.critic_reviews,
-            pruned=pruned,
+            pruned=rescued.removed if rescued and rescued.by_numbers else (),
+            disputed=rescued.removed if rescued and not rescued.by_numbers else (),
+            reasons=rescued.reasons if rescued else (),
         ),
         offer=offer_for(insight, profile, news),
         role_view=view,
