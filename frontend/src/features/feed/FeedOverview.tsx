@@ -54,7 +54,7 @@ export function FeedOverview({ items, period }: Props) {
         <h2 id="overview-title" className={styles.title}>
           Влияние на бизнес
         </h2>
-        <p className={styles.caption}>{period}, по всем событиям ленты</p>
+        <p className={styles.caption}>{period}, по показанным событиям</p>
         <p className={styles.verdict}>{verdict(negative, positive)}</p>
         <div
           className={styles.balance}

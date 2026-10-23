@@ -180,6 +180,7 @@ async def build_feed(
     days: int = DEFAULT_DAYS,
     limit: int = DEFAULT_LIMIT,
     markers: Sequence[Marker] = (),
+    significance: Significance | None = None,
     unverified: bool = False,
     min_importance: float = DEFAULT_MIN_IMPORTANCE,
     cache: LLMCache | None = None,
@@ -211,9 +212,14 @@ async def build_feed(
         )
         for ranked in allowed
     }
+    matching = {
+        ranked.news_id: ranked
+        for ranked in allowed
+        if significance is None or SIGNIFICANCE[weights[ranked.news_id].level] is significance
+    }
     visible = {
         ranked.news_id: ranked
-        for ranked in sorted(allowed, key=lambda ranked: -weights[ranked.news_id].score)
+        for ranked in sorted(matching.values(), key=lambda ranked: -weights[ranked.news_id].score)
         if weights[ranked.news_id].score >= min_importance
     }
     diverse = diversify(
@@ -253,7 +259,7 @@ async def build_feed(
         considered=len(found),
         dropped_by_rules=sum(1 for rejection in filtered.rejected if rejection.by == "rules"),
         min_importance=min_importance,
-        hidden_below_threshold=len(allowed) - len(visible),
+        hidden_below_threshold=len(matching) - len(visible),
         importance_scale=importance_scale(),
         impact_scale=impact_scale(),
         impact_criteria=criteria_info(),
@@ -286,6 +292,9 @@ async def company_feed(
     days: Annotated[int, Query(ge=1, le=NEWS_DAYS, description="Период в днях")] = DEFAULT_DAYS,
     limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = DEFAULT_LIMIT,
     markers: Annotated[list[Marker] | None, Query(description="Фильтр по маркерам")] = None,
+    significance: Annotated[
+        Significance | None, Query(description="Фильтр по значимости: high, medium, low")
+    ] = None,
     unverified: Annotated[
         bool, Query(description="Показать и кандидатов, которых модель не проверила")
     ] = False,
@@ -313,6 +322,7 @@ async def company_feed(
         days=days,
         limit=limit,
         markers=markers or [],
+        significance=significance,
         unverified=unverified,
         min_importance=(
             get_settings().feed_min_importance if min_importance is None else min_importance

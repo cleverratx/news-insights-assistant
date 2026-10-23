@@ -3975,6 +3975,8 @@ export interface operations {
         limit?: number;
         /** @description Фильтр по маркерам */
         markers?: components['schemas']['Marker'][] | null;
+        /** @description Фильтр по значимости: high, medium, low */
+        significance?: components['schemas']['Significance'] | null;
         /** @description Показать и кандидатов, которых модель не проверила */
         unverified?: boolean;
         /** @description Должность: ceo, cfo, logistics */

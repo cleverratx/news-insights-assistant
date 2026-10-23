@@ -6,6 +6,7 @@ import { InformationCircleLineMIcon } from '@alfalab/icons-glyph/InformationCirc
 
 import { useShell } from '@/app/shell-context';
 import { AskPanel } from '@/features/ask/AskPanel';
+import { feedSearch } from '@/features/feed/filters';
 import { InsightLoading } from '@/features/insight/InsightLoading';
 import { InsightView } from '@/features/insight/InsightView';
 import { StatusNotice } from '@/features/insight/StatusNotice';
@@ -73,7 +74,7 @@ export function InsightPage() {
 
   return (
     <div className={styles.page}>
-      <Link className={styles.back} to={{ pathname: '/feed', search }}>
+      <Link className={styles.back} to={{ pathname: '/feed', search: feedSearch(params, search) }}>
         <ArrowLeftMIcon aria-hidden="true" className={styles.backIcon} />
         Новости для бизнеса
       </Link>

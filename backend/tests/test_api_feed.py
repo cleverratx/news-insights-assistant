@@ -9,6 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from app.api import feed as feed_api
 from app.api.companies import get_connection
 from app.api.feed import build_feed, get_llm
+from app.contracts.common import Significance
 from app.contracts.feed import Feed
 from app.contracts.news import Channel, Dedup, Marker, MaterialKind, NewsItem, Source, Topic
 from app.contracts.rank import RankStage
@@ -120,6 +121,38 @@ async def test_period_and_markers_filter() -> None:
     assert [found.news_id for found in only.items] == ["news:rate"]
 
 
+@pytest.mark.parametrize("significance", list(Significance))
+async def test_significance_filters_before_limit(significance: Significance) -> None:
+    high = material(
+        "bank:high",
+        "Ключевая ставка и рынок нефти",
+        topics=[Topic.KEY_RATE],
+        segments=["oil_gas"],
+    ).model_copy(update={"kind": MaterialKind.BANK_ANALYTICS})
+    background = material(
+        "news:background",
+        "Свердловская область",
+        age=timedelta(days=13),
+        regions=["Свердловская область"],
+    )
+    materials = [high, OIL, REGION, background]
+    baseline = await build_feed(profile(), materials, None, now=NOW, days=14, min_importance=0)
+    expected = [shown for shown in baseline.items if shown.significance is significance]
+    assert expected
+    result = await build_feed(
+        profile(),
+        materials,
+        None,
+        now=NOW,
+        days=14,
+        min_importance=0,
+        significance=significance,
+        limit=1,
+    )
+    assert [shown.news_id for shown in result.items] == [expected[0].news_id]
+    assert result.hidden_below_threshold == 0
+
+
 @pytest.fixture
 async def api(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[AsyncClient]:
     async def company(company_id: str, connection: Any) -> Any:
@@ -174,3 +207,17 @@ async def test_feed_accepts_role_and_rejects_unknown(api: AsyncClient) -> None:
     assert response.json()["role"] == "cfo"
     assert (await api.get("/api/companies/U_7/feed?role=unknown")).status_code == 422
     assert (await api.get("/api/companies/U_7/feed")).json()["role"] is None
+
+
+@pytest.mark.parametrize("significance", list(Significance))
+async def test_feed_accepts_significance(api: AsyncClient, significance: Significance) -> None:
+    response = await api.get(
+        "/api/companies/U_7/feed",
+        params={"significance": significance.value, "min_importance": 0},
+    )
+    assert response.status_code == 200
+    body = Feed.model_validate(response.json())
+    assert all(shown.significance is significance for shown in body.items)
+    assert body.hidden_below_threshold == 0
+    invalid = await api.get("/api/companies/U_7/feed", params={"significance": "urgent"})
+    assert invalid.status_code == 422
