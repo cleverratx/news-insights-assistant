@@ -37,7 +37,6 @@ from app.cache.store import LLMCache, schema_text, version_of
 from app.contracts.news import Horizon, NewsItem, Topic
 from app.contracts.profile import CompanyProfile, ValueChain
 from app.contracts.rank import (
-    LEVEL_POINTS,
     TIMING_TITLES,
     ImpactAnswer,
     ImpactAssessment,
@@ -144,12 +143,13 @@ QUESTIONS: tuple[tuple[str, ImpactCriterionId, str], ...] = (
     ("rules.data", C.REGULATORY, "требования к данным и цифровым сервисам"),
 )
 NUMBERED = {f"q{index}": question for index, question in enumerate(QUESTIONS, start=1)}
+TEXTS = {question_id: text for question_id, _, text in QUESTIONS}
 BANDS = (
-    (ImpactColor.RED, "Сильный риск", -100, -50, "#D92D20"),
-    (ImpactColor.ORANGE, "Риск", -49, -15, "#F79009"),
-    (ImpactColor.GRAY, "Нейтрально", -14, 14, "#98A2B3"),
-    (ImpactColor.LIGHT_GREEN, "Возможность", 15, 49, "#66C61C"),
-    (ImpactColor.GREEN, "Сильная возможность", 50, 100, "#079455"),
+    (ImpactColor.RED, "Сильный риск", -100, -4, "#D92D20"),
+    (ImpactColor.ORANGE, "Риск", -3, -1, "#F79009"),
+    (ImpactColor.GRAY, "Нейтрально", 0, 0, "#98A2B3"),
+    (ImpactColor.LIGHT_GREEN, "Возможность", 1, 3, "#66C61C"),
+    (ImpactColor.GREEN, "Сильная возможность", 4, 100, "#079455"),
 )
 LEVEL_WORDS = {
     -2: "существенно хуже",
@@ -182,6 +182,7 @@ HORIZON_TIMING = {
     Horizon.YEARS: ImpactTiming.LATER,
 }
 SIGNS = {"negative": -1, "positive": 1}
+MIXED = "Двоякое влияние"
 RULES_NOTE = (
     "Оценка по правилам: критерии — по теме новости, знак — по общей тональности события, "
     "без учёта особенностей компании"
@@ -326,14 +327,19 @@ def assessment(
     criteria = []
     for key, (title, _) in CRITERIA.items():
         effect = effects.get(key)
-        level = effect.level if effect else 0
+        points = effect.level if effect else 0
+        if answers:
+            group = [answer for answer in answers if answer.criterion is key]
+            points = sum(answer.level for answer in group)
+            effect = lead(group, points)
+        level = max(-2, min(2, points))
         timing = effect.timing if effect and level else None
         criteria.append(
             ImpactCriterion(
                 id=key,
                 title=title,
                 level=level,
-                points=LEVEL_POINTS[level],
+                points=points,
                 reason=(effect.reason.strip() or None) if effect and level else None,
                 timing=timing,
                 timing_title=TIMING_TITLES[timing] if timing else None,
@@ -348,6 +354,9 @@ def assessment(
         if criterion.level
     ]
     summary = f"{total:+d}: " + "; ".join(moved) if moved else "0: ни один критерий не задет"
+    if answers and not total:
+        sides = ", ".join(f"{TEXTS[answer.question_id]} {answer.level:+d}" for answer in answers)
+        title, summary = MIXED, f"0: плюсы и минусы уравновешены — {sides}"
     return ImpactAssessment(
         score=total,
         color=color,
@@ -358,7 +367,17 @@ def assessment(
         confidence=confidence,
         model=model,
         answers=list(answers),
+        scale="levels",
     )
+
+
+def lead(group: Sequence[ImpactAnswer], points: int) -> Effect | None:
+    """Причина и срок критерия — от самого сильного ответа того же знака, что и сумма группы."""
+    same = [answer for answer in group if answer.level * points > 0]
+    top = strongest(same)
+    if top is None:
+        return None
+    return Effect(top.level, top.reason, top.timing, top.timing_source)
 
 
 def horizon_timing(news: NewsItem) -> ImpactTiming | None:
@@ -534,14 +553,7 @@ def impacts_of(
             continue
         news = cards[int(item.id[1:]) - 1][0]
         answers = [answer_of(reply, effect_of(reply, news, company)) for reply in item.answers]
-        effects = {}
-        for key in CRITERIA:
-            top = strongest([answer for answer in answers if answer.criterion is key])
-            if top is not None:
-                effects[key] = Effect(top.level, top.reason, top.timing, top.timing_source)
-        result[item.id] = assessment(
-            effects, item.rationale, "llm", item.confidence, model, answers
-        )
+        result[item.id] = assessment({}, item.rationale, "llm", item.confidence, model, answers)
     return result
 
 

@@ -685,7 +685,7 @@
           "$ref": "#/$defs/ImpactColor"
         },
         "title": {
-          "description": "Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность",
+          "description": "Сильный риск, Риск, Нейтрально, Возможность, Сильная возможность; Двоякое влияние — плюсы и минусы в сумме дали ноль",
           "minLength": 1,
           "title": "Title",
           "type": "string"
@@ -738,13 +738,23 @@
           "title": "Model"
         },
         "answers": {
-          "description": "Вопросы с влиянием; уровень критерия — самый сильный ответ его группы",
+          "description": "Вопросы с влиянием: каждый от −2 до +2, итог — их сумма",
           "items": {
             "$ref": "#/$defs/ImpactAnswer"
           },
           "maxItems": 50,
           "title": "Answers",
           "type": "array"
+        },
+        "scale": {
+          "default": "points",
+          "description": "levels — итог равен сумме уровней всех ответов (50 вопросов × ±2 = ±100); points — прежний подсчёт ±20/±50 у сохранённых раньше оценок",
+          "enum": [
+            "levels",
+            "points"
+          ],
+          "title": "Scale",
+          "type": "string"
         }
       },
       "required": [
@@ -790,9 +800,9 @@
           "type": "integer"
         },
         "points": {
-          "description": "Вклад в балл: ±20 — заметно, ±50 — существенно",
-          "maximum": 50,
-          "minimum": -50,
+          "description": "Вклад в итог: сумма уровней ответов группы (scale=levels) или ±20/±50 в оценках до перехода на сумму (scale=points)",
+          "maximum": 100,
+          "minimum": -100,
           "title": "Points",
           "type": "integer"
         },
