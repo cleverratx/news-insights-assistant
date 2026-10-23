@@ -54,6 +54,7 @@ class InsightRequest(BaseModel):
     response_model=GeneratedInsight,
     responses={
         404: {"description": "Компания или материал не найдены"},
+        409: {"description": "Снимок ленты не относится к этой компании или материалам"},
         422: {"description": "Связанная компания не найдена или не упоминается в материалах"},
         503: {"description": "Хранилище недоступно или содержит некорректные данные"},
     },

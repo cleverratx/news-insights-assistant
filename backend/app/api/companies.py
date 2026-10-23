@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 
 from app.contracts.knowledge import KnowledgeBase
 from app.contracts.profile import CompanyProfile
-from app.core.db import get_pool
+from app.core.db import ACQUIRE_TIMEOUT_SECONDS, get_pool
 from app.profile.builder import load_profile
 from app.profile.competitors import apply_competitors
 from app.profile.knowledge import apply_knowledge, knowledge_base
@@ -20,10 +20,15 @@ router = APIRouter(prefix="/companies", tags=["companies"])
 async def get_connection() -> AsyncIterator[Any]:
     try:
         pool = await get_pool()
+        connection = await pool.acquire(timeout=ACQUIRE_TIMEOUT_SECONDS)
+    except TimeoutError:
+        raise HTTPException(503, "Сервис занят другими запросами, повторите позже") from None
     except (OSError, asyncpg.PostgresError) as error:
         raise HTTPException(503, "База данных недоступна") from error
-    async with pool.acquire() as connection:
+    try:
         yield connection
+    finally:
+        await pool.release(connection)
 
 
 CompanyId = Annotated[str, Path(min_length=1, max_length=200, examples=["U_30404"])]
