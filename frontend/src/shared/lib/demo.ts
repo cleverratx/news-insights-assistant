@@ -7,7 +7,7 @@ const configured = import.meta.env.VITE_DEMO_COMPANIES?.split(',')
   .filter(Boolean);
 
 export const DEMO_COMPANIES: readonly string[] = configured?.length
-  ? configured
+  ? [...new Set(configured)]
   : ['U_185947', 'U_19717', 'U_3263'];
 
 export const ROLE_TITLES: Record<Role, string> = {
@@ -29,5 +29,5 @@ export const DEMO_USERS: DemoUser[] = [
 ];
 
 export function isRole(value: string | null): value is Role {
-  return value !== null && value in ROLE_TITLES;
+  return value !== null && Object.hasOwn(ROLE_TITLES, value);
 }

@@ -88,6 +88,10 @@ npm run build
 
 ## Дополнительные проверки
 
+Переключатель демо-компании (A6-08): сценарий сравнения лент, настройка компаний
+и правила переходов описаны в
+[frontend/src/features/demo/README.md](../frontend/src/features/demo/README.md).
+
 Фильтры ленты (A6-07): поведение, параметры API и сценарии проверки описаны в
 [frontend/src/features/feed/README.md](../frontend/src/features/feed/README.md).
 

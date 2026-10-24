@@ -12,15 +12,15 @@ import { LogOutMIcon } from '@alfalab/icons-glyph/LogOutMIcon';
 import { UsersMIcon } from '@alfalab/icons-glyph/UsersMIcon';
 import { WalletMIcon } from '@alfalab/icons-glyph/WalletMIcon';
 
-import { OrgSwitcher } from '@/app/OrgSwitcher';
 import { signOut, useSession } from '@/app/session';
 import type { ShellContext } from '@/app/shell-context';
+import { DemoCompanySwitcher } from '@/features/demo/DemoCompanySwitcher';
+import { useDemoContext } from '@/features/demo/useDemoContext';
 import { freshImportant, useFeed } from '@/shared/api/feed';
 import { useProfiles } from '@/shared/api/profiles';
 import { DEMO_COMPANIES, ROLE_TITLES, type DemoUser } from '@/shared/lib/demo';
 import { initials, plural } from '@/shared/lib/format';
 import { clearSeen, useSeen } from '@/shared/lib/seen';
-import { useDemoContext } from '@/shared/lib/url-state';
 
 import styles from './AppShell.module.css';
 
@@ -168,7 +168,7 @@ function ShellLayout({ user }: { user: DemoUser }) {
           >
             <BurgerMIcon aria-hidden="true" />
           </button>
-          <OrgSwitcher
+          <DemoCompanySwitcher
             company={demo.company}
             results={profiles.data}
             loading={profiles.loading}

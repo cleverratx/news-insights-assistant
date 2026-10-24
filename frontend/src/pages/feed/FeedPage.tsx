@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Typography } from '@alfalab/core-components-typography';
 
 import { useShell } from '@/app/shell-context';
+import { DemoCompanyProfile } from '@/features/demo/DemoCompanyProfile';
 import { FeedCard } from '@/features/feed/FeedCard';
 import { FeedFiltersBar } from '@/features/feed/FeedFilters';
 import { FeedOverview } from '@/features/feed/FeedOverview';
@@ -29,7 +30,7 @@ function periodTitle(days: number): string {
 }
 
 export function FeedPage() {
-  const { company, role, setRole, user, search } = useShell();
+  const { company, role, setRole, user, search, profiles, current } = useShell();
   const feedFilters = useFeedFilters(search);
 
   return (
@@ -53,6 +54,13 @@ export function FeedPage() {
           </select>
         </label>
       </header>
+      <DemoCompanyProfile
+        company={company}
+        result={current}
+        loading={profiles.loading}
+        error={profiles.error}
+        onRetry={profiles.retry}
+      />
       <div className={styles.tabs} role="tablist" aria-label="Источник событий">
         <button
           type="button"
