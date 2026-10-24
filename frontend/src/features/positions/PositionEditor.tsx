@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ButtonDesktop } from '@alfalab/core-components-button/desktop';
 import { ApiError, apiGet, apiPatch, apiPost, errorMessage, isAbort } from '@/shared/api/client';
-import { isRole, type Role } from '@/shared/lib/demo';
-import { BASE_ROLES, positionPath, validPosition, type Position } from './model';
+import { invalidateCached } from '@/shared/api/cache';
+import { positionPath, validPosition, type Position } from './model';
 import styles from './Positions.module.css';
 
 export function PositionEditor({
@@ -16,10 +16,10 @@ export function PositionEditor({
   initial?: Position;
   onSaved: (position: Position) => void;
   onCancel?: () => void;
-  identity?: { name: string; onName: (value: string) => void };
+  identity?: { name: string; onName: (value: string) => void; renderField?: boolean };
 }) {
   const [title, setTitle] = useState(initial?.title ?? '');
-  const [base, setBase] = useState<Role>(initial?.base_role ?? 'ceo');
+  const base = initial?.base_role ?? 'ceo';
   const [context, setContext] = useState(initial?.context ?? '');
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -54,6 +54,7 @@ export function PositionEditor({
             controller.signal,
           );
       controller.signal.throwIfAborted();
+      invalidateCached(positionPath(company));
       onSaved(saved);
     } catch (caught) {
       if (!isAbort(caught)) {
@@ -94,7 +95,7 @@ export function PositionEditor({
       onSubmit={(event) => void submit(event)}
       aria-label={initial ? 'Редактирование должности' : 'Создание должности'}
     >
-      {identity && (
+      {identity && identity.renderField !== false && (
         <label className={styles.field}>
           <span>Ваше имя</span>
           <input
@@ -117,23 +118,6 @@ export function PositionEditor({
           disabled={busy}
           maxLength={120}
         />
-      </label>
-      <label className={styles.field}>
-        <span>Что ближе к вашим задачам</span>
-        <select
-          value={base}
-          onChange={(e) => {
-            if (isRole(e.target.value)) setBase(e.target.value);
-          }}
-          disabled={busy}
-        >
-          {Object.entries(BASE_ROLES).map(([key, label]) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <small>Основа подбора новостей. Ваш контекст уточнит акценты и выводы для должности.</small>
       </label>
       <label className={styles.field}>
         <span>Контекст должности</span>

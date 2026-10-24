@@ -113,6 +113,21 @@
   color: var(--c-text-secondary);
 }
 
+.newRole {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-8);
+  min-height: 48px;
+  border: 1px dashed var(--c-border-primary);
+  border-radius: var(--radius-12);
+  color: var(--c-text-primary);
+  text-decoration: none;
+}
+.newRole:hover {
+  background: var(--c-bg-page);
+}
+
 .note {
   font-size: 13px;
   line-height: 16px;

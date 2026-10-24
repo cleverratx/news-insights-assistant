@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
+import { PlusMIcon } from '@alfalab/icons-glyph/PlusMIcon';
+import { ROLE_TITLES, type Role } from '@/shared/lib/demo';
 import { Typography } from '@alfalab/core-components-typography';
 import { ButtonDesktop } from '@alfalab/core-components-button/desktop';
 import { useShell } from '@/app/shell-context';
@@ -7,7 +9,7 @@ import { signInProfile } from '@/app/session';
 import { PositionEditor } from '@/features/positions/PositionEditor';
 import { PositionQuestions } from '@/features/positions/PositionQuestions';
 import {
-  BASE_ROLES,
+  ROLE_DESCRIPTIONS,
   positionPath,
   positionSearch,
   type Position,
@@ -53,8 +55,17 @@ function Positions({ company }: { company: string }) {
 }
 function PositionList({ initial, company }: { initial: Position[]; company: string }) {
   const [items, setItems] = useState(initial);
-  const [editing, setEditing] = useState<Position | 'new' | null>(null);
-  const { position, setPosition, user } = useShell();
+  const [params, setParams] = useSearchParams();
+  const [editing, setEditing] = useState<Position | 'new' | null>(
+    params.get('new') === '1' ? 'new' : null,
+  );
+  const { position, role, setPosition, user } = useShell();
+  const closeEditor = () => {
+    setEditing(null);
+    const next = new URLSearchParams(window.location.search);
+    next.delete('new');
+    setParams(next, { replace: true, preventScrollReset: true });
+  };
   const saved = (next: Position) => {
     setItems((current) =>
       current.some((item) => item.id === next.id)
@@ -70,13 +81,31 @@ function PositionList({ initial, company }: { initial: Position[]; company: stri
     <>
       <div className={styles.header}>
         <p className={styles.hint}>
-          {items.length
-            ? `Должностей в компании: ${items.length}`
-            : 'Создайте должность, чтобы настроить контекст вашей работы.'}
+          {items.length ? `Свои роли: ${items.length}` : 'Выберите базовую роль или добавьте свою.'}
         </p>
-        <ButtonDesktop view="primary" size={48} onClick={() => setEditing('new')}>
-          Создать должность
+        <ButtonDesktop
+          view="primary"
+          size={48}
+          onClick={() => setEditing('new')}
+          leftAddons={<PlusMIcon aria-hidden="true" />}
+        >
+          Новая роль
         </ButtonDesktop>
+      </div>
+      <div className={styles.roleChoices} aria-label="Базовые роли">
+        {(Object.keys(ROLE_TITLES) as Role[]).map((base) => (
+          <Link
+            key={base}
+            className={styles.roleChoice}
+            data-selected={!position && role === base}
+            to={{ pathname: '/feed', search: `?${new URLSearchParams({ company, role: base })}` }}
+          >
+            <span>
+              <strong>{ROLE_TITLES[base]}</strong>
+              <span>{ROLE_DESCRIPTIONS[base]}</span>
+            </span>
+          </Link>
+        ))}
       </div>
       {editing && (
         <section className={styles.panel}>
@@ -87,9 +116,9 @@ function PositionList({ initial, company }: { initial: Position[]; company: stri
             initial={editing === 'new' ? undefined : editing}
             onSaved={(next) => {
               saved(next);
-              setEditing(null);
+              closeEditor();
             }}
-            onCancel={() => setEditing(null)}
+            onCancel={closeEditor}
           />
         </section>
       )}
@@ -104,7 +133,7 @@ function PositionList({ initial, company }: { initial: Position[]; company: stri
             <div>
               <h2>{item.title}</h2>
               <p className={styles.hint}>
-                Основа: {BASE_ROLES[item.base_role]}
+                Своя роль
                 {position === item.id ? ' · Выбрана' : ''}
               </p>
             </div>

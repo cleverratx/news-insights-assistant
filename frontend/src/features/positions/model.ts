@@ -9,6 +9,12 @@ export const BASE_ROLES = {
   cfo: 'Финансы',
   logistics: 'Логистика',
 } as const;
+
+export const ROLE_DESCRIPTIONS = {
+  ceo: 'Стратегия, рынки и решения компании',
+  cfo: 'Финансы, затраты и управление рисками',
+  logistics: 'Поставки, транспорт и сроки',
+} as const;
 export const QUESTION_LABELS: Record<PositionQuestion['key'], string> = {
   responsibilities: 'Зона ответственности',
   decisions: 'Решения',

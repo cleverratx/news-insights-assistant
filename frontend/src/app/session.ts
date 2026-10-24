@@ -36,8 +36,8 @@ function readCustom(): DemoUser | null {
       typeof value.login === 'string' &&
       isRole(value.role) &&
       DEMO_COMPANIES.includes(value.company) &&
-      typeof value.position === 'string' &&
-      /^position:[0-9a-f]{32}$/.test(value.position)
+      (value.position === undefined ||
+        (typeof value.position === 'string' && /^position:[0-9a-f]{32}$/.test(value.position)))
       ? value
       : null;
   } catch {

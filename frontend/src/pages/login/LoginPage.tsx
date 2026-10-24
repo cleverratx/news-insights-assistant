@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import { ButtonDesktop } from '@alfalab/core-components-button/desktop';
 import { Typography } from '@alfalab/core-components-typography';
+import { PlusMIcon } from '@alfalab/icons-glyph/PlusMIcon';
 
 import { savedProfile, signIn, useSession } from '@/app/session';
 import { DEMO_USERS, ROLE_TITLES } from '@/shared/lib/demo';
@@ -18,7 +19,7 @@ export function LoginPage() {
   const [params] = useSearchParams();
   const saved = savedProfile();
   const [login, setLogin] = useState(saved?.login ?? DEMO_USERS[0].login);
-  const choices = saved ? [saved, ...DEMO_USERS] : DEMO_USERS;
+  const choices = saved ? [...DEMO_USERS, saved] : DEMO_USERS;
   const next = safeNext(params.get('next'));
 
   if (user) return <Navigate to={next} replace />;
@@ -65,7 +66,10 @@ export function LoginPage() {
         <p className={styles.note}>
           Демо-вход: полномочия пользователя считаются проверенными, пароль не нужен.
         </p>
-        <Link to="/register">Создать профиль со своей должностью</Link>
+        <Link className={styles.newRole} to="/register?new=1">
+          <PlusMIcon aria-hidden="true" />
+          Новая роль
+        </Link>
       </form>
     </div>
   );
