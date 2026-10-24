@@ -111,7 +111,9 @@ function ShellLayout({ user }: { user: DemoUser }) {
                   to={{ pathname: to, search: demo.search }}
                   end={end}
                   className={({ isActive }) =>
-                    isActive ? `${styles.item} ${styles.itemActive}` : styles.item
+                    isActive || (news && location.pathname === '/competitors')
+                      ? `${styles.item} ${styles.itemActive}`
+                      : styles.item
                   }
                 >
                   <SectionIcon className={styles.itemIcon} aria-hidden="true" />
