@@ -9,6 +9,7 @@ import styles from './AnalysisProgress.module.css';
 type Props = {
   compact?: boolean;
   onCancel?: () => void;
+  title?: string;
 };
 
 const STEPS = [
@@ -17,7 +18,7 @@ const STEPS = [
   { title: 'Проверка выводов', Icon: ShieldMIcon },
 ];
 
-export function AnalysisProgress({ compact = false, onCancel }: Props) {
+export function AnalysisProgress({ compact = false, onCancel, title }: Props) {
   const [seconds, setSeconds] = useState(0);
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export function AnalysisProgress({ compact = false, onCancel }: Props) {
         <span className={styles.spinner} aria-hidden="true" />
         <div className={styles.status} role="status" aria-atomic="true">
           <p className={styles.title}>
-            {compact ? 'Готовим ответ на вопрос' : 'Готовим ваш разбор'}
+            {title ?? (compact ? 'Готовим ответ на вопрос' : 'Готовим ваш разбор')}
           </p>
           <p className={styles.description}>
             {takingLong

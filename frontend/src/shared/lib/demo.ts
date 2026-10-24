@@ -29,5 +29,5 @@ export const DEMO_USERS: DemoUser[] = [
 ];
 
 export function isRole(value: string | null): value is Role {
-  return value !== null && value in ROLE_TITLES;
+  return value !== null && Object.hasOwn(ROLE_TITLES, value);
 }
