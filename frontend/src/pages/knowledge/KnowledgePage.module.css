@@ -1,0 +1,469 @@
+.page {
+  display: grid;
+  min-width: 0;
+  gap: var(--gap-20);
+}
+
+.lead {
+  max-width: 70ch;
+  margin-top: var(--gap-8);
+  color: var(--c-text-secondary);
+}
+
+.panel,
+.factCard {
+  min-width: 0;
+  padding: var(--gap-24);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+}
+
+.panel h2,
+.overview h2 {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.overview {
+  display: grid;
+  gap: var(--gap-16);
+}
+
+.overviewTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-16);
+}
+
+.overviewTitle p {
+  margin-top: var(--gap-4);
+}
+
+.bookIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  color: var(--c-text-primary);
+  background: var(--c-bg-page);
+  border-radius: var(--radius-16);
+}
+
+.hint,
+.counter,
+.resultLine {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}
+
+.progressHead,
+.controlsHead,
+.factHead,
+.factFoot,
+.historyMeta,
+.resultLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--gap-12);
+}
+
+.progressHead strong {
+  font-size: 24px;
+  line-height: 32px;
+  font-variant-numeric: tabular-nums;
+}
+
+.progressHead strong span {
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.progress {
+  height: 8px;
+  overflow: hidden;
+  background: var(--c-bg-page);
+  border-radius: var(--radius-pill);
+}
+
+.progress > span {
+  display: block;
+  height: 100%;
+  background: var(--c-positive);
+  border-radius: inherit;
+  transition: width 200ms ease;
+}
+
+.sources,
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gap-12);
+}
+
+.sources {
+  gap: var(--gap-8);
+}
+
+.sources > button {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-12);
+  min-height: 40px;
+  padding: var(--gap-4) var(--gap-12);
+  background: var(--c-bg-page);
+  border: 1px solid transparent;
+  border-radius: var(--radius-10);
+  cursor: pointer;
+}
+
+.sources > button:hover,
+.sources > button[aria-pressed='true'] {
+  border-color: var(--c-border-primary);
+  background: var(--c-bg-tertiary);
+}
+
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}
+
+.source > span,
+.assumption > span {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.source[data-source='bank_data'] {
+  color: var(--c-info-text-a11y);
+}
+.source[data-source='system'] {
+  color: var(--c-ai-text);
+}
+.source[data-source='client'] {
+  color: var(--c-positive-text-a11y);
+}
+
+.controlsHead {
+  align-items: flex-end;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-4);
+  padding: var(--gap-4);
+  border-radius: var(--radius-12);
+  background: var(--c-bg-tertiary);
+}
+
+.tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gap-8);
+  min-height: 40px;
+  padding: var(--gap-8) var(--gap-12);
+  font-size: 14px;
+  line-height: 20px;
+  border: 0;
+  border-radius: var(--radius-10);
+  background: transparent;
+  cursor: pointer;
+}
+
+.tabs button[aria-pressed='true'] {
+  background: var(--c-bg-plate);
+  box-shadow: var(--shadow-xs);
+}
+
+.tabs button:hover {
+  background: var(--c-bg-page);
+}
+.tabs button span {
+  color: var(--c-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(180px, 1fr) minmax(180px, 1fr);
+  gap: var(--gap-12);
+}
+
+.field,
+.editor {
+  display: grid;
+  min-width: 0;
+  gap: var(--gap-8);
+}
+
+.field > span:first-child {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  padding: var(--gap-12);
+  background: var(--c-bg-plate);
+  border: 1px solid var(--c-border-primary);
+  border-radius: var(--radius-12);
+}
+
+.field input,
+.field select {
+  height: 48px;
+}
+.field select {
+  cursor: pointer;
+}
+.field textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+.field textarea[aria-invalid='true'] {
+  border-color: var(--c-negative);
+}
+.field :disabled {
+  opacity: 0.65;
+}
+.counter {
+  justify-self: end;
+}
+.counter[data-invalid='true'] {
+  color: var(--c-negative-text-a11y);
+}
+.editor {
+  gap: var(--gap-16);
+}
+.panel > .editor {
+  margin-top: var(--gap-20);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--gap-16);
+}
+
+.factCard {
+  display: grid;
+  gap: var(--gap-20);
+  overflow-wrap: anywhere;
+}
+
+.category {
+  padding: var(--gap-4) var(--gap-8);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+  background: var(--c-bg-page);
+  border-radius: var(--radius-8);
+}
+
+.factText {
+  min-height: 56px;
+  font-size: 18px;
+  line-height: 28px;
+}
+
+.confirmed,
+.assumption,
+.feedback {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.confirmed,
+.feedback {
+  color: var(--c-positive-text-a11y);
+}
+.assumption {
+  color: var(--c-attention-text-a11y);
+}
+.confirmed svg,
+.feedback svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.feedback:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.editButton,
+.textButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gap-8);
+  padding: var(--gap-8) 0;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+  color: var(--c-text-link-a11y);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-8);
+  cursor: pointer;
+}
+
+.editButton {
+  color: var(--c-text-primary);
+}
+.editButton svg {
+  width: 16px;
+  height: 16px;
+}
+.textButton:hover,
+.editButton:hover {
+  text-decoration: underline;
+}
+.textButton:disabled,
+.editButton:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.details {
+  border-top: 1px solid var(--c-border-secondary);
+  padding-top: var(--gap-16);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.details summary {
+  color: var(--c-text-secondary);
+  cursor: pointer;
+}
+.detailBody {
+  display: grid;
+  gap: var(--gap-20);
+  margin-top: var(--gap-16);
+}
+.detailBody h3 {
+  margin-bottom: var(--gap-8);
+  font-size: 16px;
+  line-height: 24px;
+}
+.detailBody ul {
+  padding-left: 20px;
+  margin: 0;
+}
+.detailBody li + li {
+  margin-top: var(--gap-8);
+}
+.history {
+  display: grid;
+  gap: var(--gap-16);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.history > li {
+  padding-left: var(--gap-12);
+  border-left: 2px solid var(--c-border-primary);
+}
+.historyMeta {
+  justify-content: flex-start;
+  gap: var(--gap-8);
+  margin-bottom: var(--gap-4);
+}
+.historyMeta time {
+  color: var(--c-text-secondary);
+}
+.notice {
+  display: grid;
+  gap: var(--gap-8);
+  padding: var(--gap-16);
+  background: var(--c-attention-muted);
+  border-radius: var(--radius-12);
+}
+.error {
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--c-negative-text-a11y);
+}
+
+@media (max-width: 1199px) {
+  .facts {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 699px) {
+  .sources {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sources > button {
+    justify-content: space-between;
+    gap: var(--gap-4);
+    padding: var(--gap-4) var(--gap-8);
+  }
+  .filters {
+    grid-template-columns: 1fr 1fr;
+  }
+  .search {
+    grid-column: 1 / -1;
+  }
+  .panel,
+  .factCard {
+    padding: var(--gap-20);
+  }
+  .tabs {
+    width: 100%;
+  }
+  .tabs button {
+    flex: 1;
+    flex-wrap: wrap;
+    padding: var(--gap-8);
+  }
+  .overviewTitle {
+    align-items: flex-start;
+    gap: var(--gap-12);
+  }
+  .bookIcon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-12);
+  }
+}
+
+@media (max-width: 399px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+  .tabs {
+    gap: 2px;
+  }
+  .tabs button {
+    font-size: 14px;
+    flex-direction: column;
+    gap: var(--gap-4);
+  }
+}
