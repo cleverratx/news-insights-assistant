@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Typography } from '@alfalab/core-components-typography';
+import { Navigate } from 'react-router';
 
 import { useShell } from '@/app/shell-context';
 import { FeedCard } from '@/features/feed/FeedCard';
@@ -11,7 +12,8 @@ import {
   useFeedFilters,
   type FeedFilters,
 } from '@/features/feed/filters';
-import { RelatedList } from '@/features/feed/RelatedList';
+import { NewsNavigation } from '@/features/feed/NewsNavigation';
+import { rememberMainFeed } from '@/features/feed/navigation';
 import { newsLink } from '@/features/insight/link';
 import { useCachedApi } from '@/shared/api/cache';
 import { FEED_LIMIT, feedPath } from '@/shared/api/feed';
@@ -31,6 +33,12 @@ function periodTitle(days: number): string {
 export function FeedPage() {
   const { company, role, setRole, user, search } = useShell();
   const feedFilters = useFeedFilters(search);
+
+  if (feedFilters.filters.view === 'related') {
+    const params = new URLSearchParams(feedFilters.search);
+    params.delete('view');
+    return <Navigate to={{ pathname: '/competitors', search: `?${params}` }} replace />;
+  }
 
   return (
     <div className={styles.page}>
@@ -53,38 +61,15 @@ export function FeedPage() {
           </select>
         </label>
       </header>
-      <div className={styles.tabs} role="tablist" aria-label="Источник событий">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={feedFilters.filters.view === 'feed'}
-          className={styles.tab}
-          onClick={() => feedFilters.setView('feed')}
-        >
-          Для вашей компании
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={feedFilters.filters.view === 'related'}
-          className={styles.tab}
-          onClick={() => feedFilters.setView('related')}
-        >
-          Конкуренты и контрагенты
-        </button>
-      </div>
-      {feedFilters.filters.view === 'related' ? (
-        <RelatedList company={company} />
-      ) : (
-        <FeedView
-          key={`${company}:${role ?? ''}`}
-          company={company}
-          role={role}
-          login={user.login}
-          search={feedFilters.search}
-          feedFilters={feedFilters}
-        />
-      )}
+      <NewsNavigation search={feedFilters.search} />
+      <FeedView
+        key={`${company}:${role ?? ''}`}
+        company={company}
+        role={role}
+        login={user.login}
+        search={feedFilters.search}
+        feedFilters={feedFilters}
+      />
     </div>
   );
 }
@@ -123,6 +108,10 @@ function FeedView({ company, role, login, search, feedFilters }: FeedViewProps) 
     [feed.data, filters.polarity, filters.marker, filters.significance],
   );
   const linkFor = (item: FeedItem) => newsLink(search, item.news_id, feedData?.snapshot_id);
+
+  useEffect(() => {
+    if (feedData) rememberMainFeed(feedData, search);
+  }, [feedData, search]);
 
   useEffect(() => {
     if (feedData)

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ApiError, apiPost, errorMessage, isAbort } from '@/shared/api/client';
+import { apiPost, errorMessage, isAbort } from '@/shared/api/client';
 import type { GeneratedInsight, InsightRequest } from '@/shared/api/types';
 import type { Role } from '@/shared/lib/demo';
 
@@ -9,6 +9,7 @@ type Params = {
   newsId: string;
   role: Role | null;
   snapshot: string | null;
+  relatedCompanyId?: string;
 };
 
 type Run = { attempt: number; refresh: boolean };
@@ -21,29 +22,27 @@ async function request(params: Params, refresh: boolean, signal: AbortSignal) {
     role: params.role,
     feed_snapshot_id: params.snapshot,
     refresh,
+    ...(params.relatedCompanyId ? { related_company_id: params.relatedCompanyId } : {}),
   };
   const path = `/companies/${encodeURIComponent(params.company)}/insights`;
-  try {
-    return await apiPost<GeneratedInsight>(path, body, signal);
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 409 && params.snapshot) {
-      return apiPost<GeneratedInsight>(path, { ...body, feed_snapshot_id: null }, signal);
-    }
-    throw error;
-  }
+  return apiPost<GeneratedInsight>(path, body, signal);
 }
 
 export function useInsight(params: Params) {
-  const { company, newsId, role, snapshot } = params;
+  const { company, newsId, role, snapshot, relatedCompanyId } = params;
   const [run, setRun] = useState<Run>({ attempt: 0, refresh: false });
   const [result, setResult] = useState<Result | null>(null);
   const controller = useRef<AbortController | null>(null);
-  const key = `${company}|${newsId}|${role ?? ''}|${snapshot ?? ''}|${run.attempt}`;
+  const key = `${company}|${newsId}|${role ?? ''}|${snapshot ?? ''}|${relatedCompanyId ?? ''}|${run.attempt}`;
 
   useEffect(() => {
     const current = new AbortController();
     controller.current = current;
-    request({ company, newsId, role, snapshot }, run.refresh, current.signal).then(
+    request(
+      { company, newsId, role, snapshot, relatedCompanyId },
+      run.refresh,
+      current.signal,
+    ).then(
       (data) => {
         if (!current.signal.aborted) setResult({ key, data });
       },
@@ -53,7 +52,7 @@ export function useInsight(params: Params) {
       },
     );
     return () => current.abort();
-  }, [company, newsId, role, snapshot, run, key]);
+  }, [company, newsId, role, snapshot, relatedCompanyId, run, key]);
 
   const cancel = useCallback(() => {
     controller.current?.abort();
