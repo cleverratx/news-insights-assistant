@@ -111,7 +111,7 @@ function ShellLayout({ user }: { user: DemoUser }) {
                   to={{ pathname: to, search: demo.search }}
                   end={end}
                   className={({ isActive }) =>
-                    isActive || (news && location.pathname === '/competitors')
+                    isActive || (news && ['/competitors', '/analytics'].includes(location.pathname))
                       ? `${styles.item} ${styles.itemActive}`
                       : styles.item
                   }
