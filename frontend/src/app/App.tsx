@@ -9,9 +9,12 @@ import { HomePage } from '@/pages/home/HomePage';
 import { InsightPage } from '@/pages/insight/InsightPage';
 import { LoginPage } from '@/pages/login/LoginPage';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
+import { RegisterPage } from '@/pages/register/RegisterPage';
+import { PositionsPage } from '@/pages/positions/PositionsPage';
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/register', element: <RegisterPage /> },
   {
     element: <AppShell />,
     children: [
@@ -20,6 +23,7 @@ const router = createBrowserRouter([
       { path: 'competitors', element: <CompetitorsPage /> },
       { path: 'analytics', element: <AnalyticsPage /> },
       { path: 'knowledge', element: <KnowledgePage /> },
+      { path: 'positions', element: <PositionsPage /> },
       { path: 'news/:newsId', element: <InsightPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],

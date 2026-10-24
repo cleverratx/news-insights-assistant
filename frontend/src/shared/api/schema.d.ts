@@ -188,6 +188,94 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/companies/{company_id}/positions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Positions
+     * @description Должности компании с отдельным контекстом и уточнениями.
+     */
+    get: operations['list_positions_api_companies__company_id__positions_get'];
+    put?: never;
+    /**
+     * Create Position
+     * @description Создание должности; повтор запроса с тем же request_id не создаёт копию.
+     */
+    post: operations['create_position_api_companies__company_id__positions_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/companies/{company_id}/positions/{position_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Position
+     * @description Контекст выбранной должности.
+     */
+    get: operations['get_position_api_companies__company_id__positions__position_id__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Edit Position
+     * @description Правка контекста с защитой от параллельного изменения.
+     */
+    patch: operations['edit_position_api_companies__company_id__positions__position_id__patch'];
+    trace?: never;
+  };
+  '/api/companies/{company_id}/positions/{position_id}/questions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Position Questions
+     * @description Вопросы об обязанностях и решениях выбранной должности.
+     */
+    get: operations['position_questions_api_companies__company_id__positions__position_id__questions_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/companies/{company_id}/positions/{position_id}/questions/{key}/answer': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Answer Position
+     * @description Ответ сразу становится подтверждённой частью контекста должности.
+     */
+    post: operations['answer_position_api_companies__company_id__positions__position_id__questions__key__answer_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/companies/{company_id}/links': {
     parameters: {
       query?: never;
@@ -2526,6 +2614,84 @@ export interface components {
      * @enum {string}
      */
     Polarity: 'risk' | 'opportunity' | 'neutral';
+    /** PositionAnswer */
+    PositionAnswer: {
+      /** Text */
+      text: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at?: string;
+    };
+    /** PositionAnswerRequest */
+    PositionAnswerRequest: {
+      /** Expected Version */
+      expected_version: number;
+      /** Text */
+      text: string;
+    };
+    /** PositionCreate */
+    PositionCreate: {
+      /**
+       * Request Id
+       * Format: uuid
+       */
+      request_id: string;
+      /** Title */
+      title: string;
+      base_role: components['schemas']['Role'];
+      /** Context */
+      context: string;
+    };
+    /** PositionProfile */
+    PositionProfile: {
+      /** Id */
+      id: string;
+      /** Company Id */
+      company_id: string;
+      /** Title */
+      title: string;
+      base_role: components['schemas']['Role'];
+      /** Context */
+      context: string;
+      /** Answers */
+      answers?: {
+        [key: string]: components['schemas']['PositionAnswer'];
+      };
+      /**
+       * Version
+       * @default 1
+       */
+      version: number;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at?: string;
+    };
+    /** PositionQuestion */
+    PositionQuestion: {
+      /**
+       * Key
+       * @enum {string}
+       */
+      key: 'responsibilities' | 'decisions' | 'metrics' | 'horizon';
+      /** Question */
+      question: string;
+      /** Why */
+      why: string;
+    };
+    /** PositionUpdate */
+    PositionUpdate: {
+      /** Expected Version */
+      expected_version: number;
+      /** Title */
+      title: string;
+      base_role: components['schemas']['Role'];
+      /** Context */
+      context: string;
+    };
     /**
      * ProductOffer
      * @description Продукт банка, уместный после этого события именно для этой компании.
@@ -3630,6 +3796,209 @@ export interface operations {
       };
     };
   };
+  list_positions_api_companies__company_id__positions_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        company_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PositionProfile'][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  create_position_api_companies__company_id__positions_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        company_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PositionCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PositionProfile'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_position_api_companies__company_id__positions__position_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        company_id: string;
+        position_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PositionProfile'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  edit_position_api_companies__company_id__positions__position_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        company_id: string;
+        position_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PositionUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PositionProfile'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  position_questions_api_companies__company_id__positions__position_id__questions_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        company_id: string;
+        position_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PositionQuestion'][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  answer_position_api_companies__company_id__positions__position_id__questions__key__answer_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        company_id: string;
+        position_id: string;
+        key: 'responsibilities' | 'decisions' | 'metrics' | 'horizon';
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PositionAnswerRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PositionProfile'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
   get_links_api_companies__company_id__links_get: {
     parameters: {
       query?: never;
@@ -3981,6 +4350,7 @@ export interface operations {
         unverified?: boolean;
         /** @description Должность: ceo, cfo, logistics */
         role?: components['schemas']['Role'] | null;
+        position?: string | null;
         /** @description Порог важности 0–10; по умолчанию FEED_MIN_IMPORTANCE */
         min_importance?: number | null;
       };
@@ -4077,7 +4447,9 @@ export interface operations {
   };
   generate_insight_api_companies__company_id__insights_post: {
     parameters: {
-      query?: never;
+      query?: {
+        position?: string | null;
+      };
       header?: never;
       path: {
         company_id: string;
@@ -4332,7 +4704,9 @@ export interface operations {
   };
   company_digest_api_companies__company_id__digest_post: {
     parameters: {
-      query?: never;
+      query?: {
+        position?: string | null;
+      };
       header?: never;
       path: {
         company_id: string;

@@ -19,6 +19,7 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.companies import CompanyId, Connection, company_profile
+from app.api.positions import personalize
 from app.cache.store import LLMCache
 from app.contracts.common import Significance
 from app.contracts.feed import Feed, FeedEvent, FeedFeature, FeedItem, FeedRejection, Polarity
@@ -299,6 +300,7 @@ async def company_feed(
         bool, Query(description="Показать и кандидатов, которых модель не проверила")
     ] = False,
     role: Annotated[Role | None, Query(description="Должность: ceo, cfo, logistics")] = None,
+    position: Annotated[str | None, Query(max_length=100)] = None,
     min_importance: Annotated[
         float | None,
         Query(ge=0, le=10, description="Порог важности 0–10; по умолчанию FEED_MIN_IMPORTANCE"),
@@ -309,6 +311,7 @@ async def company_feed(
     каждого фактора, балл с расшифровкой признаков и объяснение, почему она важна компании.
     Материалы ниже порога важности скрыты, их число — в hidden_below_threshold."""
     profile = await company_profile(company_id, connection)
+    profile = await personalize(profile, connection, position, role)
     now = datetime.now(UTC)
     items, warnings = await load(connection, {MaterialKind.BANK_ANALYTICS, MaterialKind.NEWS}, now)
     shared: set[str] = set()

@@ -16,10 +16,11 @@ import { NewsNavigation } from '@/features/feed/NewsNavigation';
 import { rememberMainFeed } from '@/features/feed/navigation';
 import { newsLink } from '@/features/insight/link';
 import { ClarificationPanel } from '@/features/knowledge/ClarificationPanel';
+import { RoleSelect } from '@/features/positions/RoleSelect';
 import { invalidateCached, useCachedApi } from '@/shared/api/cache';
 import { FEED_LIMIT, feedPath } from '@/shared/api/feed';
 import type { Feed, FeedItem } from '@/shared/api/types';
-import { isRole, ROLE_TITLES, type Role } from '@/shared/lib/demo';
+import type { Role } from '@/shared/lib/demo';
 import { plural } from '@/shared/lib/format';
 import { markSeen, useSeen } from '@/shared/lib/seen';
 import { ErrorState, Skeleton } from '@/shared/ui/StateView';
@@ -32,7 +33,7 @@ function periodTitle(days: number): string {
 }
 
 export function FeedPage() {
-  const { company, role, setRole, user, search, profiles } = useShell();
+  const { company, role, user, search, profiles } = useShell();
   const feedFilters = useFeedFilters(search);
 
   if (feedFilters.filters.view === 'related') {
@@ -47,20 +48,7 @@ export function FeedPage() {
         <Typography.Title tag="h1" view="medium">
           Новости для бизнеса
         </Typography.Title>
-        <label className={styles.role}>
-          <span className={styles.roleLabel}>Должность</span>
-          <select
-            value={role ?? ''}
-            onChange={(event) => setRole(isRole(event.target.value) ? event.target.value : null)}
-          >
-            <option value="">Вся компания</option>
-            {Object.entries(ROLE_TITLES).map(([key, title]) => (
-              <option key={key} value={key}>
-                {title}
-              </option>
-            ))}
-          </select>
-        </label>
+        <RoleSelect />
       </header>
       <NewsNavigation search={feedFilters.search} />
       <ClarificationPanel

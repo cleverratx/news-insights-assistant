@@ -1,3 +1,5 @@
+import { withPosition } from './position-context';
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -34,7 +36,11 @@ export function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
 }
 
 export function apiPost<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
-  return send<T>(path, {
+  const role =
+    body && typeof body === 'object' && 'role' in body && typeof body.role === 'string'
+      ? body.role
+      : null;
+  return send<T>(withPosition(path, role), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

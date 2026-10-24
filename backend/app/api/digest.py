@@ -1,9 +1,10 @@
 import logging
 from contextlib import suppress
 from datetime import UTC, datetime
+from typing import Annotated
 
 import asyncpg
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent.digest import MAX_COMPETITORS, MAX_EVENTS, build_digest
@@ -11,6 +12,7 @@ from app.api.companies import CompanyId, Connection, company_profile
 from app.api.competitors import company_competitors
 from app.api.feed import LLM, build_feed
 from app.api.links import company_links
+from app.api.positions import personalize
 from app.cache.store import LLMCache
 from app.contracts.digest import Digest
 from app.contracts.news import MaterialKind
@@ -42,12 +44,17 @@ class DigestRequest(BaseModel):
     },
 )
 async def company_digest(
-    company_id: CompanyId, body: DigestRequest, connection: Connection, llm: LLM
+    company_id: CompanyId,
+    body: DigestRequest,
+    connection: Connection,
+    llm: LLM,
+    position: Annotated[str | None, Query(max_length=100)] = None,
 ) -> Digest:
     """Сводка за период по ленте компании — общей или должности: что произошло, как события
     влияют друг на друга, конкуренты, о чём подумать, выводы. Акцент задаётся текстом.
     Может расходовать бюджет LLM; принятый синтез кешируется."""
     profile = await company_profile(company_id, connection)
+    profile = await personalize(profile, connection, position, body.role)
     now = datetime.now(UTC)
     items, warnings = await load(connection, {MaterialKind.BANK_ANALYTICS, MaterialKind.NEWS}, now)
     shared: set[str] = set()

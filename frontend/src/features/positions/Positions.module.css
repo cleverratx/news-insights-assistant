@@ -1,0 +1,234 @@
+.page {
+  display: grid;
+  gap: var(--gap-20);
+  min-width: 0;
+}
+.registration {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--gap-32) var(--gap-16);
+}
+.wizard {
+  width: 100%;
+  max-width: 720px;
+  display: grid;
+  gap: var(--gap-24);
+  padding: var(--gap-32);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+  font-size: 20px;
+  font-weight: 500;
+}
+.brand span {
+  color: var(--c-text-secondary);
+  background: var(--c-bg-page);
+  font-size: 12px;
+  padding: 0 var(--gap-8);
+  border-radius: var(--radius-pill);
+}
+.steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-12);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 14px;
+  color: var(--c-text-secondary);
+}
+.steps li {
+  padding-top: var(--gap-8);
+  border-top: 3px solid var(--c-border-secondary);
+}
+.steps li[aria-current='step'] {
+  border-color: var(--c-accent);
+  color: var(--c-text-primary);
+}
+.panel {
+  min-width: 0;
+  display: grid;
+  gap: var(--gap-20);
+  padding: var(--gap-24);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--gap-16);
+}
+.hint {
+  color: var(--c-text-secondary);
+  font-size: 14px;
+  line-height: 22px;
+}
+.lead {
+  color: var(--c-text-secondary);
+  margin-top: var(--gap-8);
+  max-width: 75ch;
+}
+.form {
+  display: grid;
+  gap: var(--gap-16);
+  min-width: 0;
+}
+.field {
+  display: grid;
+  gap: var(--gap-8);
+  min-width: 0;
+}
+.field > span {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  padding: var(--gap-12);
+  background: var(--c-bg-plate);
+  border: 1px solid var(--c-border-primary);
+  border-radius: var(--radius-12);
+}
+.field input,
+.field select {
+  height: 48px;
+}
+.field select {
+  cursor: pointer;
+}
+.field textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+.field textarea[aria-invalid='true'] {
+  border-color: var(--c-negative);
+}
+.field small {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gap-12);
+}
+.questions {
+  display: grid;
+  gap: var(--gap-20);
+}
+.questions h2 {
+  font-size: 22px;
+  line-height: 28px;
+  margin-bottom: var(--gap-8);
+}
+.questions h3 {
+  font-size: 18px;
+  line-height: 26px;
+}
+.questions > .form {
+  padding: var(--gap-20);
+  background: var(--c-bg-page);
+  border-radius: var(--radius-16);
+}
+.answers {
+  display: grid;
+  gap: var(--gap-12);
+}
+.answers:empty {
+  display: none;
+}
+.answer {
+  display: grid;
+  gap: var(--gap-8);
+  padding: var(--gap-16);
+  border: 1px solid var(--c-border-secondary);
+  border-radius: var(--radius-12);
+  overflow-wrap: anywhere;
+}
+.confirmed {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+  color: var(--c-positive-text-a11y);
+  font-size: 14px;
+  line-height: 20px;
+}
+.confirmed svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.linkButton {
+  justify-self: start;
+  padding: var(--gap-4) 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-8);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-link-a11y);
+  cursor: pointer;
+}
+.linkButton:hover {
+  text-decoration: underline;
+}
+.error {
+  color: var(--c-negative-text-a11y);
+  font-size: 14px;
+  line-height: 22px;
+}
+.roleSelect {
+  min-width: 220px;
+  max-width: 100%;
+}
+.summary {
+  display: grid;
+  gap: var(--gap-8);
+  padding: var(--gap-20);
+  border-radius: var(--radius-16);
+  background: var(--c-bg-page);
+  overflow-wrap: anywhere;
+}
+.summary h2 {
+  font-size: 22px;
+  line-height: 28px;
+}
+.list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gap-16);
+}
+.list h2 {
+  font-size: 20px;
+  line-height: 28px;
+}
+.panel[data-selected='true'] {
+  box-shadow: inset 0 0 0 2px var(--c-text-primary);
+}
+@media (max-width: 699px) {
+  .wizard {
+    padding: var(--gap-24) var(--gap-20);
+  }
+  .panel {
+    padding: var(--gap-20);
+  }
+  .list {
+    grid-template-columns: 1fr;
+  }
+  .roleSelect {
+    width: 100%;
+  }
+}

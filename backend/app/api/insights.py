@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import Annotated, Self
 
 import asyncpg
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from app.agent.insight import for_role, generate_with_trace
@@ -15,6 +15,7 @@ from app.api.companies import CompanyId, Connection, company_profile
 from app.api.competitors import company_competitors
 from app.api.feed import LLM
 from app.api.links import company_links
+from app.api.positions import personalize
 from app.contracts.common import Id, require_unique
 from app.contracts.generation import GeneratedInsight
 from app.contracts.news import NewsItem
@@ -60,12 +61,17 @@ class InsightRequest(BaseModel):
     },
 )
 async def generate_insight(
-    company_id: CompanyId, body: InsightRequest, connection: Connection, llm: LLM
+    company_id: CompanyId,
+    body: InsightRequest,
+    connection: Connection,
+    llm: LLM,
+    position: Annotated[str | None, Query(max_length=100)] = None,
 ) -> GeneratedInsight:
     """Генерация с критиком и сохранением трассы; может расходовать бюджет LLM. Готовый разбор
     тех же материалов для того же профиля и акцента выдаётся из кеша (`cache_hit`); для другой
     должности — тот же разбор со своими оценками и подачей (`role_view`)."""
     profile = await company_profile(company_id, connection)
+    profile = await personalize(profile, connection, position, body.role)
     materials = []
     for doc_id in body.news_ids:
         found = None
