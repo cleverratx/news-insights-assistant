@@ -8,7 +8,7 @@ export const ORIGIN_TITLES: Record<Origin, string> = {
   fact: 'Факт',
   bank: 'Позиция Альфа-Банка',
   client_data: 'Данные вашей компании',
-  model: 'Вывод AI',
+  model: 'Вывод ИИ',
 };
 
 const ORIGIN_CLASS: Record<Origin, string> = {

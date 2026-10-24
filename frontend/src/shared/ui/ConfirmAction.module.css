@@ -2,17 +2,7 @@
   min-width: 0;
 }
 .trigger {
-  padding: var(--gap-8) 0;
-  font-size: 14px;
-  line-height: 20px;
   color: var(--c-negative-text-a11y);
-  border: 0;
-  background: transparent;
-  border-radius: var(--radius-8);
-  cursor: pointer;
-}
-.trigger:hover {
-  text-decoration: underline;
 }
 .trigger:disabled {
   opacity: 0.55;

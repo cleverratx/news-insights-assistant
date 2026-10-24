@@ -85,6 +85,8 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
   const request = useRef<AbortController | null>(null);
   const addButton = useRef<HTMLButtonElement>(null);
   const visitedAnchor = useRef<string>('');
+  const results = useRef<HTMLElement>(null);
+  const jumpToFacts = useRef(false);
   useEffect(
     () => () => {
       request.current?.abort();
@@ -110,6 +112,15 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
     element.scrollIntoView({ block: 'start' });
     element.focus({ preventScroll: true });
   }, [location.hash, location.key, facts, filter]);
+  useEffect(() => {
+    if (!jumpToFacts.current) return;
+    jumpToFacts.current = false;
+    results.current?.scrollIntoView({
+      block: 'start',
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    });
+    results.current?.focus({ preventScroll: true });
+  }, [filter]);
 
   const saved = (fact: KnowledgeFact) => {
     revision.current += 1;
@@ -235,7 +246,10 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
                   type="button"
                   key={source}
                   aria-pressed={filter.source === key}
-                  onClick={() => update('source', filter.source === key ? 'all' : key)}
+                  onClick={() => {
+                    jumpToFacts.current = true;
+                    setFilter({ ...EMPTY_FILTER, source: key });
+                  }}
                 >
                   <SourceBadge source={key} />
                   <strong>{count}</strong>
@@ -359,49 +373,51 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
           </select>
         </label>
       </div>
-      <div className={styles.resultLine}>
-        <span>
-          Показано {visible.length} из {total}
-        </span>
-        {filtered && (
-          <button
-            type="button"
-            className={styles.textButton}
-            onClick={() => setFilter(EMPTY_FILTER)}
-          >
-            Сбросить фильтры
-          </button>
-        )}
-      </div>
-      {!total ? (
-        <div className={styles.panel}>
-          <EmptyState
-            title="Начнём с того, что знаете вы"
-            message="Добавьте информацию о продуктах, рынках или планах компании — она дополнит данные банка."
-          />
+      <section ref={results} className={styles.results} aria-label="Факты компании" tabIndex={-1}>
+        <div className={styles.resultLine}>
+          <span>
+            Показано {visible.length} из {total}
+          </span>
+          {filtered && (
+            <button
+              type="button"
+              className={styles.textButton}
+              onClick={() => setFilter(EMPTY_FILTER)}
+            >
+              Сбросить фильтры
+            </button>
+          )}
         </div>
-      ) : visible.length === 0 ? (
-        <div className={styles.panel}>
-          <EmptyState
-            title="Подходящих фактов нет"
-            message="Измените условия поиска или сбросьте фильтры."
-            action={{ title: 'Сбросить фильтры', onClick: () => setFilter(EMPTY_FILTER) }}
-          />
-        </div>
-      ) : (
-        <div className={styles.facts}>
-          {visible.map((fact) => (
-            <FactCard
-              key={fact.id}
-              fact={fact}
-              profile={current?.profile}
-              onChange={saved}
-              onNotice={setNotice}
-              onDeleted={removed}
+        {!total ? (
+          <div className={styles.panel}>
+            <EmptyState
+              title="Начнём с того, что знаете вы"
+              message="Добавьте информацию о продуктах, рынках или планах компании — она дополнит данные банка."
             />
-          ))}
-        </div>
-      )}
+          </div>
+        ) : visible.length === 0 ? (
+          <div className={styles.panel}>
+            <EmptyState
+              title="Подходящих фактов нет"
+              message="Измените условия поиска или сбросьте фильтры."
+              action={{ title: 'Сбросить фильтры', onClick: () => setFilter(EMPTY_FILTER) }}
+            />
+          </div>
+        ) : (
+          <div className={styles.facts}>
+            {visible.map((fact) => (
+              <FactCard
+                key={fact.id}
+                fact={fact}
+                profile={current?.profile}
+                onChange={saved}
+                onNotice={setNotice}
+                onDeleted={removed}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </>
   );
 }

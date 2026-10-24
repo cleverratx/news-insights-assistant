@@ -45,7 +45,6 @@
   line-height: 22px;
   color: var(--c-text-secondary);
 }
-.expand,
 .textButton {
   display: inline-flex;
   align-items: center;
@@ -67,7 +66,6 @@
 .rotated {
   transform: rotate(180deg);
 }
-.expand:hover,
 .textButton:hover {
   text-decoration: underline;
 }

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ButtonDesktop } from '@alfalab/core-components-button/desktop';
+import { TrashCanMIcon } from '@alfalab/icons-glyph/TrashCanMIcon';
+import { CrossMIcon } from '@alfalab/icons-glyph/CrossMIcon';
 import { errorMessage, isAbort } from '@/shared/api/client';
 import styles from './ConfirmAction.module.css';
 
@@ -54,10 +56,19 @@ export function ConfirmAction({
   };
   return (
     <div className={styles.root}>
-      <button
+      <ButtonDesktop
         className={styles.trigger}
         ref={trigger}
         type="button"
+        view="secondary"
+        size={40}
+        leftAddons={
+          label === 'Удалить' ? (
+            <TrashCanMIcon aria-hidden="true" />
+          ) : (
+            <CrossMIcon aria-hidden="true" />
+          )
+        }
         disabled={disabled || busy}
         aria-expanded={open}
         onClick={() => {
@@ -66,7 +77,7 @@ export function ConfirmAction({
         }}
       >
         {label}
-      </button>
+      </ButtonDesktop>
       {open && (
         <div className={styles.confirmation} role="group" aria-label={title}>
           <p className={styles.title}>{title}</p>

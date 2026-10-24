@@ -134,6 +134,9 @@
   font-size: 14px;
   line-height: 20px;
   color: var(--c-text-secondary);
+  padding: 2px var(--gap-8);
+  background: var(--c-bg-page);
+  border-radius: var(--radius-pill);
 }
 
 .source > span,
@@ -147,12 +150,20 @@
 
 .source[data-source='bank_data'] {
   color: var(--c-info-text-a11y);
+  background: var(--c-info-muted);
 }
 .source[data-source='system'] {
   color: var(--c-ai-text);
+  background: var(--c-ai-muted);
 }
 .source[data-source='client'] {
   color: var(--c-positive-text-a11y);
+  background: var(--c-positive-muted);
+}
+.sources .source {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
 }
 
 .controlsHead {
@@ -299,8 +310,27 @@
 .feedback {
   color: var(--c-positive-text-a11y);
 }
+.confirmed,
+.assumption {
+  display: inline-flex;
+  justify-self: start;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px var(--gap-12);
+  border-radius: var(--radius-pill);
+}
+.confirmed {
+  background: var(--c-positive-muted);
+}
 .assumption {
   color: var(--c-attention-text-a11y);
+  background: var(--c-attention-muted);
+}
+.results {
+  display: grid;
+  gap: var(--gap-20);
+  min-width: 0;
+  scroll-margin-top: 88px;
 }
 .confirmed svg,
 .feedback svg {

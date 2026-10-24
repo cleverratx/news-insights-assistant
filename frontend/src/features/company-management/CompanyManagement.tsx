@@ -98,17 +98,21 @@ function CompanyLists({ company, onChanged }: { company: string; onChanged: () =
             </p>
           </div>
         </div>
-        <button
+        <ButtonDesktop
           className={styles.expand}
           type="button"
+          view="secondary"
+          size={40}
+          rightAddons={
+            <ChevronDownMIcon aria-hidden="true" className={open ? styles.rotated : undefined} />
+          }
           aria-expanded={open}
           aria-controls={id}
           disabled={formBusy}
           onClick={() => setOpen(!open)}
         >
           {open ? 'Свернуть список' : 'Управлять компаниями'}
-          <ChevronDownMIcon aria-hidden="true" className={open ? styles.rotated : undefined} />
-        </button>
+        </ButtonDesktop>
       </div>
       <div className={styles.actions}>
         <ButtonDesktop
