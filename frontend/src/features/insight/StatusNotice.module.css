@@ -2,8 +2,9 @@
   display: grid;
   gap: var(--gap-8);
   padding: var(--gap-20) var(--gap-24);
-  font-size: 15px;
-  line-height: 22px;
+  justify-items: start;
+  font-size: 16px;
+  line-height: 24px;
   border-radius: var(--radius-20);
 }
 
@@ -27,6 +28,18 @@
   margin: var(--gap-8) 0 0;
   padding: 0;
   list-style: none;
+}
+
+.details {
+  width: 100%;
+  margin-top: var(--gap-4);
+}
+
+.details summary {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  cursor: pointer;
 }
 
 .gap {

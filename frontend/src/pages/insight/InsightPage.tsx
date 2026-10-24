@@ -7,8 +7,8 @@ import { InformationCircleLineMIcon } from '@alfalab/icons-glyph/InformationCirc
 import { useShell } from '@/app/shell-context';
 import { AskPanel } from '@/features/ask/AskPanel';
 import { feedSearch } from '@/features/feed/filters';
-import { InsightLoading } from '@/features/insight/InsightLoading';
 import { InsightView } from '@/features/insight/InsightView';
+import { hasInsightContent } from '@/features/insight/result-state';
 import { StatusNotice } from '@/features/insight/StatusNotice';
 import { useInsight } from '@/features/insight/useInsight';
 import { BasisPanel } from '@/features/trace/BasisPanel';
@@ -19,7 +19,8 @@ import { formatAgo, formatDateTime, plural } from '@/shared/lib/format';
 import { CriteriaTable } from '@/shared/ui/ImpactCriteria';
 import { ImpactMeter } from '@/shared/ui/ImpactMeter';
 import { ImportanceRing } from '@/shared/ui/ImportanceRing';
-import { ErrorState } from '@/shared/ui/StateView';
+import { AnalysisProgress } from '@/shared/ui/AnalysisProgress';
+import { EmptyState, ErrorState } from '@/shared/ui/StateView';
 
 import styles from './InsightPage.module.css';
 
@@ -154,14 +155,15 @@ export function InsightPage() {
 
       {impact && <CriteriaTable impact={impact} info={feed.data?.impact_criteria} />}
 
-      <div aria-live="polite" className={styles.body}>
-        {insight.loading && <InsightLoading key={insight.key} onCancel={insight.cancel} />}
+      <div className={styles.body}>
+        {insight.loading && <AnalysisProgress key={insight.key} onCancel={insight.cancel} />}
         {insight.cancelled && (
           <div className={styles.plate}>
-            <p>Разбор остановлен.</p>
-            <button type="button" className={styles.action} onClick={insight.retry}>
-              Запустить снова
-            </button>
+            <EmptyState
+              title="Ожидание остановлено"
+              message="Можно запросить разбор снова или вернуться к ленте."
+              action={{ title: 'Запросить снова', onClick: insight.retry }}
+            />
           </div>
         )}
         {insight.error && (
@@ -175,8 +177,8 @@ export function InsightPage() {
         )}
         {result && (
           <>
-            <StatusNotice result={result} />
-            <InsightView result={result} onSource={showSource} />
+            <StatusNotice result={result} onRetry={insight.retry} />
+            {hasInsightContent(result) && <InsightView result={result} onSource={showSource} />}
             <aside className={styles.disclaimer} aria-label="Важно знать">
               <InformationCircleLineMIcon className={styles.disclaimerIcon} aria-hidden="true" />
               <p>{result.disclaimer || DISCLAIMER}</p>

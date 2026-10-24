@@ -44,9 +44,11 @@ export function useInsight(params: Params) {
     const current = new AbortController();
     controller.current = current;
     request({ company, newsId, role, snapshot }, run.refresh, current.signal).then(
-      (data) => setResult({ key, data }),
+      (data) => {
+        if (!current.signal.aborted) setResult({ key, data });
+      },
       (error: unknown) => {
-        if (isAbort(error)) return;
+        if (current.signal.aborted || isAbort(error)) return;
         setResult({ key, error: errorMessage(error) });
       },
     );

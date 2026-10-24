@@ -1,0 +1,141 @@
+.progress {
+  display: grid;
+  min-width: 0;
+  gap: var(--gap-24);
+  padding: var(--gap-24);
+  background: var(--c-bg-plate);
+  border-radius: var(--radius-20);
+}
+
+.heading {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap-16);
+}
+
+.spinner {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+  border: 2px solid var(--c-bg-tertiary);
+  border-top-color: var(--c-accent);
+  border-right-color: var(--c-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.status {
+  display: grid;
+  min-width: 0;
+  gap: var(--gap-8);
+}
+
+.title {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 500;
+}
+
+.description {
+  max-width: 65ch;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--c-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.plan {
+  display: grid;
+  gap: var(--gap-12);
+}
+
+.caption,
+.elapsed {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-text-secondary);
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-16) var(--gap-24);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.steps svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--c-graphic-secondary);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-12);
+  padding-top: var(--gap-16);
+  border-top: 1px solid var(--c-border-secondary);
+}
+
+.elapsed {
+  font-variant-numeric: tabular-nums;
+}
+
+.progress[data-compact='true'] {
+  gap: var(--gap-12);
+  padding: var(--gap-16);
+  background: var(--c-bg-page);
+  border-radius: var(--radius-12);
+}
+
+.progress[data-compact='true'] .title {
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.progress[data-compact='true'] .footer {
+  padding: 0;
+  border: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 599px) {
+  .progress {
+    gap: var(--gap-20);
+    padding: var(--gap-20);
+  }
+
+  .title {
+    font-size: 20px;
+    line-height: 26px;
+  }
+
+  .steps {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

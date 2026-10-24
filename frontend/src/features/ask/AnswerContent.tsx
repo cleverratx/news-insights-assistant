@@ -1,6 +1,8 @@
 import { useId } from 'react';
 import type { MouseEvent } from 'react';
 
+import { insightResultState } from '@/features/insight/result-state';
+import { StatusNotice } from '@/features/insight/StatusNotice';
 import type { GeneratedInsight, LabeledStatement } from '@/shared/api/types';
 
 import styles from './AskPanel.module.css';
@@ -17,7 +19,7 @@ function revealSource(event: MouseEvent<HTMLAnchorElement>, id: string) {
 
 export function AnswerContent({ result }: { result: GeneratedInsight }) {
   const prefix = useId();
-  const { presentation, insight } = result;
+  const { presentation } = result;
   const disclaimer =
     'disclaimer' in result && typeof result.disclaimer === 'string'
       ? result.disclaimer
@@ -38,9 +40,7 @@ export function AnswerContent({ result }: { result: GeneratedInsight }) {
   );
   const hasAnswer = blocks.some((block) => block.statement_ids?.some((id) => statements.has(id)));
   const facts = [...(presentation.facts ?? []), ...(presentation.bank_position ?? [])];
-  const warnings = [
-    ...new Set([insight.status_reason, ...(result.warnings ?? [])].filter(Boolean)),
-  ];
+  const warnings = [...new Set(result.warnings ?? [])];
 
   function statement(row: LabeledStatement) {
     return (
@@ -71,12 +71,13 @@ export function AnswerContent({ result }: { result: GeneratedInsight }) {
 
   return (
     <div className={styles.answer}>
+      <StatusNotice result={result} />
       {warnings.map((warning) => (
         <p key={warning} className={styles.notice}>
           {warning}
         </p>
       ))}
-      {!hasAnswer && !warnings.length && (
+      {!hasAnswer && !warnings.length && insightResultState(result) === 'ready' && (
         <p>
           Агент не сформировал проверенный ответ на этот вопрос. Попробуйте уточнить формулировку.
         </p>
