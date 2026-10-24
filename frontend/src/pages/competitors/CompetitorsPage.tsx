@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { ButtonDesktop } from '@alfalab/core-components-button/desktop';
 import { Typography } from '@alfalab/core-components-typography';
 import { ChevronDownMIcon } from '@alfalab/icons-glyph/ChevronDownMIcon';
+import { ChevronRightMIcon } from '@alfalab/icons-glyph/ChevronRightMIcon';
 
 import { useShell } from '@/app/shell-context';
 import { PERIODS } from '@/features/feed/filters';
 import { NewsNavigation } from '@/features/feed/NewsNavigation';
+import { newsLink } from '@/features/insight/link';
 import { useApi } from '@/shared/api/useApi';
 import type { RelatedFeed } from '@/shared/api/types';
 import { isRole, ROLE_TITLES } from '@/shared/lib/demo';
@@ -175,10 +177,11 @@ export function CompetitorsPage() {
 }
 
 function EventCard({ event }: { event: RelatedEvent }) {
-  const { company, role } = useShell();
+  const { company, role, search } = useShell();
   const [selected, setSelected] = useState(event.companies[0].id);
   const [open, setOpen] = useState(false);
   const mention = event.companies.find((item) => item.id === selected) ?? event.companies[0];
+  const fullAnalysis = newsLink(search, event.news_id);
 
   return (
     <article className={styles.card}>
@@ -190,16 +193,21 @@ function EventCard({ event }: { event: RelatedEvent }) {
           </span>
         ))}
       </div>
-      <h2 className={styles.eventTitle}>{event.card.title}</h2>
+      <h2 className={styles.eventTitle}>
+        {event.card.url ? (
+          <a className={styles.titleLink} href={event.card.url} target="_blank" rel="noreferrer">
+            {event.card.title}
+          </a>
+        ) : (
+          <Link className={styles.titleLink} to={fullAnalysis}>
+            {event.card.title}
+          </Link>
+        )}
+      </h2>
       {event.summary && <p className={styles.summary}>{event.summary}</p>}
       <div className={styles.meta}>
         <span>{event.card.source}</span>
         <time dateTime={event.card.published_at}>{formatAgo(event.card.published_at)}</time>
-        {event.card.url && (
-          <a href={event.card.url} target="_blank" rel="noreferrer">
-            Первоисточник ↗
-          </a>
-        )}
       </div>
       <details className={styles.evidence}>
         <summary>
@@ -248,15 +256,21 @@ function EventCard({ event }: { event: RelatedEvent }) {
             </select>
           </label>
         )}
-        <button
-          className={styles.analyze}
-          type="button"
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
-        >
-          {open ? 'Скрыть разбор' : 'Влияние на наш бизнес'}
-          <ChevronDownMIcon aria-hidden="true" className={open ? styles.rotated : undefined} />
-        </button>
+        <div className={styles.eventActions}>
+          <button
+            className={styles.analyze}
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
+          >
+            {open ? 'Скрыть разбор' : 'Влияние на наш бизнес'}
+            <ChevronDownMIcon aria-hidden="true" className={open ? styles.rotated : undefined} />
+          </button>
+          <Link className={styles.fullAnalysis} to={fullAnalysis}>
+            Полный разбор новости
+            <ChevronRightMIcon aria-hidden="true" />
+          </Link>
+        </div>
       </div>
       {open && <RelatedAnalysis key={mention.id} company={company} role={role} mention={mention} />}
     </article>

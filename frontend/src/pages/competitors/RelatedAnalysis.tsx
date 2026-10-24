@@ -1,12 +1,12 @@
 import { useId, useRef } from 'react';
+import { ChevronDownMIcon } from '@alfalab/icons-glyph/ChevronDownMIcon';
 
 import { StatusNotice } from '@/features/insight/StatusNotice';
 import { useInsight } from '@/features/insight/useInsight';
+import { SOURCE_TYPE } from '@/features/trace/sources';
 import type { GeneratedInsight, LabeledStatement } from '@/shared/api/types';
 import type { Role } from '@/shared/lib/demo';
 import { AnalysisProgress } from '@/shared/ui/AnalysisProgress';
-import { ImpactMeter } from '@/shared/ui/ImpactMeter';
-import { ImportanceRing } from '@/shared/ui/ImportanceRing';
 import { OriginMark } from '@/shared/ui/OriginMark';
 import { EmptyState, ErrorState } from '@/shared/ui/StateView';
 
@@ -58,7 +58,6 @@ function AnalysisResult({ result, onRetry }: { result: GeneratedInsight; onRetry
   const sources = useRef<HTMLDetailsElement>(null);
   const digest = relatedStatements(result, 'digest');
   const meaning = relatedStatements(result, 'meaning');
-  const ranking = result.ranking?.find((item) => item.news_id === result.insight.news_ids[0]);
   const originals = result.presentation.originals ?? [];
   const numbers = new Map(originals.map((source, index) => [source.id, index + 1]));
 
@@ -74,27 +73,29 @@ function AnalysisResult({ result, onRetry }: { result: GeneratedInsight; onRetry
           {assumption && <span className={styles.assumption}>Предположение</span>}
         </div>
         <p>
-          {text}{' '}
-          {[...new Set(row.source_ids)].map((id) => {
-            const number = numbers.get(id);
-            return number ? (
-              <a
-                key={id}
-                className={styles.citation}
-                href={`#${prefix}-source-${number}`}
-                aria-label={`Источник ${number}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  if (sources.current) sources.current.open = true;
-                  document
-                    .getElementById(`${prefix}-source-${number}`)
-                    ?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
-                }}
-              >
-                [{number}]
-              </a>
-            ) : null;
-          })}
+          {text}
+          <span className={styles.citations}>
+            {[...new Set(row.source_ids)].map((id) => {
+              const number = numbers.get(id);
+              return number ? (
+                <a
+                  key={id}
+                  className={styles.citation}
+                  href={`#${prefix}-source-${number}`}
+                  aria-label={`Источник ${number}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    if (sources.current) sources.current.open = true;
+                    const target = document.getElementById(`${prefix}-source-${number}`);
+                    target?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+                    target?.focus({ preventScroll: true });
+                  }}
+                >
+                  {number}
+                </a>
+              ) : null;
+            })}
+          </span>
         </p>
       </li>
     );
@@ -109,20 +110,12 @@ function AnalysisResult({ result, onRetry }: { result: GeneratedInsight; onRetry
           <ul className={styles.statements}>{digest.map(statement)}</ul>
         ) : (
           <p className={styles.hint}>
-            Данных для выжимки пока недостаточно. Первоисточник доступен в карточке события.
+            Данных для выжимки пока недостаточно. Заголовок события ведёт к исходному материалу.
           </p>
         )}
       </section>
       <section className={styles.meaning} aria-label="Влияние на наш бизнес">
-        <div className={styles.analysisHead}>
-          <h3>Что это значит для нас</h3>
-          {ranking && (
-            <div className={styles.scores} aria-label="Оценка для нашей компании">
-              <ImportanceRing importance={ranking.importance} />
-              <ImpactMeter impact={ranking.impact} size="s" />
-            </div>
-          )}
-        </div>
+        <h3>Что это значит для нас</h3>
         <p className={styles.relationText}>{result.related?.relation}</p>
         {meaning.length ? (
           <ul className={styles.statements}>{meaning.map(statement)}</ul>
@@ -132,20 +125,40 @@ function AnalysisResult({ result, onRetry }: { result: GeneratedInsight; onRetry
           </p>
         )}
       </section>
-      <details ref={sources} className={styles.evidence}>
-        <summary>Источники и основания · {originals.length}</summary>
-        {originals.length === 0 && <p>Отдельные фрагменты источников не получены.</p>}
+      <details ref={sources} className={styles.sourcePanel}>
+        <summary>
+          <span>Источники и основания</span>
+          <span className={styles.sourceCount}>{originals.length}</span>
+          <ChevronDownMIcon className={styles.sourceChevron} aria-hidden="true" />
+        </summary>
+        {originals.length === 0 && (
+          <p className={styles.sourceEmpty}>Отдельные фрагменты источников не получены.</p>
+        )}
         <ol className={styles.sources}>
           {originals.map((source, index) => (
-            <li id={`${prefix}-source-${index + 1}`} key={source.id}>
-              {source.url ? (
-                <a href={source.url} target="_blank" rel="noreferrer">
-                  {source.title}
-                </a>
-              ) : (
-                <strong>{source.title}</strong>
-              )}
-              {source.quote && <blockquote>{source.quote}</blockquote>}
+            <li
+              className={styles.source}
+              id={`${prefix}-source-${index + 1}`}
+              key={source.id}
+              tabIndex={-1}
+            >
+              <span className={styles.sourceNumber}>{index + 1}</span>
+              <div className={styles.sourceContent}>
+                <span className={styles.sourceType}>{SOURCE_TYPE[source.type]}</span>
+                {source.url ? (
+                  <a
+                    className={styles.sourceTitle}
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {source.title}
+                  </a>
+                ) : (
+                  <p className={styles.sourceTitle}>{source.title}</p>
+                )}
+                {source.quote && <blockquote>{source.quote}</blockquote>}
+              </div>
             </li>
           ))}
         </ol>
