@@ -10,7 +10,7 @@ import { useShell } from '@/app/shell-context';
 import { NewsNavigation } from '@/features/feed/NewsNavigation';
 import { ClarificationPanel } from '@/features/knowledge/ClarificationPanel';
 import { invalidateCached } from '@/shared/api/cache';
-import { apiPost, errorMessage, isAbort } from '@/shared/api/client';
+import { apiGet, apiPost, errorMessage, isAbort } from '@/shared/api/client';
 import { useApi } from '@/shared/api/useApi';
 import { plural } from '@/shared/lib/format';
 import { EmptyState, ErrorState, Skeleton } from '@/shared/ui/StateView';
@@ -78,10 +78,20 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState('');
+  const [syncError, setSyncError] = useState<string>();
+  const [questionsVersion, setQuestionsVersion] = useState(0);
+  const revision = useRef(0);
+  const refreshRequest = useRef<AbortController | null>(null);
   const request = useRef<AbortController | null>(null);
   const addButton = useRef<HTMLButtonElement>(null);
   const visitedAnchor = useRef<string>('');
-  useEffect(() => () => request.current?.abort(), []);
+  useEffect(
+    () => () => {
+      request.current?.abort();
+      refreshRequest.current?.abort();
+    },
+    [],
+  );
   useEffect(() => {
     const anchorKey = `${location.key}:${location.hash}`;
     if (!location.hash || visitedAnchor.current === anchorKey) return;
@@ -102,6 +112,9 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
   }, [location.hash, location.key, facts, filter]);
 
   const saved = (fact: KnowledgeFact) => {
+    revision.current += 1;
+    refreshRequest.current?.abort();
+    setSyncError(undefined);
     setFacts((items) =>
       items.some((item) => item.id === fact.id)
         ? items.map((item) => (item.id === fact.id ? fact : item))
@@ -109,6 +122,29 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
     );
     invalidateCached(`/companies/${encodeURIComponent(initial.company_id)}/`);
     profiles.retry();
+  };
+  const reloadFacts = async () => {
+    refreshRequest.current?.abort();
+    const controller = new AbortController();
+    refreshRequest.current = controller;
+    const currentRevision = revision.current;
+    setSyncError(undefined);
+    try {
+      const base = await apiGet<KnowledgeBase>(factPath(initial.company_id), controller.signal);
+      controller.signal.throwIfAborted();
+      if (revision.current === currentRevision) setFacts(base.facts ?? []);
+    } catch (caught) {
+      if (!isAbort(caught)) setSyncError(errorMessage(caught));
+    }
+  };
+  const removed = (id: string) => {
+    revision.current += 1;
+    setFacts((items) => items.filter((item) => item.id !== id));
+    setNotice('Факт удалён. История изменений сохранена.');
+    setQuestionsVersion((value) => value + 1);
+    invalidateCached(`/companies/${encodeURIComponent(initial.company_id)}/`);
+    profiles.retry();
+    void reloadFacts();
   };
   const add = async (body: { text: string; category: KnowledgeFact['category'] }) => {
     if (request.current) return;
@@ -213,6 +249,7 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
         company={initial.company_id}
         search={search}
         facts={facts}
+        refreshToken={questionsVersion}
         onAnswered={(fact) => {
           saved(fact);
           setFilter(EMPTY_FILTER);
@@ -261,6 +298,13 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
           </>
         )}
       </div>
+      {syncError && (
+        <ErrorState
+          title="Факт удалён, но не удалось обновить список"
+          message={syncError}
+          onRetry={() => void reloadFacts()}
+        />
+      )}
       {adding && (
         <section className={styles.panel} aria-labelledby="add-fact-title">
           <h2 id="add-fact-title">Новый факт</h2>
@@ -353,6 +397,7 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
               profile={current?.profile}
               onChange={saved}
               onNotice={setNotice}
+              onDeleted={removed}
             />
           ))}
         </div>

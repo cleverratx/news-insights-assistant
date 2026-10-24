@@ -1,0 +1,49 @@
+.root {
+  min-width: 0;
+}
+.trigger {
+  padding: var(--gap-8) 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-negative-text-a11y);
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-8);
+  cursor: pointer;
+}
+.trigger:hover {
+  text-decoration: underline;
+}
+.trigger:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.confirmation {
+  display: grid;
+  gap: var(--gap-12);
+  margin-top: var(--gap-8);
+  padding: var(--gap-16);
+  font-size: 14px;
+  line-height: 22px;
+  background: var(--c-bg-page);
+  border: 1px solid var(--c-border-secondary);
+  border-radius: var(--radius-12);
+  overflow-wrap: anywhere;
+}
+.title {
+  font-weight: 500;
+  color: var(--c-text-primary);
+  font-size: 16px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap-8);
+}
+.danger {
+  color: var(--c-negative-text-a11y);
+}
+.error {
+  color: var(--c-negative-text-a11y);
+}

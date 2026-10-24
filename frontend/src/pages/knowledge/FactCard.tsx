@@ -3,12 +3,21 @@ import { ButtonDesktop } from '@alfalab/core-components-button/desktop';
 import { CheckmarkMIcon } from '@alfalab/icons-glyph/CheckmarkMIcon';
 import { PencilMIcon } from '@alfalab/icons-glyph/PencilMIcon';
 
-import { ApiError, apiGet, apiPatch, apiPost, errorMessage, isAbort } from '@/shared/api/client';
+import {
+  ApiError,
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  errorMessage,
+  isAbort,
+} from '@/shared/api/client';
 import type { CompanyProfile } from '@/shared/api/types';
 import { useApi } from '@/shared/api/useApi';
 import { formatDateTime } from '@/shared/lib/format';
 import { ErrorState, Skeleton } from '@/shared/ui/StateView';
 import { factAnchor } from '@/features/knowledge/model';
+import { ConfirmAction } from '@/shared/ui/ConfirmAction';
 
 import { FactEditor } from './FactEditor';
 import {
@@ -35,11 +44,13 @@ export function FactCard({
   profile,
   onChange,
   onNotice,
+  onDeleted,
 }: {
   fact: KnowledgeFact;
   profile?: CompanyProfile;
   onChange: (fact: KnowledgeFact) => void;
   onNotice: (message: string) => void;
+  onDeleted: (id: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -191,6 +202,17 @@ export function FactCard({
               </button>
             </div>
           </div>
+          <ConfirmAction
+            disabled={busy}
+            onBusy={setBusy}
+            title="Удалить этот факт?"
+            description="Факт перестанет использоваться при анализе компании. История изменений сохранится."
+            onConfirm={async (signal) => {
+              await apiDelete(factPath(fact.company_id, fact.id), signal);
+              signal.throwIfAborted();
+              onDeleted(fact.id);
+            }}
+          />
           {error && (
             <p className={styles.error} role="alert">
               {error}
