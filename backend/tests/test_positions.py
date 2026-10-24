@@ -81,10 +81,11 @@ async def test_concurrent_updates_do_not_overwrite_each_other() -> None:
 
 def test_context_is_scoped_changes_cache_and_personalizes_role_view() -> None:
     company = profile()
-    custom = positions.apply(company, position())
+    original = position()
+    custom = positions.apply(company, original)
     assert not any(f.id.startswith("feature:position:") for f in company.features)
     assert positions.from_profile(company) is None
-    assert positions.from_profile(custom) == position()
+    assert positions.from_profile(custom) == original
     assert digest(company) != digest(custom)
     lens = lens_for(Role.LOGISTICS, custom)
     assert lens.title == "Директор по закупкам"
