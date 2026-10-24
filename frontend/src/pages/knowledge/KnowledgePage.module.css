@@ -265,6 +265,7 @@
 
 .factCard {
   display: grid;
+  scroll-margin-top: 88px;
   gap: var(--gap-20);
   overflow-wrap: anywhere;
 }

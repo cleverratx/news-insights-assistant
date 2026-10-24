@@ -8,6 +8,7 @@ import type { CompanyProfile } from '@/shared/api/types';
 import { useApi } from '@/shared/api/useApi';
 import { formatDateTime } from '@/shared/lib/format';
 import { ErrorState, Skeleton } from '@/shared/ui/StateView';
+import { factAnchor } from '@/features/knowledge/model';
 
 import { FactEditor } from './FactEditor';
 import {
@@ -127,7 +128,12 @@ export function FactCard({
   };
 
   return (
-    <article className={styles.factCard} aria-label={fact.text}>
+    <article
+      className={styles.factCard}
+      aria-label={fact.text}
+      id={factAnchor(fact.id)}
+      tabIndex={-1}
+    >
       <div className={styles.factHead}>
         <span className={styles.category}>{CATEGORIES[fact.category]}</span>
         <SourceBadge source={fact.source} />

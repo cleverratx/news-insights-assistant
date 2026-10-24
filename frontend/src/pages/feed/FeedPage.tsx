@@ -15,7 +15,8 @@ import {
 import { NewsNavigation } from '@/features/feed/NewsNavigation';
 import { rememberMainFeed } from '@/features/feed/navigation';
 import { newsLink } from '@/features/insight/link';
-import { useCachedApi } from '@/shared/api/cache';
+import { ClarificationPanel } from '@/features/knowledge/ClarificationPanel';
+import { invalidateCached, useCachedApi } from '@/shared/api/cache';
 import { FEED_LIMIT, feedPath } from '@/shared/api/feed';
 import type { Feed, FeedItem } from '@/shared/api/types';
 import { isRole, ROLE_TITLES, type Role } from '@/shared/lib/demo';
@@ -31,7 +32,7 @@ function periodTitle(days: number): string {
 }
 
 export function FeedPage() {
-  const { company, role, setRole, user, search } = useShell();
+  const { company, role, setRole, user, search, profiles } = useShell();
   const feedFilters = useFeedFilters(search);
 
   if (feedFilters.filters.view === 'related') {
@@ -62,6 +63,15 @@ export function FeedPage() {
         </label>
       </header>
       <NewsNavigation search={feedFilters.search} />
+      <ClarificationPanel
+        company={company}
+        search={search}
+        compact
+        onAnswered={() => {
+          invalidateCached(`/companies/${encodeURIComponent(company)}/`);
+          profiles.retry();
+        }}
+      />
       <FeedView
         key={`${company}:${role ?? ''}`}
         company={company}

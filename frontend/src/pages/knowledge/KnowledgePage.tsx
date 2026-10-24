@@ -4,9 +4,11 @@ import { Typography } from '@alfalab/core-components-typography';
 import { PlusMIcon } from '@alfalab/icons-glyph/PlusMIcon';
 import { CheckmarkMIcon } from '@alfalab/icons-glyph/CheckmarkMIcon';
 import { BookMIcon } from '@alfalab/icons-glyph/BookMIcon';
+import { useLocation } from 'react-router';
 
 import { useShell } from '@/app/shell-context';
 import { NewsNavigation } from '@/features/feed/NewsNavigation';
+import { ClarificationPanel } from '@/features/knowledge/ClarificationPanel';
 import { invalidateCached } from '@/shared/api/cache';
 import { apiPost, errorMessage, isAbort } from '@/shared/api/client';
 import { useApi } from '@/shared/api/useApi';
@@ -68,7 +70,8 @@ function CompanyKnowledge({ company }: { company: string }) {
 }
 
 function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
-  const { current, profiles } = useShell();
+  const { current, profiles, search } = useShell();
+  const location = useLocation();
   const [facts, setFacts] = useState(initial.facts ?? []);
   const [filter, setFilter] = useState<FactFilter>(EMPTY_FILTER);
   const [adding, setAdding] = useState(false);
@@ -77,7 +80,26 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
   const [notice, setNotice] = useState('');
   const request = useRef<AbortController | null>(null);
   const addButton = useRef<HTMLButtonElement>(null);
+  const visitedAnchor = useRef<string>('');
   useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => {
+    const anchorKey = `${location.key}:${location.hash}`;
+    if (!location.hash || visitedAnchor.current === anchorKey) return;
+    let id: string;
+    try {
+      id = decodeURIComponent(location.hash.slice(1));
+    } catch {
+      return;
+    }
+    const element = document.getElementById(id);
+    if (!element) {
+      if (id.startsWith('knowledge-fact-')) setFilter(EMPTY_FILTER);
+      return;
+    }
+    visitedAnchor.current = anchorKey;
+    element.scrollIntoView({ block: 'start' });
+    element.focus({ preventScroll: true });
+  }, [location.hash, location.key, facts, filter]);
 
   const saved = (fact: KnowledgeFact) => {
     setFacts((items) =>
@@ -187,6 +209,15 @@ function KnowledgeContent({ initial }: { initial: KnowledgeBase }) {
           })}
         </div>
       </section>
+      <ClarificationPanel
+        company={initial.company_id}
+        search={search}
+        facts={facts}
+        onAnswered={(fact) => {
+          saved(fact);
+          setFilter(EMPTY_FILTER);
+        }}
+      />
       <div className={styles.controlsHead}>
         <div className={styles.tabs} role="group" aria-label="Статус фактов">
           {(
