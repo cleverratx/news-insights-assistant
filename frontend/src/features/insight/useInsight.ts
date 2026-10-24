@@ -33,7 +33,8 @@ export function useInsight(params: Params) {
   const [run, setRun] = useState<Run>({ attempt: 0, refresh: false });
   const [result, setResult] = useState<Result | null>(null);
   const controller = useRef<AbortController | null>(null);
-  const key = `${company}|${newsId}|${role ?? ''}|${snapshot ?? ''}|${relatedCompanyId ?? ''}|${run.attempt}`;
+  const position = new URLSearchParams(window.location.search).get('position') ?? '';
+  const key = `${company}|${newsId}|${role ?? ''}|${position}|${snapshot ?? ''}|${relatedCompanyId ?? ''}|${run.attempt}`;
 
   useEffect(() => {
     const current = new AbortController();

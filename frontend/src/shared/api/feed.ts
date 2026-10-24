@@ -1,4 +1,5 @@
 import { useCachedApi } from '@/shared/api/cache';
+import { withPosition } from '@/shared/api/position-context';
 import type { Feed, FeedItem } from '@/shared/api/types';
 import type { Role } from '@/shared/lib/demo';
 import type { Marker } from '@/shared/lib/markers';
@@ -26,7 +27,10 @@ export function feedPath(company: string, role: Role | null, options: FeedOption
   }
   if (options.limit || options.all) query.set('limit', String(options.limit ?? FEED_LIMIT));
   const search = query.toString();
-  return `/companies/${encodeURIComponent(company)}/feed${search ? `?${search}` : ''}`;
+  return withPosition(
+    `/companies/${encodeURIComponent(company)}/feed${search ? `?${search}` : ''}`,
+    role,
+  );
 }
 
 export function useFeed(company: string, role: Role | null) {

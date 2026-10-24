@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useSearchParams } from 'react-router';
 import { ButtonDesktop } from '@alfalab/core-components-button/desktop';
 import { Typography } from '@alfalab/core-components-typography';
+import { PlusMIcon } from '@alfalab/icons-glyph/PlusMIcon';
 
-import { signIn, useSession } from '@/app/session';
+import { savedProfile, signIn, useSession } from '@/app/session';
 import { DEMO_USERS, ROLE_TITLES } from '@/shared/lib/demo';
 import { initials } from '@/shared/lib/format';
 
@@ -16,7 +17,9 @@ function safeNext(value: string | null): string {
 export function LoginPage() {
   const user = useSession();
   const [params] = useSearchParams();
-  const [login, setLogin] = useState(DEMO_USERS[0].login);
+  const saved = savedProfile();
+  const [login, setLogin] = useState(saved?.login ?? DEMO_USERS[0].login);
+  const choices = saved ? [...DEMO_USERS, saved] : DEMO_USERS;
   const next = safeNext(params.get('next'));
 
   if (user) return <Navigate to={next} replace />;
@@ -37,7 +40,7 @@ export function LoginPage() {
         </Typography.Title>
         <fieldset className={styles.users}>
           <legend className={styles.legend}>Тестовая учётная запись</legend>
-          {DEMO_USERS.map((item) => (
+          {choices.map((item) => (
             <label key={item.login} className={styles.user}>
               <input
                 type="radio"
@@ -52,7 +55,7 @@ export function LoginPage() {
               </span>
               <span className={styles.person}>
                 <span className={styles.name}>{item.name}</span>
-                <span className={styles.role}>{ROLE_TITLES[item.role]}</span>
+                <span className={styles.role}>{item.title ?? ROLE_TITLES[item.role]}</span>
               </span>
             </label>
           ))}
@@ -63,6 +66,10 @@ export function LoginPage() {
         <p className={styles.note}>
           Демо-вход: полномочия пользователя считаются проверенными, пароль не нужен.
         </p>
+        <Link className={styles.newRole} to="/register?new=1">
+          <PlusMIcon aria-hidden="true" />
+          Новая роль
+        </Link>
       </form>
     </div>
   );

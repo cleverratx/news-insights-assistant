@@ -375,7 +375,7 @@ async def for_role(
 ) -> GeneratedInsight:
     """Готовый общий разбор для другой должности: те же утверждения, свои оценки и подача."""
     rankings = rank(profile, news, role, ranking, datetime.now(UTC))
-    view = await role_view(llm, result.insight, role, connection)
+    view = await role_view(llm, result.insight, role, connection, profile)
     return GeneratedInsight.model_validate(
         {
             **result.model_dump(mode="json"),
@@ -531,7 +531,7 @@ async def generate_with_trace(
         rankings = await refined_rankings(
             recording, profile, news, insight, rankings, ranking, connection
         )
-    view = await role_view(recording, insight, role, connection)
+    view = await role_view(recording, insight, role, connection, profile)
     if recording is not None:
         usage = recording.usage
     warnings = []

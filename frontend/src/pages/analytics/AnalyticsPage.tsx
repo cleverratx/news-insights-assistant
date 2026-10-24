@@ -14,7 +14,7 @@ import { newsLink } from '@/features/insight/link';
 import { useCachedApi } from '@/shared/api/cache';
 import { FEED_LIMIT, feedPath } from '@/shared/api/feed';
 import type { Feed } from '@/shared/api/types';
-import { isRole, ROLE_TITLES } from '@/shared/lib/demo';
+import { RoleSelect } from '@/features/positions/RoleSelect';
 import { formatDateTime, plural } from '@/shared/lib/format';
 import { EmptyState, ErrorState, Skeleton } from '@/shared/ui/StateView';
 
@@ -55,22 +55,7 @@ export function AnalyticsPage() {
             Что меняется вокруг бизнеса и какие события требуют внимания.
           </p>
         </div>
-        <label className={styles.role}>
-          <span>Разрез аналитики</span>
-          <select
-            value={role ?? ''}
-            onChange={(event) =>
-              update('role', isRole(event.target.value) ? event.target.value : 'all')
-            }
-          >
-            <option value="">Вся компания</option>
-            {Object.entries(ROLE_TITLES).map(([value, title]) => (
-              <option key={value} value={value}>
-                {title}
-              </option>
-            ))}
-          </select>
-        </label>
+        <RoleSelect label="Разрез аналитики" />
       </header>
       <NewsNavigation search={contextSearch} />
       <div className={styles.toolbar}>
@@ -119,7 +104,7 @@ export function AnalyticsPage() {
       )}
       {feed.data && (
         <Dashboard
-          key={`${company}:${role ?? 'all'}:${days}`}
+          key={`${company}:${role ?? 'all'}:${days}:${params.get('position') ?? ''}`}
           feed={feed.data}
           search={contextSearch}
         />

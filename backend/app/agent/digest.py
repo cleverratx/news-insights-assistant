@@ -28,7 +28,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from app.agent.fallback import pool, related_questions, ungrounded
 from app.agent.insight import RecordingClient
 from app.agent.orchestrator import Completer
-from app.agent.roles import LENSES
+from app.agent.roles import lens_for
 from app.agent.threads import all_links, stories
 from app.cache.store import LLMCache, schema_text, version_of
 from app.contracts.digest import Digest, DigestPoint, DigestStep
@@ -182,8 +182,11 @@ def context_text(profile: CompanyProfile, role: Role | None, focus: str | None) 
     )
     lines = [f"Компания {profile.company_id}. Признаки:\n{features or '- нет'}"]
     if role is not None:
-        lens = LENSES[role]
-        lines.append(f"Должность читателя: {lens.title}. Ей важно: {lens.focus}.")
+        lens = lens_for(role, profile)
+        lines.append(
+            f"Должность читателя: {clean(lens.title, 'должность')}. "
+            f"Ей важно: {clean(lens.focus, 'контекст должности')}."
+        )
     if focus:
         lines.append(f"Акцент пользователя: {clean(focus, 'акцент')}")
     return "\n".join(lines)

@@ -20,6 +20,9 @@ export type DemoUser = {
   login: string;
   name: string;
   role: Role;
+  company?: string;
+  position?: string;
+  title?: string;
 };
 
 export const DEMO_USERS: DemoUser[] = [

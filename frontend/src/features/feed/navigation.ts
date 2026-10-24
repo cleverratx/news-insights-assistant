@@ -42,7 +42,8 @@ function read(): Context[] {
 
 export function rememberMainFeed(feed: Feed, search: string) {
   if (!feed.snapshot_id) return;
-  const role = new URLSearchParams(search).get('role') ?? 'all';
+  const params = new URLSearchParams(search);
+  const role = `${params.get('role') ?? 'all'}${params.get('position') ? `|${params.get('position')}` : ''}`;
   const context: Context = {
     company: feed.company_id,
     role,
@@ -71,14 +72,18 @@ export function rememberMainFeed(feed: Feed, search: string) {
 export function fullAnalysisLink(search: string, event: Event, fallback?: Feed) {
   const params = new URLSearchParams(search);
   const company = params.get('company');
-  const role = params.get('role') ?? 'all';
+  const role = `${params.get('role') ?? 'all'}${params.get('position') ? `|${params.get('position')}` : ''}`;
   const ids = new Set([event.news_id, ...event.publications.map((item) => item.news_id)]);
   const matches = (newsId: string, storyId?: string | null) =>
     ids.has(newsId) || Boolean(event.story_id && storyId === event.story_id);
   const context = read().find((item) => item.company === company && item.role === role);
   const saved = context?.items.find((item) => matches(item.newsId, item.storyId));
   if (saved && context) return newsLink(context.search, saved.newsId, context.snapshot);
-  if (fallback?.company_id === company && (fallback.role ?? 'all') === role) {
+  if (
+    !params.get('position') &&
+    fallback?.company_id === company &&
+    (fallback.role ?? 'all') === role
+  ) {
     const item = fallback.items?.find((item) => matches(item.news_id, item.story_id));
     if (item) return newsLink(search, item.news_id, fallback.snapshot_id);
   }

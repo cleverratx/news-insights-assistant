@@ -11,7 +11,7 @@ import { NewsNavigation } from '@/features/feed/NewsNavigation';
 import { fullAnalysisLink } from '@/features/feed/navigation';
 import { useApi } from '@/shared/api/useApi';
 import type { RelatedFeed } from '@/shared/api/types';
-import { isRole, ROLE_TITLES } from '@/shared/lib/demo';
+import { RoleSelect } from '@/features/positions/RoleSelect';
 import { formatAgo, plural } from '@/shared/lib/format';
 import { EmptyState, ErrorState, Skeleton } from '@/shared/ui/StateView';
 
@@ -51,22 +51,7 @@ export function CompetitorsPage() {
             Что происходит у конкурентов и контрагентов и как это касается вас.
           </p>
         </div>
-        <label className={styles.select}>
-          <span>Должность</span>
-          <select
-            value={role ?? ''}
-            onChange={(event) =>
-              update('role', isRole(event.target.value) ? event.target.value : 'all')
-            }
-          >
-            <option value="">Вся компания</option>
-            {Object.entries(ROLE_TITLES).map(([key, title]) => (
-              <option key={key} value={key}>
-                {title}
-              </option>
-            ))}
-          </select>
-        </label>
+        <RoleSelect />
       </header>
       <NewsNavigation search={`?${context}`} />
       <div className={styles.controls}>

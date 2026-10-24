@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType, type SVGProps } from 'react';
-import { Navigate, NavLink, Outlet, useLocation } from 'react-router';
+import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router';
 import { ArrowsRightLeftMIcon } from '@alfalab/icons-glyph/ArrowsRightLeftMIcon';
 import { BanknotesMIcon } from '@alfalab/icons-glyph/BanknotesMIcon';
 import { BulbMIcon } from '@alfalab/icons-glyph/BulbMIcon';
@@ -29,6 +29,7 @@ type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 const SECTIONS: { to: string; title: string; icon: Icon; end?: boolean; news?: boolean }[] = [
   { to: '/', title: 'Главная', icon: HouseMIcon, end: true },
   { to: '/feed', title: 'Новости для бизнеса', icon: BulbMIcon, news: true },
+  { to: '/positions', title: 'Моя должность', icon: UsersMIcon },
 ];
 
 const STUBS: { title: string; icon: Icon }[] = [
@@ -56,7 +57,7 @@ function exit() {
 }
 
 function ShellLayout({ user }: { user: DemoUser }) {
-  const demo = useDemoContext(user.role);
+  const demo = useDemoContext(user.role, user);
   const profiles = useProfiles(DEMO_COMPANIES);
   const feed = useFeed(demo.company, demo.role);
   const seen = useSeen(user.login, demo.company);
@@ -182,10 +183,15 @@ function ShellLayout({ user }: { user: DemoUser }) {
             <span className={styles.avatar} aria-hidden="true">
               {initials(user.name)}
             </span>
-            <span className={styles.person}>
+            <Link
+              className={styles.person}
+              to={{ pathname: '/positions', search: demo.search }}
+              style={{ color: 'inherit', textDecoration: 'none' }}
+              title="Настроить должность"
+            >
               <span className={styles.personName}>{user.name}</span>
-              <span className={styles.personRole}>{ROLE_TITLES[user.role]}</span>
-            </span>
+              <span className={styles.personRole}>{user.title ?? ROLE_TITLES[user.role]}</span>
+            </Link>
             <button type="button" className={styles.signOut} aria-label="Выйти" onClick={exit}>
               <LogOutMIcon aria-hidden="true" />
               <span className={styles.signOutText}>Выйти</span>

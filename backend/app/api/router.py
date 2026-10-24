@@ -10,12 +10,14 @@ from app.api.knowledge import router as knowledge_router
 from app.api.links import router as links_router
 from app.api.llm import router as llm_router
 from app.api.news_links import router as news_links_router
+from app.api.positions import router as positions_router
 from app.api.related_feed import router as related_feed_router
 
 router = APIRouter()
 router.include_router(health_router)
 router.include_router(companies_router)
 router.include_router(knowledge_router)
+router.include_router(positions_router)
 router.include_router(links_router)
 router.include_router(competitors_router)
 router.include_router(feed_router)

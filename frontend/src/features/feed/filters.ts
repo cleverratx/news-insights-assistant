@@ -77,7 +77,7 @@ export function updateFilterParams(params: URLSearchParams, changes: Partial<Fee
 export function feedSearch(params: URLSearchParams, context = ''): string {
   const next = new URLSearchParams();
   const fallback = new URLSearchParams(context);
-  for (const key of ['company', 'role']) {
+  for (const key of ['company', 'role', 'position']) {
     const value = fallback.get(key) ?? params.get(key);
     if (value) next.set(key, value);
   }
