@@ -36,6 +36,9 @@ export function NewsNavigation({ search }: { search: string }) {
       <NavLink to={{ pathname: '/analytics', search: `?${params}` }} className={styles.tab}>
         Аналитика
       </NavLink>
+      <NavLink to={{ pathname: '/knowledge', search: `?${params}` }} className={styles.tab}>
+        База знаний
+      </NavLink>
     </nav>
   );
 }

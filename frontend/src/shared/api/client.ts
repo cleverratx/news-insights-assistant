@@ -41,3 +41,12 @@ export function apiPost<T>(path: string, body: unknown, signal?: AbortSignal): P
     signal,
   });
 }
+
+export function apiPatch<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  return send<T>(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  });
+}

@@ -4,6 +4,7 @@ import { AppShell } from '@/app/AppShell';
 import { FeedPage } from '@/pages/feed/FeedPage';
 import { CompetitorsPage } from '@/pages/competitors/CompetitorsPage';
 import { AnalyticsPage } from '@/pages/analytics/AnalyticsPage';
+import { KnowledgePage } from '@/pages/knowledge/KnowledgePage';
 import { HomePage } from '@/pages/home/HomePage';
 import { InsightPage } from '@/pages/insight/InsightPage';
 import { LoginPage } from '@/pages/login/LoginPage';
@@ -18,6 +19,7 @@ const router = createBrowserRouter([
       { path: 'feed', element: <FeedPage /> },
       { path: 'competitors', element: <CompetitorsPage /> },
       { path: 'analytics', element: <AnalyticsPage /> },
+      { path: 'knowledge', element: <KnowledgePage /> },
       { path: 'news/:newsId', element: <InsightPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
