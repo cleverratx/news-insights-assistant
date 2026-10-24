@@ -88,6 +88,9 @@ npm run build
 
 ## Дополнительные проверки
 
+Состояния ответа ИИ (A6-09): ожидание, отмена, пустой и частичный ответ описаны в
+[frontend/src/shared/ui/README.md](../frontend/src/shared/ui/README.md).
+
 Фильтры ленты (A6-07): поведение, параметры API и сценарии проверки описаны в
 [frontend/src/features/feed/README.md](../frontend/src/features/feed/README.md).
 

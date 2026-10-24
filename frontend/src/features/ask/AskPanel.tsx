@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { ButtonDesktop } from '@alfalab/core-components-button/desktop';
 
 import type { GeneratedInsight } from '@/shared/api/types';
+import { AnalysisProgress } from '@/shared/ui/AnalysisProgress';
 
 import { AnswerContent } from './AnswerContent';
 import { MAX_QUESTION_LENGTH } from './conversation';
@@ -96,12 +97,7 @@ export function AskPanel({ result }: { result: GeneratedInsight }) {
                 </div>
                 <div className={styles.reply}>
                   <span className={styles.speaker}>Агент</span>
-                  {turn.status === 'pending' && (
-                    <p className={styles.waiting} role="status">
-                      <span className={styles.pulse} aria-hidden="true" />
-                      Готовим ответ. Проверка источников может занять несколько минут.
-                    </p>
-                  )}
+                  {turn.status === 'pending' && <AnalysisProgress compact />}
                   {turn.status === 'answered' && <AnswerContent result={turn.answer} />}
                   {(turn.status === 'error' || turn.status === 'cancelled') && (
                     <div className={styles.failure}>

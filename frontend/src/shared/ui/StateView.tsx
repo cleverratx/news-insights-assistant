@@ -14,6 +14,26 @@ export function Skeleton({ lines = 3 }: { lines?: number }) {
 
 type ErrorProps = { title: string; message: string; onRetry?: () => void };
 
+type EmptyProps = {
+  title: string;
+  message?: string;
+  action?: { title: string; onClick: () => void };
+};
+
+export function EmptyState({ title, message, action }: EmptyProps) {
+  return (
+    <div className={styles.empty} role="status">
+      <p className={styles.title}>{title}</p>
+      {message && <p className={styles.message}>{message}</p>}
+      {action && (
+        <ButtonDesktop view="secondary" size={40} onClick={action.onClick}>
+          {action.title}
+        </ButtonDesktop>
+      )}
+    </div>
+  );
+}
+
 export function ErrorState({ title, message, onRetry }: ErrorProps) {
   return (
     <div className={styles.error} role="alert">

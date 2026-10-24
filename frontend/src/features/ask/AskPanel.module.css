@@ -109,8 +109,7 @@
 }
 .question p,
 .answer p,
-.failure p,
-.waiting {
+.failure p {
   font-size: 16px;
   line-height: 24px;
   overflow-wrap: anywhere;
@@ -196,27 +195,6 @@
   padding: var(--gap-16);
   border-radius: var(--radius-12);
   background: var(--c-bg-page);
-}
-.waiting {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--gap-12);
-  color: #52525e;
-}
-.pulse {
-  width: 12px;
-  height: 12px;
-  margin-top: 6px;
-  border: 2px solid var(--c-border-primary);
-  border-top-color: var(--c-ai-text);
-  border-radius: 50%;
-  flex: none;
-  animation: pending 0.8s linear infinite;
-}
-@keyframes pending {
-  to {
-    transform: rotate(360deg);
-  }
 }
 .form {
   display: grid;

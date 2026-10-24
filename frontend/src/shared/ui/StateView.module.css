@@ -19,10 +19,13 @@
   width: 40%;
 }
 
-.error {
+.error,
+.empty {
   display: grid;
   justify-items: start;
   gap: var(--gap-8);
+  font-size: 16px;
+  line-height: 24px;
 }
 
 .title {
