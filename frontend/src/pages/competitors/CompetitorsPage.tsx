@@ -12,6 +12,7 @@ import { fullAnalysisLink } from '@/features/feed/navigation';
 import { useApi } from '@/shared/api/useApi';
 import type { RelatedFeed } from '@/shared/api/types';
 import { RoleSelect } from '@/features/positions/RoleSelect';
+import { CompanyManagement } from '@/features/company-management/CompanyManagement';
 import { formatAgo, plural } from '@/shared/lib/format';
 import { EmptyState, ErrorState, Skeleton } from '@/shared/ui/StateView';
 
@@ -26,7 +27,7 @@ import {
 import styles from './CompetitorsPage.module.css';
 
 export function CompetitorsPage() {
-  const { company, role, search } = useShell();
+  const { company, role, search, profiles } = useShell();
   const [params, setParams] = useSearchParams();
   const { scope, days } = readRelatedFilters(params);
   const related = useApi<RelatedFeed>(relatedFeedPath(company, scope, days));
@@ -54,6 +55,13 @@ export function CompetitorsPage() {
         <RoleSelect />
       </header>
       <NewsNavigation search={`?${context}`} />
+      <CompanyManagement
+        company={company}
+        onChanged={() => {
+          related.retry();
+          profiles.retry();
+        }}
+      />
       <div className={styles.controls}>
         <div className={styles.scopes} role="group" aria-label="Компании в подборке">
           {Object.entries(SCOPES).map(([value, title]) => (

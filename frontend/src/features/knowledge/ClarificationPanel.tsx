@@ -30,13 +30,21 @@ type Props = {
   facts?: KnowledgeFact[];
   onAnswered: (fact: KnowledgeFact) => void;
   compact?: boolean;
+  refreshToken?: number;
 };
 
 export function ClarificationPanel(props: Props) {
   return <CompanyQuestions key={props.company} {...props} />;
 }
 
-function CompanyQuestions({ company, search, facts = [], onAnswered, compact = false }: Props) {
+function CompanyQuestions({
+  company,
+  search,
+  facts = [],
+  onAnswered,
+  compact = false,
+  refreshToken = 0,
+}: Props) {
   const gaps = useApi<KnowledgeGaps>(questionPath(company));
   const [completed, setCompleted] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -45,6 +53,16 @@ function CompanyQuestions({ company, search, facts = [], onAnswered, compact = f
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string>();
   const [lastAnswer, setLastAnswer] = useState<KnowledgeFact>();
+  const lastRefresh = useRef(refreshToken);
+  const retryQuestions = gaps.retry;
+  useEffect(() => {
+    if (lastRefresh.current !== refreshToken) {
+      lastRefresh.current = refreshToken;
+      setCompleted([]);
+      setLastAnswer(undefined);
+      retryQuestions();
+    }
+  }, [refreshToken, retryQuestions]);
   const request = useRef<AbortController | null>(null);
   const lastAttempt = useRef<{ body: Answer; action: string } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);

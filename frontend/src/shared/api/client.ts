@@ -28,7 +28,7 @@ async function send<T>(path: string, init: RequestInit): Promise<T> {
         : `Ошибка запроса (${response.status})`;
     throw new ApiError(detail, response.status);
   }
-  return response.json() as Promise<T>;
+  return response.status === 204 ? (undefined as T) : (response.json() as Promise<T>);
 }
 
 export function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -55,4 +55,8 @@ export function apiPatch<T>(path: string, body: unknown, signal?: AbortSignal): 
     body: JSON.stringify(body),
     signal,
   });
+}
+
+export function apiDelete(path: string, signal?: AbortSignal): Promise<void> {
+  return send<void>(path, { method: 'DELETE', signal });
 }

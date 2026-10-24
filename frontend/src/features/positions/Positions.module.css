@@ -191,7 +191,8 @@
   line-height: 22px;
 }
 .roleSelect {
-  min-width: 220px;
+  min-width: min(100%, 320px);
+  width: 320px;
   max-width: 100%;
 }
 .roleChoices {

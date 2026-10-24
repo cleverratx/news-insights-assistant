@@ -32,17 +32,19 @@ export function PeriodDigest({ company, role, days, feed, search }: Props) {
   const [cancelled, setCancelled] = useState(false);
   const [result, setResult] = useState<Digest>();
   const pending = useRef<AbortController | null>(null);
+  const lastAttempt = useRef({ refresh: false, focus: '' });
   useEffect(() => () => pending.current?.abort(), []);
 
-  async function submit(event?: FormEvent) {
+  async function submit(event?: FormEvent, retry = false) {
     event?.preventDefault();
     if (pending.current) return;
+    const attempt = retry ? lastAttempt.current : { refresh: Boolean(result), focus: focus.trim() };
+    lastAttempt.current = attempt;
     const controller = new AbortController();
     pending.current = controller;
     setBusy(true);
     setError('');
     setCancelled(false);
-    setResult(undefined);
     const requestedRole = isRole(role) ? role : null;
     try {
       const response = await apiPost<Digest>(
@@ -50,8 +52,8 @@ export function PeriodDigest({ company, role, days, feed, search }: Props) {
         {
           days,
           role: requestedRole,
-          ...(focus.trim() ? { focus: focus.trim() } : {}),
-          refresh: false,
+          ...(attempt.focus ? { focus: attempt.focus } : {}),
+          refresh: attempt.refresh,
         },
         controller.signal,
       );
@@ -121,9 +123,16 @@ export function PeriodDigest({ company, role, days, feed, search }: Props) {
           disabled={busy}
           className={styles.digestSubmit}
         >
-          {result ? 'Обновить сводку' : 'Собрать сводку'}
+          {result ? 'Пересоздать сводку' : 'Собрать сводку'}
         </ButtonDesktop>
       </form>
+      {result && (
+        <p className={styles.caption}>
+          {busy
+            ? 'Показана предыдущая сводка. Собираем новую по текущим данным.'
+            : '«Пересоздать сводку» — собрать заново по текущим данным.'}
+        </p>
+      )}
       {busy && <AnalysisProgress compact title="Собираем сводку за период" onCancel={cancel} />}
       {cancelled && (
         <p className={styles.caption} role="status">
@@ -134,7 +143,7 @@ export function PeriodDigest({ company, role, days, feed, search }: Props) {
         <ErrorState
           title="Не удалось собрать сводку"
           message={error}
-          onRetry={() => void submit()}
+          onRetry={() => void submit(undefined, true)}
         />
       )}
       {result && (

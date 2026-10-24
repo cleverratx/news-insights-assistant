@@ -25,7 +25,7 @@ export const CATEGORIES: Record<FactCategory, string> = {
 };
 export const SOURCES: Record<FactSource, string> = {
   bank_data: 'Данные банка',
-  system: 'Вывод системы',
+  system: 'Вывод ИИ',
   client: 'Данные клиента',
   legend: 'Демо-данные',
 };
