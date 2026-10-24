@@ -8,7 +8,7 @@ import { ChevronRightMIcon } from '@alfalab/icons-glyph/ChevronRightMIcon';
 import { useShell } from '@/app/shell-context';
 import { PERIODS } from '@/features/feed/filters';
 import { NewsNavigation } from '@/features/feed/NewsNavigation';
-import { newsLink } from '@/features/insight/link';
+import { fullAnalysisLink } from '@/features/feed/navigation';
 import { useApi } from '@/shared/api/useApi';
 import type { RelatedFeed } from '@/shared/api/types';
 import { isRole, ROLE_TITLES } from '@/shared/lib/demo';
@@ -177,11 +177,11 @@ export function CompetitorsPage() {
 }
 
 function EventCard({ event }: { event: RelatedEvent }) {
-  const { company, role, search } = useShell();
+  const { company, role, search, feed } = useShell();
   const [selected, setSelected] = useState(event.companies[0].id);
   const [open, setOpen] = useState(false);
   const mention = event.companies.find((item) => item.id === selected) ?? event.companies[0];
-  const fullAnalysis = newsLink(search, event.news_id);
+  const fullAnalysis = fullAnalysisLink(search, event, feed.data);
 
   return (
     <article className={styles.card}>

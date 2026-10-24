@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ApiError, apiPost, errorMessage, isAbort } from '@/shared/api/client';
+import { apiPost, errorMessage, isAbort } from '@/shared/api/client';
 import type { GeneratedInsight, InsightRequest } from '@/shared/api/types';
 import type { Role } from '@/shared/lib/demo';
 
@@ -25,14 +25,7 @@ async function request(params: Params, refresh: boolean, signal: AbortSignal) {
     ...(params.relatedCompanyId ? { related_company_id: params.relatedCompanyId } : {}),
   };
   const path = `/companies/${encodeURIComponent(params.company)}/insights`;
-  try {
-    return await apiPost<GeneratedInsight>(path, body, signal);
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 409 && params.snapshot) {
-      return apiPost<GeneratedInsight>(path, { ...body, feed_snapshot_id: null }, signal);
-    }
-    throw error;
-  }
+  return apiPost<GeneratedInsight>(path, body, signal);
 }
 
 export function useInsight(params: Params) {

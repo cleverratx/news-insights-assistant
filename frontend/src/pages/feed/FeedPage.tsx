@@ -13,6 +13,7 @@ import {
   type FeedFilters,
 } from '@/features/feed/filters';
 import { NewsNavigation } from '@/features/feed/NewsNavigation';
+import { rememberMainFeed } from '@/features/feed/navigation';
 import { newsLink } from '@/features/insight/link';
 import { useCachedApi } from '@/shared/api/cache';
 import { FEED_LIMIT, feedPath } from '@/shared/api/feed';
@@ -107,6 +108,10 @@ function FeedView({ company, role, login, search, feedFilters }: FeedViewProps) 
     [feed.data, filters.polarity, filters.marker, filters.significance],
   );
   const linkFor = (item: FeedItem) => newsLink(search, item.news_id, feedData?.snapshot_id);
+
+  useEffect(() => {
+    if (feedData) rememberMainFeed(feedData, search);
+  }, [feedData, search]);
 
   useEffect(() => {
     if (feedData)

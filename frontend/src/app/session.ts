@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 import { DEMO_USERS, type DemoUser } from '@/shared/lib/demo';
+import { clearFeedNavigation } from '@/features/feed/navigation';
 
 const KEY = 'alfa-demo-login';
 const listeners = new Set<() => void>();
@@ -50,5 +51,6 @@ export function signIn(value: string) {
 }
 
 export function signOut() {
+  clearFeedNavigation();
   change(null);
 }
